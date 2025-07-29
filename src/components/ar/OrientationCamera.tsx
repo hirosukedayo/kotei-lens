@@ -33,18 +33,22 @@ export default function OrientationCamera({
       const gammaRad = (gamma * Math.PI) / 180;
       
       if (arMode) {
-        // ARモード: iPhone背面カメラの向きに合わせた座標系
-        // iPhoneが水平のときアプリ内カメラも水平に、下向きのとき下向きに
+        // ARモード: iOS DeviceOrientationとThree.jsの座標軸マッピング
+        // iOS: alpha=コンパス, beta=前後傾斜(-180~180), gamma=左右傾斜(-90~90)
+        // Three.js: x=pitch(上下), y=yaw(左右), z=roll(傾き)
+        
+        // iPhoneを縦持ちで背面カメラの向きに合わせる座標変換
         targetRotation.current = {
-          // X軸回転: 上下の傾き（betaを反転して正しい方向に）
-          x: -betaRad, // 符号を反転してiPhone背面カメラの向きと一致
+          // X軸(pitch): iOSのbeta → Three.jsのX軸 (前後傾斜)
+          // iPhoneが下向き(beta=90°)のときカメラも下向き(x=π/2)
+          x: (betaRad - Math.PI / 2), // beta=0°(水平)のとき x=-π/2、beta=90°(下向き)のとき x=0°
           
-          // Y軸回転: 左右の回転（alpha: コンパス方向）
-          // iPhone背面カメラは画面と逆方向を向いているので180度回転
-          y: alphaRad + Math.PI, 
+          // Y軸(yaw): iOSのalpha → Three.jsのY軸 (左右回転)
+          // 背面カメラは画面と逆向きなので180度回転
+          y: -alphaRad + Math.PI,
           
-          // Z軸回転: 端末の傾き（gamma: 左右傾斜を軽く反映）
-          z: -gammaRad * 0.5 // 符号を反転して自然な傾きに
+          // Z軸(roll): iOSのgamma → Three.jsのZ軸 (傾き)
+          z: gammaRad
         };
       } else {
         // 通常モード: 安全な制御（従来の方式）
