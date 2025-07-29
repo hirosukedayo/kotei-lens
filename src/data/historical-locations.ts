@@ -7,7 +7,7 @@ export interface HistoricalLocation {
   name: string;
   description: string;
   gpsCoordinate: GPSCoordinate;
-  type: 'village' | 'temple' | 'school' | 'bridge' | 'house' | 'field' | 'road';
+  type: 'village' | 'temple' | 'school' | 'bridge' | 'house' | 'field' | 'road' | 'restaurant' | 'station';
   importance: 'high' | 'medium' | 'low';
   constructedYear?: number;
   demolishedYear?: number;
@@ -15,7 +15,7 @@ export interface HistoricalLocation {
   images?: string[];
 }
 
-// 小河内ダム建設前の主要地点（推定座標）
+// 小河内ダム建設前の主要地点（推定座標）と現代の実在地点
 export const HISTORICAL_LOCATIONS: HistoricalLocation[] = [
   {
     id: 'ogochi-village-center',
@@ -167,6 +167,44 @@ export const HISTORICAL_LOCATIONS: HistoricalLocation[] = [
       '商人や旅人が通った古い道',
       '今も山の中に痕跡が残っている'
     ]
+  },
+  
+  // === 現代の実在地点 ===
+  {
+    id: 'shunsuiteien-restaurant',
+    name: '春水亭',
+    description: '奥多摩の渓流沿いにある老舗料理旅館。美しい自然景観と共に楽しめる。',
+    gpsCoordinate: {
+      latitude: 35.820833, // 35°49'15.0"N
+      longitude: 139.092722, // 139°05'33.8"E
+      altitude: 350
+    },
+    type: 'restaurant',
+    importance: 'medium',
+    constructedYear: 1950, // 推定
+    stories: [
+      '奥多摩の自然に囲まれた料理旅館',
+      '渓流の音を聞きながら食事を楽しめる',
+      '四季折々の山の幸を味わうことができる'
+    ]
+  },
+  {
+    id: 'okutama-station',
+    name: '奥多摩駅',
+    description: 'JR青梅線の終着駅。奥多摩観光の玄関口として多くの登山客や観光客が利用する。',
+    gpsCoordinate: {
+      latitude: 35.8093061,
+      longitude: 139.0964224,
+      altitude: 343
+    },
+    type: 'station',
+    importance: 'high',
+    constructedYear: 1944,
+    stories: [
+      'JR青梅線の終着駅として開業',
+      '奥多摩の自然への玄関口',
+      '多くの登山客や観光客が利用する交通の要所'
+    ]
   }
 ];
 
@@ -190,6 +228,8 @@ export function getLocationColor(type: HistoricalLocation['type']): string {
     case 'house': return '#F39C12'; // 黄色
     case 'field': return '#27AE60'; // 深緑
     case 'road': return '#95A5A6'; // グレー
+    case 'restaurant': return '#E74C3C'; // 赤
+    case 'station': return '#9B59B6'; // 紫
     default: return '#BDC3C7';
   }
 }
@@ -204,6 +244,8 @@ export function getLocationIcon(type: HistoricalLocation['type']): string {
     case 'house': return '🏠';
     case 'field': return '🌾';
     case 'road': return '🛤️';
+    case 'restaurant': return '🍽️';
+    case 'station': return '🚉';
     default: return '📍';
   }
 }

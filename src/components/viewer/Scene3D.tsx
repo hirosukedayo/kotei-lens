@@ -169,8 +169,8 @@ export default function Scene3D() {
               accuracy: 10,
               timestamp: Date.now()
             }}
-            maxDistance={5000}
-            maxObjects={15}
+            maxDistance={10000} // 10kmに拡大して春水亭・奥多摩駅も表示
+            maxObjects={20} // オブジェクト数も増加
           />
 
           {/* 小河内村の建物群（湖底に配置） */}
