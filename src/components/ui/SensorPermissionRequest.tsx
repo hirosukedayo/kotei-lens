@@ -91,7 +91,7 @@ export default function SensorPermissionRequest({
             orientation: { ...prev.orientation, permission }
           }));
           if (permission === 'denied') {
-            errors.push('デバイス方位センサーの許可が拒否されました。Safari設定 → プライバシーとセキュリティ → モーションと画面の向き から許可してください。');
+            errors.push('デバイス方位センサーの許可が拒否されました。アドレスバー横の🔒をタップ → Webサイトの設定 → モーションと画面の向きへのアクセス を許可に変更してください。');
           }
         } catch (error) {
           console.warn('Orientation permission failed:', error);
@@ -114,7 +114,7 @@ export default function SensorPermissionRequest({
             motion: { ...prev.motion, permission }
           }));
           if (permission === 'denied') {
-            errors.push('デバイスモーションセンサーの許可が拒否されました。Safari設定 → プライバシーとセキュリティ → モーションと画面の向き から許可してください。');
+            errors.push('デバイスモーションセンサーの許可が拒否されました。アドレスバー横の🔒をタップ → Webサイトの設定 → モーションと画面の向きへのアクセス を許可に変更してください。');
           }
         } catch (error) {
           console.warn('Motion permission failed:', error);
@@ -217,9 +217,11 @@ export default function SensorPermissionRequest({
               <strong>⚠️ 重要:</strong> センサー許可はユーザーの操作（タップ）が必要です。<br />
               <strong>1.</strong> 下の「センサーを許可する」ボタンを必ずタップしてください<br />
               <strong>2.</strong> 許可ダイアログが表示されない場合：<br />
-              　　Safari設定 → プライバシーとセキュリティ → モーションと画面の向き<br />
-              　　から手動で許可してください<br />
-              <strong>3.</strong> プライベートブラウズモードでは動作しません
+              　　• アドレスバー横の「🔒」または「ⓐA」をタップ<br />
+              　　• 「Webサイトの設定」を開く<br />
+              　　• 「モーションと画面の向きへのアクセス」を許可に変更<br />
+              <strong>3.</strong> プライベートブラウズモードでは動作しません<br />
+              <strong>4.</strong> iOS 14.5+ では個別のWebサイト許可が必要です
             </div>
           </div>
         )}
