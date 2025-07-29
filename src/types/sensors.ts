@@ -1,3 +1,10 @@
+// グローバル型定義の拡張
+declare global {
+  interface DeviceOrientationEvent {
+    webkitCompassHeading?: number;
+  }
+}
+
 // GPS関連の型定義
 export interface GPSOptions {
   enableHighAccuracy: boolean;
