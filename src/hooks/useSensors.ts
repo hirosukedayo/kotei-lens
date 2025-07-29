@@ -75,16 +75,30 @@ export function useSensors() {
 
   // センサー開始
   const startSensors = useCallback(async () => {
-    if (isActive) return;
+    if (isActive) {
+      console.log('センサーは既にアクティブです');
+      return;
+    }
 
-    console.log('センサー開始を試行中...');
+    console.log('センサー開始を試行中...', {
+      gpsAvailable: services.location.isAvailable(),
+      orientationAvailable: services.orientation.isAvailable(),  
+      motionAvailable: services.motion.isAvailable(),
+    });
 
     try {
+      let startedCount = 0;
+      
       // GPS開始
       if (services.location.isAvailable()) {
         console.log('GPS開始を試行中...');
-        services.location.startWatching(handleGPSUpdate, handleGPSError);
-        console.log('GPS開始完了');
+        try {
+          services.location.startWatching(handleGPSUpdate, handleGPSError);
+          console.log('GPS監視開始完了');
+          startedCount++;
+        } catch (gpsError) {
+          console.error('GPS開始エラー:', gpsError);
+        }
       } else {
         console.warn('GPS未対応');
       }
@@ -92,8 +106,13 @@ export function useSensors() {
       // 方位センサー開始
       if (services.orientation.isAvailable()) {
         console.log('方位センサー開始を試行中...');
-        await services.orientation.startTracking(handleOrientationUpdate);
-        console.log('方位センサー開始完了');
+        try {
+          await services.orientation.startTracking(handleOrientationUpdate);
+          console.log('方位センサー開始完了');
+          startedCount++;
+        } catch (orientationError) {
+          console.error('方位センサー開始エラー:', orientationError);
+        }
       } else {
         console.warn('方位センサー未対応');
       }
@@ -101,18 +120,33 @@ export function useSensors() {
       // モーションセンサー開始
       if (services.motion.isAvailable()) {
         console.log('モーションセンサー開始を試行中...');
-        await services.motion.startTracking(handleMotionUpdate);
-        console.log('モーションセンサー開始完了');
+        try {
+          await services.motion.startTracking(handleMotionUpdate);
+          console.log('モーションセンサー開始完了');
+          startedCount++;
+        } catch (motionError) {
+          console.error('モーションセンサー開始エラー:', motionError);
+        }
       } else {
         console.warn('モーションセンサー未対応');
       }
 
       setIsActive(true);
-      console.log('全センサー開始完了');
+      console.log(`センサー開始完了: ${startedCount}個のセンサーが開始されました`);
+      
+      // 5秒後にデータ受信状況をチェック
+      setTimeout(() => {
+        console.log('5秒後のセンサーデータ状況:', {
+          gps: sensorData.gps ? '取得済み' : '未取得',
+          orientation: sensorData.orientation ? '取得済み' : '未取得',
+          motion: sensorData.motion ? '取得済み' : '未取得',
+        });
+      }, 5000);
+      
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }
-  }, [isActive, services, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate]);
+  }, [isActive, services, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate, sensorData]);
 
   // センサー停止
   const stopSensors = useCallback(() => {

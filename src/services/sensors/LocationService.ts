@@ -9,8 +9,8 @@ import type {
 export class LocationService {
   private options: GPSOptions = {
     enableHighAccuracy: true, // 高精度モード
-    timeout: 10000, // タイムアウト: 10秒
-    maximumAge: 5000, // キャッシュ有効期限: 5秒
+    timeout: 30000, // タイムアウト: 30秒（iPhoneでは時間がかかることがある）
+    maximumAge: 60000, // キャッシュ有効期限: 60秒
   };
 
   private watchId: number | null = null;
@@ -75,6 +75,12 @@ export class LocationService {
 
   // 継続的位置監視開始
   public startWatching(callback: GPSCallback, errorCallback?: GPSErrorCallback): void {
+    console.log('LocationService.startWatching called, current state:', {
+      isAvailable: this.isAvailable(),
+      watchId: this.watchId,
+      callbackCount: this.callbacks.length
+    });
+
     if (!this.isAvailable()) {
       throw new Error('Geolocation is not supported');
     }
@@ -84,17 +90,23 @@ export class LocationService {
       this.errorCallbacks.push(errorCallback);
     }
 
+    console.log('GPS callbacks added, total:', this.callbacks.length);
+
     // 既に監視中でない場合のみ開始
     if (this.watchId === null) {
+      console.log('Starting GPS watchPosition with options:', this.options);
       this.watchId = navigator.geolocation.watchPosition(
         (position) => {
+          console.log('GPS position received:', position);
           const gpsPosition = this.convertPosition(position);
           this.lastPosition = gpsPosition;
+          console.log('GPS callbacks to execute:', this.callbacks.length);
           for (const cb of this.callbacks) {
             cb(gpsPosition);
           }
         },
         (error) => {
+          console.error('GPS error received:', error);
           const gpsError = this.convertError(error);
           for (const cb of this.errorCallbacks) {
             cb(gpsError);
@@ -102,6 +114,9 @@ export class LocationService {
         },
         this.options
       );
+      console.log('GPS watchPosition started with ID:', this.watchId);
+    } else {
+      console.log('GPS watching already active with ID:', this.watchId);
     }
   }
 

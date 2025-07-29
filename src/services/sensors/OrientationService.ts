@@ -44,6 +44,12 @@ export class OrientationService {
 
   // 方位追跡開始
   public async startTracking(callback: OrientationCallback): Promise<void> {
+    console.log('OrientationService.startTracking called, current state:', {
+      isAvailable: this.isAvailable(),
+      isTracking: this.isTracking,
+      callbackCount: this.callbacks.length
+    });
+
     if (!this.isAvailable()) {
       throw new Error('Device orientation is not supported');
     }
@@ -55,6 +61,7 @@ export class OrientationService {
     }
 
     this.callbacks.push(callback);
+    console.log('Orientation callback added, total callbacks:', this.callbacks.length);
 
     if (!this.isTracking) {
       this.isTracking = true;
@@ -67,6 +74,10 @@ export class OrientationService {
         console.log('Using deviceorientation event');
         window.addEventListener('deviceorientation', this.handleOrientationEvent);
       }
+      
+      console.log('Orientation event listener added');
+    } else {
+      console.log('Orientation tracking already active');
     }
   }
 
@@ -162,6 +173,14 @@ export class OrientationService {
 
   // プライベートメソッド
   private handleOrientationEvent = (event: DeviceOrientationEvent): void => {
+    console.log('Orientation event received:', {
+      alpha: event.alpha,
+      beta: event.beta, 
+      gamma: event.gamma,
+      absolute: event.absolute,
+      callbackCount: this.callbacks.length
+    });
+
     const orientation: DeviceOrientation = {
       alpha: event.alpha,
       beta: event.beta,
@@ -174,6 +193,7 @@ export class OrientationService {
     const smoothedOrientation = this.smoothOrientation(orientation);
     this.lastOrientation = smoothedOrientation;
 
+    console.log('Executing orientation callbacks:', this.callbacks.length);
     // コールバック実行
     for (const callback of this.callbacks) {
       callback(smoothedOrientation);
