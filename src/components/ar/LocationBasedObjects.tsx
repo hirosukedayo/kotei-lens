@@ -109,20 +109,20 @@ interface LocationMarkerProps {
 function LocationMarker({ object }: LocationMarkerProps) {
   const { worldPosition, name, color, distance } = object;
   
-  // 距離に応じてサイズを調整（近いものほど大きく）
-  const scale = Math.max(0.3, Math.min(1.0, 500 / distance));
+  // 距離に応じてサイズを調整（近いものほど大きく、全体的に大型化）
+  const scale = Math.max(1.0, Math.min(3.0, 1000 / distance));
   
   return (
     <group position={[worldPosition.x, worldPosition.y, worldPosition.z]}>
-      {/* 3Dマーカー（球体） */}
-      <Sphere args={[2 * scale]} position={[0, 5, 0]}>
-        <meshBasicMaterial color={color} transparent opacity={0.8} />
+      {/* 3Dマーカー（球体） - より大きく */}
+      <Sphere args={[5 * scale]} position={[0, 8 * scale, 0]}>
+        <meshBasicMaterial color={color} transparent opacity={0.9} />
       </Sphere>
       
-      {/* 位置を示す柱 */}
-      <mesh position={[0, 2.5, 0]}>
-        <cylinderGeometry args={[0.2 * scale, 0.2 * scale, 5]} />
-        <meshBasicMaterial color={color} transparent opacity={0.6} />
+      {/* 位置を示す柱 - より太く高く */}
+      <mesh position={[0, 4 * scale, 0]}>
+        <cylinderGeometry args={[0.5 * scale, 0.5 * scale, 8 * scale]} />
+        <meshBasicMaterial color={color} transparent opacity={0.8} />
       </mesh>
       
       {/* 常にカメラを向くテキストラベル */}
@@ -133,12 +133,12 @@ function LocationMarker({ object }: LocationMarkerProps) {
         lockZ={false}
       >
         <Text
-          position={[0, 8, 0]}
-          fontSize={1.5 * scale}
+          position={[0, 12 * scale, 0]}
+          fontSize={3 * scale}
           color="white"
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.1}
+          outlineWidth={0.2}
           outlineColor="black"
         >
           {name}
@@ -146,12 +146,12 @@ function LocationMarker({ object }: LocationMarkerProps) {
         
         {/* 距離表示 */}
         <Text
-          position={[0, 6, 0]}
-          fontSize={1 * scale}
+          position={[0, 9 * scale, 0]}
+          fontSize={2 * scale}
           color="#cccccc"
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.05}
+          outlineWidth={0.1}
           outlineColor="black"
         >
           {distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`}
