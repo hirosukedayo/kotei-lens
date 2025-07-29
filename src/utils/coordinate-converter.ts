@@ -44,6 +44,7 @@ export function calculateDistance(point1: GPSCoordinate, point2: GPSCoordinate):
 /**
  * GPS座標を3D空間座標に変換
  * 基準点（小河内ダム）を原点(0,0,0)とした相対座標系
+ * Three.jsの座標系: +X=右（東）、+Y=上、+Z=前（南）
  */
 export function gpsToWorldCoordinate(gpsPoint: GPSCoordinate, referencePoint: GPSCoordinate = OKUTAMA_DAM_CENTER): Vector3D {
   // 緯度・経度差を計算
@@ -58,10 +59,12 @@ export function gpsToWorldCoordinate(gpsPoint: GPSCoordinate, referencePoint: GP
   // 標高差
   const deltaAlt = (gpsPoint.altitude || 0) - (referencePoint.altitude || 0);
   
+  // Three.jsの座標系に変換
+  // カメラが北を向いている時、東が右（+X）、南が前（+Z）になるように
   return {
-    x: lngDistance, // 東西方向（東が正）
-    y: deltaAlt,    // 高さ方向（上が正）  
-    z: -latDistance // 南北方向（南が正、Three.jsのz軸に合わせて反転）
+    x: lngDistance,  // 東西方向（東が正 = 右）
+    y: deltaAlt,     // 高さ方向（上が正）  
+    z: latDistance   // 南北方向（北が負、南が正 = 前）
   };
 }
 
@@ -75,7 +78,7 @@ export function worldToGpsCoordinate(worldPoint: Vector3D, referencePoint: GPSCo
   const lngPerMeter = 180 / (EARTH_RADIUS * Math.PI * Math.cos(avgLat * Math.PI / 180));
   
   return {
-    latitude: referencePoint.latitude + (-worldPoint.z * latPerMeter),
+    latitude: referencePoint.latitude + (worldPoint.z * latPerMeter),
     longitude: referencePoint.longitude + (worldPoint.x * lngPerMeter),
     altitude: (referencePoint.altitude || 0) + worldPoint.y
   };

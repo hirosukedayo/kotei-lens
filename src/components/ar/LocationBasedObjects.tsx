@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Text, Billboard, Sphere } from '@react-three/drei';
 import { HISTORICAL_LOCATIONS, getLocationColor, getLocationPriority } from '../../data/historical-locations';
-import { gpsToWorldCoordinate, shouldShowObject, calculateDistance } from '../../utils/coordinate-converter';
+import { gpsToWorldCoordinate, shouldShowObject, calculateDistance, calculateBearing } from '../../utils/coordinate-converter';
 import type { GPSPosition } from '../../types/sensors';
 
 interface LocationBasedObjectsProps {
@@ -44,8 +44,12 @@ export default function LocationBasedObjects({
         const withinDistance = distance <= maxDistance;
         const withinAccuracy = shouldShowObject(userGPS, location.gpsCoordinate, userPosition.accuracy);
         
+        // 方位角も計算してデバッグ
+        const bearing = calculateBearing(userGPS, location.gpsCoordinate);
+        
         console.log(`Location: ${location.name}`, {
           distance: Math.round(distance),
+          bearing: Math.round(bearing),
           maxDistance,
           withinDistance,
           withinAccuracy,
