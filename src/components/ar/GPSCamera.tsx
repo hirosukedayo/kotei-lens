@@ -36,12 +36,13 @@ export default function GPSCamera({
       z: worldPosition.z
     };
 
-    console.log('GPS Camera position updated:', {
-      gps: { lat: gpsPosition.latitude, lng: gpsPosition.longitude, alt: gpsPosition.altitude },
-      world: worldPosition,
-      camera: targetPosition.current,
-      accuracy: gpsPosition.accuracy
-    });
+    // GPS位置更新ログ（必要時のみ有効化）
+    // console.log('GPS Camera position updated:', {
+    //   gps: { lat: gpsPosition.latitude, lng: gpsPosition.longitude, alt: gpsPosition.altitude },
+    //   world: worldPosition,
+    //   camera: targetPosition.current,
+    //   accuracy: gpsPosition.accuracy
+    // });
   }, [gpsPosition, enablePositioning]);
 
   // フレームごとにカメラの位置を滑らかに更新

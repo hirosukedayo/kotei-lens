@@ -28,7 +28,6 @@ export function useSensors() {
 
   // GPS コールバック
   const handleGPSUpdate = useCallback((position: GPSPosition) => {
-    console.log('GPS更新:', position);
     setSensorData((prev) => ({ ...prev, gps: position }));
   }, []);
 
@@ -41,7 +40,6 @@ export function useSensors() {
   const handleOrientationUpdate = useCallback(
     (orientation: DeviceOrientation) => {
       const compassHeading = sensorManager.orientationService.getCompassHeading(orientation);
-      console.log('方位更新:', orientation, 'コンパス:', compassHeading);
       setSensorData((prev) => ({
         ...prev,
         orientation,
