@@ -31,7 +31,8 @@ export default function OrientationCamera({
                                 (window as any).orientation ?? 0;
       
       // Three.js DeviceOrientationControls準拠のオフセット設定
-      screenOrientationOffset.current = screenOrientation === 0 ? Math.PI / 2 : 0;
+      // 縦向き（portrait）では0、横向き（landscape）では90度オフセット
+      screenOrientationOffset.current = screenOrientation === 0 ? 0 : Math.PI / 2;
     }
   }, [arMode]);
 
