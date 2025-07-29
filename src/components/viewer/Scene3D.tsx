@@ -39,12 +39,16 @@ export default function Scene3D() {
     });
   }, []);
 
-  // センサーを自動開始
+  // センサーを開始（許可後に一度だけ実行）
   useEffect(() => {
+    console.log('Scene3D センサー状態:', { isActive, sensorData });
+    // Scene3Dが読み込まれた時点で許可画面は通過済みなので、
+    // センサーを開始する
     if (!isActive) {
+      console.log('Scene3D読み込み時にセンサー開始を実行');
       startSensors();
     }
-  }, [isActive, startSensors]);
+  }, []); // 空配列で一度だけ実行
 
   if (!webglSupport) {
     return (

@@ -37,6 +37,7 @@ export function useSensors() {
 
   // GPS コールバック
   const handleGPSUpdate = useCallback((position: GPSPosition) => {
+    console.log('GPS更新:', position);
     setSensorData((prev) => ({ ...prev, gps: position }));
   }, []);
 
@@ -49,6 +50,7 @@ export function useSensors() {
   const handleOrientationUpdate = useCallback(
     (orientation: DeviceOrientation) => {
       const compassHeading = services.orientation.getCompassHeading(orientation);
+      console.log('方位更新:', orientation, 'コンパス:', compassHeading);
       setSensorData((prev) => ({
         ...prev,
         orientation,
@@ -75,23 +77,38 @@ export function useSensors() {
   const startSensors = useCallback(async () => {
     if (isActive) return;
 
+    console.log('センサー開始を試行中...');
+
     try {
       // GPS開始
       if (services.location.isAvailable()) {
+        console.log('GPS開始を試行中...');
         services.location.startWatching(handleGPSUpdate, handleGPSError);
+        console.log('GPS開始完了');
+      } else {
+        console.warn('GPS未対応');
       }
 
       // 方位センサー開始
       if (services.orientation.isAvailable()) {
+        console.log('方位センサー開始を試行中...');
         await services.orientation.startTracking(handleOrientationUpdate);
+        console.log('方位センサー開始完了');
+      } else {
+        console.warn('方位センサー未対応');
       }
 
       // モーションセンサー開始
       if (services.motion.isAvailable()) {
+        console.log('モーションセンサー開始を試行中...');
         await services.motion.startTracking(handleMotionUpdate);
+        console.log('モーションセンサー開始完了');
+      } else {
+        console.warn('モーションセンサー未対応');
       }
 
       setIsActive(true);
+      console.log('全センサー開始完了');
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }

@@ -59,8 +59,14 @@ export class OrientationService {
     if (!this.isTracking) {
       this.isTracking = true;
 
-      // deviceorientationabsolute イベントを優先（コンパス基準）
-      window.addEventListener('deviceorientation', this.handleOrientationEvent);
+      // iOS Safari では deviceorientationabsolute イベントを優先（コンパス基準）
+      if ('ondeviceorientationabsolute' in window) {
+        console.log('Using deviceorientationabsolute event');
+        window.addEventListener('deviceorientationabsolute', this.handleOrientationEvent);
+      } else {
+        console.log('Using deviceorientation event');
+        window.addEventListener('deviceorientation', this.handleOrientationEvent);
+      }
     }
   }
 
@@ -77,7 +83,12 @@ export class OrientationService {
 
     if (this.callbacks.length === 0 && this.isTracking) {
       this.isTracking = false;
-      window.removeEventListener('deviceorientation', this.handleOrientationEvent);
+      // 使用していたイベントタイプに応じて削除
+      if ('ondeviceorientationabsolute' in window) {
+        window.removeEventListener('deviceorientationabsolute', this.handleOrientationEvent);
+      } else {
+        window.removeEventListener('deviceorientation', this.handleOrientationEvent);
+      }
       this.orientationBuffer.length = 0;
     }
   }

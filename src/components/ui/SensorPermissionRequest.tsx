@@ -61,7 +61,8 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const locationService = new LocationService();
-      await locationService.getCurrentPosition();
+      const position = await locationService.getCurrentPosition();
+      console.log('GPS position obtained:', position);
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
@@ -85,6 +86,29 @@ export default function SensorPermissionRequest({
       const orientationService = new OrientationService();
       const permission = await orientationService.requestPermission();
       console.log('Orientation permission result:', permission);
+      
+      if (permission === 'granted') {
+        // 許可が得られた場合、実際にセンサーをテスト
+        let testSuccessful = false;
+        try {
+          await orientationService.startTracking((orientation) => {
+            console.log('Orientation test callback:', orientation);
+            testSuccessful = true;
+            orientationService.stopTracking();
+          });
+          
+          // 短時間待ってテスト結果を確認
+          setTimeout(() => {
+            if (!testSuccessful) {
+              console.warn('Orientation sensor test failed - no callback received');
+            }
+          }, 1000);
+          
+        } catch (startError) {
+          console.error('Orientation sensor start failed:', startError);
+        }
+      }
+      
       setSensorStatus((prev) => ({
         ...prev,
         orientation: { ...prev.orientation, permission },
@@ -108,6 +132,29 @@ export default function SensorPermissionRequest({
       const motionService = new MotionService();
       const permission = await motionService.requestPermission();
       console.log('Motion permission result:', permission);
+      
+      if (permission === 'granted') {
+        // 許可が得られた場合、実際にセンサーをテスト
+        let testSuccessful = false;
+        try {
+          await motionService.startTracking((motion) => {
+            console.log('Motion test callback:', motion);
+            testSuccessful = true;
+            motionService.stopTracking();
+          });
+          
+          // 短時間待ってテスト結果を確認
+          setTimeout(() => {
+            if (!testSuccessful) {
+              console.warn('Motion sensor test failed - no callback received');
+            }
+          }, 1000);
+          
+        } catch (startError) {
+          console.error('Motion sensor start failed:', startError);
+        }
+      }
+      
       setSensorStatus((prev) => ({
         ...prev,
         motion: { ...prev.motion, permission },
