@@ -34,10 +34,10 @@ export default function OrientationCamera({
       
       if (arMode) {
         // ARモード: iPhone背面カメラの向きに合わせた座標系
-        // iPhoneが下を向いているときにアプリ内カメラも下を向くように調整
+        // iPhoneが水平のときアプリ内カメラも水平に、下向きのとき下向きに
         targetRotation.current = {
-          // X軸回転: 上下の傾き（beta値をそのまま使用してカメラの向きと一致）
-          x: betaRad, // iPhone背面カメラの上下方向と一致
+          // X軸回転: 上下の傾き（betaを反転して正しい方向に）
+          x: -betaRad, // 符号を反転してiPhone背面カメラの向きと一致
           
           // Y軸回転: 左右の回転（alpha: コンパス方向）
           // iPhone背面カメラは画面と逆方向を向いているので180度回転
