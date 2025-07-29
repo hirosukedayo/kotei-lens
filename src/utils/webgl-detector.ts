@@ -19,9 +19,9 @@ export async function detectWebGLSupport(): Promise<WebGLSupport> {
   
   // WebGPU チェック
   let webgpu = false;
-  if ('gpu' in navigator) {
+  if ('gpu' in navigator && navigator.gpu) {
     try {
-      const adapter = await navigator.gpu?.requestAdapter();
+      const adapter = await navigator.gpu.requestAdapter();
       webgpu = !!adapter;
     } catch (error) {
       console.warn('WebGPU not available:', error);
@@ -30,8 +30,14 @@ export async function detectWebGLSupport(): Promise<WebGLSupport> {
   }
   
   // クリーンアップ
-  webglContext?.getExtension('WEBGL_lose_context')?.loseContext();
-  webgl2Context?.getExtension('WEBGL_lose_context')?.loseContext();
+  if (webglContext && webglContext instanceof WebGLRenderingContext) {
+    const ext = webglContext.getExtension('WEBGL_lose_context');
+    if (ext) ext.loseContext();
+  }
+  if (webgl2Context && webgl2Context instanceof WebGL2RenderingContext) {
+    const ext = webgl2Context.getExtension('WEBGL_lose_context');
+    if (ext) ext.loseContext();
+  }
   canvas.remove();
   
   return { webgl, webgl2, webgpu };

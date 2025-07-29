@@ -57,11 +57,7 @@ export class OrientationService {
       this.isTracking = true;
       
       // deviceorientationabsolute イベントを優先（コンパス基準）
-      if ('ondeviceorientationabsolute' in window) {
-        window.addEventListener('deviceorientationabsolute', this.handleOrientationEvent);
-      } else {
-        window.addEventListener('deviceorientation', this.handleOrientationEvent);
-      }
+      window.addEventListener('deviceorientation', this.handleOrientationEvent);
     }
   }
 
@@ -78,7 +74,6 @@ export class OrientationService {
 
     if (this.callbacks.length === 0 && this.isTracking) {
       this.isTracking = false;
-      window.removeEventListener('deviceorientationabsolute', this.handleOrientationEvent);
       window.removeEventListener('deviceorientation', this.handleOrientationEvent);
       this.orientationBuffer.length = 0;
     }
