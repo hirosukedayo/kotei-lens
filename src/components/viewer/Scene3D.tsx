@@ -12,6 +12,7 @@ import { useSensors } from '../../hooks/useSensors';
 import LocationBasedObjects from '../ar/LocationBasedObjects';
 import OrientationCamera from '../ar/OrientationCamera';
 import GPSCamera from '../ar/GPSCamera';
+import SkyBox from '../3d/SkyBox';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -102,14 +103,8 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* シンプルなスカイボックス（巨大な球で空を表現） */}
-          <mesh>
-            <sphereGeometry args={[8000, 32, 32]} />
-            <meshBasicMaterial 
-              color="#87CEEB" 
-              side={2} // THREE.BackSide - 内側を表示
-            />
-          </mesh>
+          {/* 最適化されたスカイボックス（カメラに追従する小さなスカイドーム） */}
+          <SkyBox />
 
           {/* 強力なライティング */}
           <ambientLight intensity={1.2} color="#ffffff" />
