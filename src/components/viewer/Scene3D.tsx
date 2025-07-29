@@ -148,24 +148,24 @@ export default function Scene3D() {
           {/* センサー情報表示 */}
           <SensorDebugInfo sensorData={sensorData} />
 
-          {/* デバイス方位によるカメラ制御 */}
-          <OrientationCamera 
-            deviceOrientation={sensorData.orientation}
-            enableRotation={true}
-            smoothing={0.1}
-          />
-
-          {/* カメラコントロール（デバイス方位が無い場合のフォールバック） */}
-          {!sensorData.orientation && (
-            <OrbitControls
-              enablePan={true}
-              enableZoom={true}
-              enableRotate={true}
-              maxPolarAngle={Math.PI / 2}
-              minDistance={5}
-              maxDistance={1000}
+          {/* デバイス方位によるカメラ制御（一時的に無効化） */}
+          {false && (
+            <OrientationCamera 
+              deviceOrientation={sensorData.orientation}
+              enableRotation={true}
+              smoothing={0.1}
             />
           )}
+
+          {/* カメラコントロール（常に有効） */}
+          <OrbitControls
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            maxPolarAngle={Math.PI / 2}
+            minDistance={5}
+            maxDistance={1000}
+          />
         </Suspense>
       </Canvas>
 

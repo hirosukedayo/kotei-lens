@@ -37,20 +37,16 @@ export default function OrientationCamera({
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
       
-      // Three.jsのカメラ制御に適した座標系に変換
-      // iOS縦持ち時の座標系をThree.jsのカメラ回転にマッピング
+      // より安全な座標変換（感度を大幅に下げる）
       targetRotation.current = {
-        // X軸回転: デバイスの前後傾斜をカメラの上下回転に変換
-        // betaが正の値の時（デバイスが手前に傾く）、カメラは下を向く
-        x: -betaRad * 0.5, // 感度を半分に調整
+        // X軸回転: 上下の傾きを小さく反映
+        x: betaRad * 0.1, // 感度を10%に下げる
         
-        // Y軸回転: コンパス方向をカメラの左右回転に変換  
-        // alphaが0°（北向き）の時、カメラも北を向く
-        y: -alphaRad, // 反転してiOSの座標系をThree.jsに合わせる
+        // Y軸回転: 左右の回転を小さく反映
+        y: alphaRad * 0.1, // 感度を10%に下げる
         
-        // Z軸回転: デバイスの左右傾斜をカメラの傾きに変換
-        // gammaが正の値の時（デバイスが右に傾く）、カメラも右に傾く
-        z: gammaRad * 0.3  // 感度を抑えて自然な動きに
+        // Z軸回転: 傾きはほぼ無効化
+        z: 0  // 一旦無効化
       };
       
       console.log('Camera target rotation:', targetRotation.current);
