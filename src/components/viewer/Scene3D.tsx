@@ -11,6 +11,7 @@ import {
 import { useSensors } from '../../hooks/useSensors';
 import LocationBasedObjects from '../ar/LocationBasedObjects';
 import OrientationCamera from '../ar/OrientationCamera';
+import GPSCamera from '../ar/GPSCamera';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -93,7 +94,7 @@ export default function Scene3D() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{
-          position: [0, 50, 200], // より高く、遠くから全体を見渡す
+          position: [0, 50, 200], // 初期位置（GPS取得後に更新される）
           fov: 75,
           near: 0.1,
           far: 10000,
@@ -162,13 +163,7 @@ export default function Scene3D() {
 
           {/* GPS位置に基づく歴史的地点オブジェクト */}
           <LocationBasedObjects 
-            userPosition={sensorData.gps || {
-              latitude: 35.789472, // 奥多摩ダム中心座標（テスト用）
-              longitude: 139.048889,
-              altitude: 530,
-              accuracy: 10,
-              timestamp: Date.now()
-            }}
+            userPosition={sensorData.gps}
             maxDistance={10000} // 10kmに拡大して春水亭・奥多摩駅も表示
             maxObjects={20} // オブジェクト数も増加
           />
@@ -261,6 +256,13 @@ export default function Scene3D() {
           {/* センサー情報表示 */}
           <SensorDebugInfo sensorData={sensorData} />
 
+          {/* GPS位置に基づくカメラ位置制御 */}
+          <GPSCamera 
+            gpsPosition={sensorData.gps}
+            enablePositioning={sensorData.gps !== null}
+            smoothing={0.05}
+          />
+
           {/* デバイス方位によるARライクなカメラ制御 */}
           <OrientationCamera 
             deviceOrientation={sensorData.orientation}
@@ -271,7 +273,7 @@ export default function Scene3D() {
 
           {/* カメラコントロール（ARモード時は制限、通常時は自由操作） */}
           <OrbitControls
-            enablePan={!sensorData.orientation}
+            enablePan={!sensorData.orientation && !sensorData.gps}
             enableZoom={true}
             enableRotate={!sensorData.orientation}
             maxPolarAngle={Math.PI / 2}
@@ -296,8 +298,13 @@ export default function Scene3D() {
         }}
       >
         <h3 style={{ margin: '0 0 10px 0' }}>湖底レンズ - 3Dビュー</h3>
+        {sensorData.gps ? (
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 GPS位置: {sensorData.gps.latitude.toFixed(6)}, {sensorData.gps.longitude.toFixed(6)}</p>
+        ) : null}
         {sensorData.orientation ? (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>📱 ARモード: デバイスを動かしてください</p>
+        ) : sensorData.gps ? (
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>🌍 GPS位置モード: 実際の位置に基づく表示</p>
         ) : (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
         )}

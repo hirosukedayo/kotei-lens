@@ -173,7 +173,7 @@ export const HISTORICAL_LOCATIONS: HistoricalLocation[] = [
   {
     id: 'shunsuiteien-restaurant',
     name: '春水亭',
-    description: '奥多摩の渓流沿いにある老舗料理旅館。美しい自然景観と共に楽しめる。',
+    description: '奥多摩の渓流沿いにある古民家。美しい自然景観と共に楽しめる。',
     gpsCoordinate: {
       latitude: 35.820833, // 35°49'15.0"N
       longitude: 139.092722, // 139°05'33.8"E
