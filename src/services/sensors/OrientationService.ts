@@ -195,8 +195,14 @@ export class OrientationService {
 
     console.log('Executing orientation callbacks:', this.callbacks.length);
     // コールバック実行
-    for (const callback of this.callbacks) {
-      callback(smoothedOrientation);
+    for (let i = 0; i < this.callbacks.length; i++) {
+      console.log(`Executing orientation callback ${i + 1}/${this.callbacks.length}`);
+      try {
+        this.callbacks[i](smoothedOrientation);
+        console.log(`Orientation callback ${i + 1} executed successfully`);
+      } catch (error) {
+        console.error(`Orientation callback ${i + 1} failed:`, error);
+      }
     }
   };
 

@@ -60,15 +60,19 @@ export default function SensorPermissionRequest({
     
     setIsRequesting(true);
     try {
+      // Geolocation APIには明示的な許可要求がないため、
+      // 許可状態のチェックのみ行う
       const locationService = new LocationService();
-      const position = await locationService.getCurrentPosition();
-      console.log('GPS position obtained:', position);
+      const permissionState = await locationService.checkPermission();
+      console.log('GPS permission state:', permissionState);
+      
+      // ユーザーがボタンを押したということは許可の意思があるとみなす
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
       }));
     } catch (error) {
-      console.warn('GPS permission failed:', error);
+      console.warn('GPS permission check failed:', error);
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },
@@ -87,28 +91,7 @@ export default function SensorPermissionRequest({
       const permission = await orientationService.requestPermission();
       console.log('Orientation permission result:', permission);
       
-      if (permission === 'granted') {
-        // 許可が得られた場合、実際にセンサーをテスト
-        let testSuccessful = false;
-        try {
-          await orientationService.startTracking((orientation) => {
-            console.log('Orientation test callback:', orientation);
-            testSuccessful = true;
-            orientationService.stopTracking();
-          });
-          
-          // 短時間待ってテスト結果を確認
-          setTimeout(() => {
-            if (!testSuccessful) {
-              console.warn('Orientation sensor test failed - no callback received');
-            }
-          }, 1000);
-          
-        } catch (startError) {
-          console.error('Orientation sensor start failed:', startError);
-        }
-      }
-      
+      // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
         orientation: { ...prev.orientation, permission },
@@ -133,28 +116,7 @@ export default function SensorPermissionRequest({
       const permission = await motionService.requestPermission();
       console.log('Motion permission result:', permission);
       
-      if (permission === 'granted') {
-        // 許可が得られた場合、実際にセンサーをテスト
-        let testSuccessful = false;
-        try {
-          await motionService.startTracking((motion) => {
-            console.log('Motion test callback:', motion);
-            testSuccessful = true;
-            motionService.stopTracking();
-          });
-          
-          // 短時間待ってテスト結果を確認
-          setTimeout(() => {
-            if (!testSuccessful) {
-              console.warn('Motion sensor test failed - no callback received');
-            }
-          }, 1000);
-          
-        } catch (startError) {
-          console.error('Motion sensor start failed:', startError);
-        }
-      }
-      
+      // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
         motion: { ...prev.motion, permission },

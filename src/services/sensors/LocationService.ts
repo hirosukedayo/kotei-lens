@@ -101,8 +101,16 @@ export class LocationService {
           const gpsPosition = this.convertPosition(position);
           this.lastPosition = gpsPosition;
           console.log('GPS callbacks to execute:', this.callbacks.length);
-          for (const cb of this.callbacks) {
-            cb(gpsPosition);
+          console.log('GPS position converted:', gpsPosition);
+          
+          for (let i = 0; i < this.callbacks.length; i++) {
+            console.log(`Executing GPS callback ${i + 1}/${this.callbacks.length}`);
+            try {
+              this.callbacks[i](gpsPosition);
+              console.log(`GPS callback ${i + 1} executed successfully`);
+            } catch (error) {
+              console.error(`GPS callback ${i + 1} failed:`, error);
+            }
           }
         },
         (error) => {
