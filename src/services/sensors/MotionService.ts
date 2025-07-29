@@ -30,13 +30,14 @@ export class MotionService {
   // iOS 13+ での許可要求
   public async requestPermission(): Promise<PermissionState> {
     // iOS 13+ では許可が必要
-    if ('DeviceMotionEvent' in window && 
-        'requestPermission' in DeviceMotionEvent) {
+    if (typeof window.DeviceMotionEvent !== 'undefined' && 
+        typeof window.DeviceMotionEvent.requestPermission === 'function') {
       try {
-        const permission = await (DeviceMotionEvent as any).requestPermission();
+        const permission = await window.DeviceMotionEvent.requestPermission();
+        console.log('DeviceMotion permission result:', permission);
         return permission === 'granted' ? 'granted' : 'denied';
       } catch (error) {
-        console.warn('Device motion permission request failed:', error);
+        console.error('Device motion permission request failed:', error);
         return 'denied';
       }
     }

@@ -91,7 +91,7 @@ export default function SensorPermissionRequest({
             orientation: { ...prev.orientation, permission }
           }));
           if (permission === 'denied') {
-            errors.push('デバイス方位センサーの許可が拒否されました（設定から手動で許可してください）');
+            errors.push('デバイス方位センサーの許可が拒否されました。Safari設定 → プライバシーとセキュリティ → モーションと画面の向き から許可してください。');
           }
         } catch (error) {
           console.warn('Orientation permission failed:', error);
@@ -114,7 +114,7 @@ export default function SensorPermissionRequest({
             motion: { ...prev.motion, permission }
           }));
           if (permission === 'denied') {
-            errors.push('デバイスモーションセンサーの許可が拒否されました（設定から手動で許可してください）');
+            errors.push('デバイスモーションセンサーの許可が拒否されました。Safari設定 → プライバシーとセキュリティ → モーションと画面の向き から許可してください。');
           }
         } catch (error) {
           console.warn('Motion permission failed:', error);
@@ -206,14 +206,21 @@ export default function SensorPermissionRequest({
             backgroundColor: '#fff3cd',
             border: '1px solid #ffeaa7',
             borderRadius: '6px',
-            padding: '10px',
+            padding: '12px',
             marginBottom: '20px',
             fontSize: '13px',
             color: '#856404',
+            lineHeight: '1.4',
           }}>
             <strong>📱 iOS をお使いの方へ:</strong><br />
-            センサーの許可には、ブラウザの設定変更が必要な場合があります。
-            許可が失敗した場合は、Safari設定 → プライバシーとセキュリティ → モーションと画面の向き から許可してください。
+            <div style={{ marginTop: '8px' }}>
+              <strong>⚠️ 重要:</strong> センサー許可はユーザーの操作（タップ）が必要です。<br />
+              <strong>1.</strong> 下の「センサーを許可する」ボタンを必ずタップしてください<br />
+              <strong>2.</strong> 許可ダイアログが表示されない場合：<br />
+              　　Safari設定 → プライバシーとセキュリティ → モーションと画面の向き<br />
+              　　から手動で許可してください<br />
+              <strong>3.</strong> プライベートブラウズモードでは動作しません
+            </div>
           </div>
         )}
 

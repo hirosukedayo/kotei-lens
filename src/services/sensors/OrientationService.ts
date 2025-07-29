@@ -24,13 +24,14 @@ export class OrientationService {
   // iOS 13+ での許可要求
   public async requestPermission(): Promise<PermissionState> {
     // iOS 13+ では許可が必要
-    if ('DeviceOrientationEvent' in window && 
-        'requestPermission' in DeviceOrientationEvent) {
+    if (typeof window.DeviceOrientationEvent !== 'undefined' && 
+        typeof window.DeviceOrientationEvent.requestPermission === 'function') {
       try {
-        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        const permission = await window.DeviceOrientationEvent.requestPermission();
+        console.log('DeviceOrientation permission result:', permission);
         return permission === 'granted' ? 'granted' : 'denied';
       } catch (error) {
-        console.warn('Device orientation permission request failed:', error);
+        console.error('Device orientation permission request failed:', error);
         return 'denied';
       }
     }
