@@ -60,19 +60,20 @@ export default function SensorPermissionRequest({
     
     setIsRequesting(true);
     try {
-      // Geolocation APIには明示的な許可要求がないため、
-      // 許可状態のチェックのみ行う
+      // GeolocationAPIの許可を実際に要求するため、getCurrentPositionを呼び出す
       const locationService = new LocationService();
-      const permissionState = await locationService.checkPermission();
-      console.log('GPS permission state:', permissionState);
+      console.log('GPS permission requesting...');
       
-      // ユーザーがボタンを押したということは許可の意思があるとみなす
+      // これによりブラウザの位置許可ダイアログが表示される
+      await locationService.getCurrentPosition();
+      console.log('GPS permission granted through getCurrentPosition');
+      
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
       }));
     } catch (error) {
-      console.warn('GPS permission check failed:', error);
+      console.warn('GPS permission failed:', error);
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },

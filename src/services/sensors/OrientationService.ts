@@ -76,6 +76,21 @@ export class OrientationService {
       }
       
       console.log('Orientation event listener added');
+      
+      // 5秒後にイベント受信状況をチェック
+      setTimeout(() => {
+        console.log('5秒後の方位センサー状況:', {
+          isTracking: this.isTracking,
+          callbackCount: this.callbacks.length,
+          lastOrientation: this.lastOrientation,
+          hasReceivedData: this.lastOrientation !== null
+        });
+        
+        if (this.lastOrientation === null) {
+          console.warn('方位センサーからのデータを受信していません。デバイスを動かしてみてください。');
+        }
+      }, 5000);
+      
     } else {
       console.log('Orientation tracking already active');
     }

@@ -205,6 +205,22 @@ export default function Scene3D() {
           <p style={{ margin: '3px 0' }}>
             精度: {sensorData.gps ? `${sensorData.gps.accuracy.toFixed(1)}m` : '不明'}
           </p>
+          <hr style={{ margin: '8px 0', opacity: 0.3 }} />
+          <p style={{ margin: '3px 0', fontSize: '11px' }}>
+            センサー状態 (isActive: {isActive ? '✅' : '❌'})
+          </p>
+          <p style={{ margin: '3px 0', fontSize: '11px' }}>
+            方位生データ: {sensorData.orientation ? 
+              `α:${sensorData.orientation.alpha?.toFixed(1) || 'null'} β:${sensorData.orientation.beta?.toFixed(1) || 'null'} γ:${sensorData.orientation.gamma?.toFixed(1) || 'null'}` : 
+              '未取得'
+            }
+          </p>
+          <p style={{ margin: '3px 0', fontSize: '11px' }}>
+            モーション: {sensorData.motion && sensorData.motion.acceleration ? 
+              `x:${sensorData.motion.acceleration.x?.toFixed(2) || '0'} y:${sensorData.motion.acceleration.y?.toFixed(2) || '0'} z:${sensorData.motion.acceleration.z?.toFixed(2) || '0'}` : 
+              '未取得'
+            }
+          </p>
         </div>
       </div>
     </div>
