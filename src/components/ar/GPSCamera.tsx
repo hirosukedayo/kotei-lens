@@ -39,7 +39,8 @@ export default function GPSCamera({
     console.log('GPS Camera position updated:', {
       gps: { lat: gpsPosition.latitude, lng: gpsPosition.longitude, alt: gpsPosition.altitude },
       world: worldPosition,
-      camera: targetPosition.current
+      camera: targetPosition.current,
+      accuracy: gpsPosition.accuracy
     });
   }, [gpsPosition, enablePositioning]);
 
