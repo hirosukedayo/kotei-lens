@@ -48,7 +48,7 @@ export default function OrientationCamera({
           y: -alphaRad + Math.PI,
           
           // Z軸(roll): iOSのgamma → Three.jsのZ軸 (傾き)
-          z: gammaRad
+          z: -gammaRad
         };
       } else {
         // 通常モード: 安全な制御（従来の方式）
