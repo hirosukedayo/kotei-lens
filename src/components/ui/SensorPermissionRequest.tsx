@@ -55,88 +55,86 @@ export default function SensorPermissionRequest({
     setSensorStatus(newStatus);
   };
 
-  const requestAllPermissions = async () => {
+  const requestGPSPermission = async () => {
+    if (!sensorStatus.gps.available) return;
+    
     setIsRequesting(true);
-    const errors: string[] = [];
-
     try {
-      // 順次許可要求（iOS対応）
-      // 1. GPS許可要求
-      if (sensorStatus.gps.available) {
-        try {
-          const locationService = new LocationService();
-          await locationService.getCurrentPosition();
-          setSensorStatus((prev) => ({
-            ...prev,
-            gps: { ...prev.gps, permission: 'granted' },
-          }));
-        } catch (error) {
-          console.warn('GPS permission failed:', error);
-          errors.push('位置情報の取得に失敗しました');
-          setSensorStatus((prev) => ({
-            ...prev,
-            gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },
-          }));
-        }
-      }
-
-      // 2. デバイス方位許可要求（少し待ってから実行）
-      if (sensorStatus.orientation.available) {
-        await new Promise((resolve) => setTimeout(resolve, 500)); // iOS用ディレイ
-        try {
-          const orientationService = new OrientationService();
-          const permission = await orientationService.requestPermission();
-          setSensorStatus((prev) => ({
-            ...prev,
-            orientation: { ...prev.orientation, permission },
-          }));
-          if (permission === 'denied') {
-            errors.push(
-              'デバイス方位センサーの許可が拒否されました。アドレスバー横の🔒をタップ → Webサイトの設定 → モーションと画面の向きへのアクセス を許可に変更してください。'
-            );
-          }
-        } catch (error) {
-          console.warn('Orientation permission failed:', error);
-          errors.push('デバイス方位センサーの許可要求に失敗しました');
-          setSensorStatus((prev) => ({
-            ...prev,
-            orientation: { ...prev.orientation, permission: 'denied', error: String(error) },
-          }));
-        }
-      }
-
-      // 3. デバイスモーション許可要求（少し待ってから実行）
-      if (sensorStatus.motion.available) {
-        await new Promise((resolve) => setTimeout(resolve, 500)); // iOS用ディレイ
-        try {
-          const motionService = new MotionService();
-          const permission = await motionService.requestPermission();
-          setSensorStatus((prev) => ({
-            ...prev,
-            motion: { ...prev.motion, permission },
-          }));
-          if (permission === 'denied') {
-            errors.push(
-              'デバイスモーションセンサーの許可が拒否されました。アドレスバー横の🔒をタップ → Webサイトの設定 → モーションと画面の向きへのアクセス を許可に変更してください。'
-            );
-          }
-        } catch (error) {
-          console.warn('Motion permission failed:', error);
-          errors.push('デバイスモーションセンサーの許可要求に失敗しました');
-          setSensorStatus((prev) => ({
-            ...prev,
-            motion: { ...prev.motion, permission: 'denied', error: String(error) },
-          }));
-        }
-      }
-
-      if (errors.length === 0) {
-        onPermissionsGranted();
-      } else {
-        onPermissionsDenied(errors);
-      }
+      const locationService = new LocationService();
+      await locationService.getCurrentPosition();
+      setSensorStatus((prev) => ({
+        ...prev,
+        gps: { ...prev.gps, permission: 'granted' },
+      }));
+    } catch (error) {
+      console.warn('GPS permission failed:', error);
+      setSensorStatus((prev) => ({
+        ...prev,
+        gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },
+      }));
     } finally {
       setIsRequesting(false);
+    }
+  };
+
+  const requestOrientationPermission = async () => {
+    if (!sensorStatus.orientation.available) return;
+    
+    setIsRequesting(true);
+    try {
+      const orientationService = new OrientationService();
+      const permission = await orientationService.requestPermission();
+      console.log('Orientation permission result:', permission);
+      setSensorStatus((prev) => ({
+        ...prev,
+        orientation: { ...prev.orientation, permission },
+      }));
+    } catch (error) {
+      console.error('Orientation permission failed:', error);
+      setSensorStatus((prev) => ({
+        ...prev,
+        orientation: { ...prev.orientation, permission: 'denied', error: String(error) },
+      }));
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const requestMotionPermission = async () => {
+    if (!sensorStatus.motion.available) return;
+    
+    setIsRequesting(true);
+    try {
+      const motionService = new MotionService();
+      const permission = await motionService.requestPermission();
+      console.log('Motion permission result:', permission);
+      setSensorStatus((prev) => ({
+        ...prev,
+        motion: { ...prev.motion, permission },
+      }));
+    } catch (error) {
+      console.error('Motion permission failed:', error);
+      setSensorStatus((prev) => ({
+        ...prev,
+        motion: { ...prev.motion, permission: 'denied', error: String(error) },
+      }));
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const checkAllPermissions = () => {
+    const grantedCount = [
+      sensorStatus.gps.permission === 'granted',
+      sensorStatus.orientation.permission === 'granted', 
+      sensorStatus.motion.permission === 'granted'
+    ].filter(Boolean).length;
+
+    if (grantedCount === 3) {
+      onPermissionsGranted();
+    } else if (grantedCount > 0) {
+      // 部分的に許可されている場合も続行可能
+      onPermissionsGranted();
     }
   };
 
@@ -217,7 +215,7 @@ export default function SensorPermissionRequest({
             lineHeight: '1.6',
           }}
         >
-          湖底レンズでは、より良い体験のために以下のセンサーを使用します：
+          各センサーの「許可する」ボタンをタップして、必要な機能を有効にしてください：
         </p>
 
         {/* iOS用の特別な注意書き */}
@@ -237,11 +235,11 @@ export default function SensorPermissionRequest({
             <strong>📱 iOS をお使いの方へ:</strong>
             <br />
             <div style={{ marginTop: '8px' }}>
-              <strong>⚠️ 重要:</strong> センサー許可はユーザーの操作（タップ）が必要です。
+              <strong>⚠️ 重要:</strong> 各センサーの「許可する」ボタンを個別にタップしてください。
               <br />
-              <strong>1.</strong> 下の「センサーを許可する」ボタンを必ずタップしてください
+              <strong>1.</strong> まず位置情報から許可してみてください
               <br />
-              <strong>2.</strong> 許可ダイアログが表示されない場合：
+              <strong>2.</strong> 方位・モーションセンサーで許可ダイアログが表示されない場合：
               <br />
               　　• アドレスバー横の「🔒」または「ⓐA」をタップ
               <br />
@@ -251,20 +249,21 @@ export default function SensorPermissionRequest({
               <br />
               <strong>3.</strong> プライベートブラウズモードでは動作しません
               <br />
-              <strong>4.</strong> iOS 14.5+ では個別のWebサイト許可が必要です
+              <strong>4.</strong> センサーが使えなくても「アプリを開始」で続行できます
             </div>
           </div>
         )}
 
         <div style={{ marginBottom: '20px' }}>
+          {/* GPS許可セクション */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              padding: '10px',
+              padding: '12px',
               backgroundColor: '#f5f5f5',
               borderRadius: '8px',
-              marginBottom: '8px',
+              marginBottom: '10px',
             }}
           >
             <span style={{ fontSize: '20px', marginRight: '12px' }}>
@@ -274,19 +273,34 @@ export default function SensorPermissionRequest({
               <strong>📍 位置情報 (GPS)</strong>
               <div style={{ fontSize: '12px', color: '#666' }}>現在地の特定とナビゲーション</div>
             </div>
-            <span style={{ fontSize: '12px', color: '#888' }}>
-              {getStatusText(sensorStatus.gps.permission, sensorStatus.gps.available)}
-            </span>
+            <button
+              type="button"
+              onClick={requestGPSPermission}
+              disabled={!sensorStatus.gps.available || isRequesting || sensorStatus.gps.permission === 'granted'}
+              style={{
+                backgroundColor: sensorStatus.gps.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                cursor: (!sensorStatus.gps.available || isRequesting || sensorStatus.gps.permission === 'granted') ? 'not-allowed' : 'pointer',
+                opacity: (!sensorStatus.gps.available || isRequesting) ? 0.6 : 1,
+              }}
+            >
+              {sensorStatus.gps.permission === 'granted' ? '許可済み' : '許可する'}
+            </button>
           </div>
 
+          {/* デバイス方位許可セクション */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              padding: '10px',
+              padding: '12px',
               backgroundColor: '#f5f5f5',
               borderRadius: '8px',
-              marginBottom: '8px',
+              marginBottom: '10px',
             }}
           >
             <span style={{ fontSize: '20px', marginRight: '12px' }}>
@@ -299,19 +313,31 @@ export default function SensorPermissionRequest({
               <strong>🧭 デバイス方位</strong>
               <div style={{ fontSize: '12px', color: '#666' }}>向いている方向の建物表示</div>
             </div>
-            <span style={{ fontSize: '12px', color: '#888' }}>
-              {getStatusText(
-                sensorStatus.orientation.permission,
-                sensorStatus.orientation.available
-              )}
-            </span>
+            <button
+              type="button"
+              onClick={requestOrientationPermission}
+              disabled={!sensorStatus.orientation.available || isRequesting || sensorStatus.orientation.permission === 'granted'}
+              style={{
+                backgroundColor: sensorStatus.orientation.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                cursor: (!sensorStatus.orientation.available || isRequesting || sensorStatus.orientation.permission === 'granted') ? 'not-allowed' : 'pointer',
+                opacity: (!sensorStatus.orientation.available || isRequesting) ? 0.6 : 1,
+              }}
+            >
+              {sensorStatus.orientation.permission === 'granted' ? '許可済み' : '許可する'}
+            </button>
           </div>
 
+          {/* デバイスモーション許可セクション */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              padding: '10px',
+              padding: '12px',
               backgroundColor: '#f5f5f5',
               borderRadius: '8px',
               marginBottom: '15px',
@@ -324,9 +350,23 @@ export default function SensorPermissionRequest({
               <strong>📱 デバイスモーション</strong>
               <div style={{ fontSize: '12px', color: '#666' }}>歩行検知と操作向上</div>
             </div>
-            <span style={{ fontSize: '12px', color: '#888' }}>
-              {getStatusText(sensorStatus.motion.permission, sensorStatus.motion.available)}
-            </span>
+            <button
+              type="button"
+              onClick={requestMotionPermission}
+              disabled={!sensorStatus.motion.available || isRequesting || sensorStatus.motion.permission === 'granted'}
+              style={{
+                backgroundColor: sensorStatus.motion.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                cursor: (!sensorStatus.motion.available || isRequesting || sensorStatus.motion.permission === 'granted') ? 'not-allowed' : 'pointer',
+                opacity: (!sensorStatus.motion.available || isRequesting) ? 0.6 : 1,
+              }}
+            >
+              {sensorStatus.motion.permission === 'granted' ? '許可済み' : '許可する'}
+            </button>
           </div>
         </div>
 
@@ -340,21 +380,19 @@ export default function SensorPermissionRequest({
         >
           <button
             type="button"
-            onClick={requestAllPermissions}
-            disabled={isRequesting}
+            onClick={checkAllPermissions}
             style={{
-              backgroundColor: '#2B6CB0',
+              backgroundColor: '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               padding: '12px 24px',
               fontSize: '16px',
               fontWeight: 'bold',
-              cursor: isRequesting ? 'not-allowed' : 'pointer',
-              opacity: isRequesting ? 0.7 : 1,
+              cursor: 'pointer',
             }}
           >
-            {isRequesting ? '許可要求中...' : 'センサーを許可する'}
+            アプリを開始
           </button>
 
           <button
@@ -372,7 +410,7 @@ export default function SensorPermissionRequest({
               opacity: isRequesting ? 0.7 : 1,
             }}
           >
-            許可をスキップして続行
+            センサーなしで続行
           </button>
 
           <button
