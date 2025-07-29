@@ -60,11 +60,11 @@ export function gpsToWorldCoordinate(gpsPoint: GPSCoordinate, referencePoint: GP
   const deltaAlt = (gpsPoint.altitude || 0) - (referencePoint.altitude || 0);
   
   // Three.jsの座標系に変換
-  // カメラが北を向いている時、東が右（+X）、南が前（+Z）になるように
+  // カメラがデフォルト(-Z方向)を向いている時、東が右（+X）、北が奥（-Z）になるように
   return {
-    x: lngDistance,  // 東西方向（東が正 = 右）
-    y: deltaAlt,     // 高さ方向（上が正）  
-    z: latDistance   // 南北方向（北が負、南が正 = 前）
+    x: lngDistance,   // 東西方向（東が正 = 右）
+    y: deltaAlt,      // 高さ方向（上が正）  
+    z: -latDistance   // 南北方向（北が正 = 奥、南が負 = 手前）
   };
 }
 
@@ -78,7 +78,7 @@ export function worldToGpsCoordinate(worldPoint: Vector3D, referencePoint: GPSCo
   const lngPerMeter = 180 / (EARTH_RADIUS * Math.PI * Math.cos(avgLat * Math.PI / 180));
   
   return {
-    latitude: referencePoint.latitude + (worldPoint.z * latPerMeter),
+    latitude: referencePoint.latitude + (-worldPoint.z * latPerMeter),
     longitude: referencePoint.longitude + (worldPoint.x * lngPerMeter),
     altitude: (referencePoint.altitude || 0) + worldPoint.y
   };
