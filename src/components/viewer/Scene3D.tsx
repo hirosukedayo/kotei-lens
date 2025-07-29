@@ -103,40 +103,58 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* 環境設定 - より明るい空 */}
-          <Environment preset="city" />
+          {/* シンプルなスカイボックス（巨大な球で空を表現） */}
+          <mesh>
+            <sphereGeometry args={[8000, 32, 32]} />
+            <meshBasicMaterial 
+              color="#87CEEB" 
+              side={2} // THREE.BackSide - 内側を表示
+            />
+          </mesh>
 
-          {/* ライティング - より明るく */}
-          <ambientLight intensity={0.8} />
+          {/* 強力なライティング */}
+          <ambientLight intensity={1.2} color="#ffffff" />
           <directionalLight
-            position={[100, 100, 50]}
-            intensity={1.5}
+            position={[500, 500, 200]}
+            intensity={2.0}
+            color="#ffffff"
             castShadow
             shadow-mapSize={[2048, 2048]}
           />
-          {/* 追加の照明 */}
+          {/* 追加の照明 - 複数方向から */}
           <directionalLight
-            position={[-100, 50, -50]}
-            intensity={0.8}
+            position={[-500, 300, -200]}
+            intensity={1.0}
             color="#ffffff"
+          />
+          <directionalLight
+            position={[0, 800, 0]}
+            intensity={1.5}
+            color="#f0f8ff"
           />
 
           {/* 奥多摩湖の湖面（半透明） */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
             <planeGeometry args={[2000, 2000]} />
             <meshStandardMaterial 
-              color="#4A90E2" 
+              color="#6AB7FF" 
               transparent 
-              opacity={0.6} 
-              roughness={0.1}
-              metalness={0.1}
+              opacity={0.7} 
+              roughness={0.05}
+              metalness={0.2}
+              emissive="#1a4a6b"
+              emissiveIntensity={0.1}
             />
           </mesh>
           
           {/* 湖底の地面 */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -20, 0]} receiveShadow>
             <planeGeometry args={[3000, 3000]} />
-            <meshStandardMaterial color="#8B4513" />
+            <meshStandardMaterial 
+              color="#A0522D" 
+              emissive="#2d1810"
+              emissiveIntensity={0.05}
+            />
           </mesh>
 
           {/* ダム（参考用） */}
