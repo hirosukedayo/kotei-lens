@@ -1,4 +1,4 @@
-import { Box, Environment, OrbitControls, Text } from '@react-three/drei';
+import { Box, Environment, OrbitControls, Text, Sky } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import React, { useRef, useState, useEffect, Suspense } from 'react';
 import type { Mesh } from 'three';
@@ -12,7 +12,6 @@ import { useSensors } from '../../hooks/useSensors';
 import LocationBasedObjects from '../ar/LocationBasedObjects';
 import OrientationCamera from '../ar/OrientationCamera';
 import GPSCamera from '../ar/GPSCamera';
-import SkyBox from '../3d/SkyBox';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -103,8 +102,16 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* 最適化されたスカイボックス（カメラに追従する小さなスカイドーム） */}
-          <SkyBox />
+          {/* React Three Fiber標準のSkyコンポーネント */}
+          <Sky 
+            distance={450000}
+            sunPosition={[100, 20, 100]}
+            inclination={0.6}
+            azimuth={0.25}
+          />
+          
+          {/* 環境マップ（オプション：反射などに使用） */}
+          {/* <Environment preset="sunset" /> */}
 
           {/* 強力なライティング */}
           <ambientLight intensity={1.2} color="#ffffff" />
