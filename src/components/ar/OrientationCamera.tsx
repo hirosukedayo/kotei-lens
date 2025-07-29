@@ -19,6 +19,21 @@ export default function OrientationCamera({
   const { camera } = useThree();
   const targetRotation = useRef({ x: 0, y: 0, z: 0 });
   const currentRotation = useRef({ x: 0, y: 0, z: 0 });
+  
+  // 画面の向きによるオフセット調整（Three.js DeviceOrientationControls準拠）
+  const screenOrientationOffset = useRef(0);
+
+  // 画面の向きに基づくオフセット設定
+  useEffect(() => {
+    if (arMode) {
+      // 画面の向きを取得（iOS Safari対応）
+      const screenOrientation = window.screen?.orientation?.angle ?? 
+                                (window as any).orientation ?? 0;
+      
+      // Three.js DeviceOrientationControls準拠のオフセット設定
+      screenOrientationOffset.current = screenOrientation === 0 ? Math.PI / 2 : 0;
+    }
+  }, [arMode]);
 
   // デバイス方位が更新されたときにターゲット回転を計算
   useEffect(() => {
@@ -33,23 +48,24 @@ export default function OrientationCamera({
       const gammaRad = (gamma * Math.PI) / 180;
       
       if (arMode) {
-        // ARモード: iOS DeviceOrientationとThree.jsの座標軸マッピング
-        // iOS: alpha=コンパス, beta=前後傾斜(-180~180), gamma=左右傾斜(-90~90)
-        // Three.js: x=pitch(上下), y=yaw(左右), z=roll(傾き)
+        // ARモード: Three.js DeviceOrientationControls準拠の座標変換
+        // 回転順序: YXZ（Three.jsの標準）
+        // euler.set(beta, alpha - offset, -gamma, 'YXZ')
         
-        // iPhoneを縦持ちで背面カメラの向きに合わせる座標変換
         targetRotation.current = {
-          // X軸(pitch): iOSのbeta → Three.jsのX軸 (前後傾斜)
-          // iPhoneが下向き(beta=90°)のときカメラも下向き(x=π/2)
-          x: (betaRad - Math.PI / 2), // beta=0°(水平)のとき x=-π/2、beta=90°(下向き)のとき x=0°
+          // X軸: beta - π/2（背面カメラ調整）
+          // デバイスの上ではなく背面から見るための-90度調整
+          x: betaRad - Math.PI / 2,
           
-          // Y軸(yaw): iOSのalpha → Three.jsのY軸 (左右回転)
-          // 背面カメラは画面と逆向きなので180度回転
-          y: -alphaRad + Math.PI,
+          // Y軸: alphaからオフセットを引く（画面向きによる調整）
+          y: alphaRad - screenOrientationOffset.current,
           
-          // Z軸(roll): iOSのgamma → Three.jsのZ軸 (傾き)
+          // Z軸: gammaを反転
           z: -gammaRad
         };
+        
+        // カメラの回転順序をYXZに設定
+        camera.rotation.order = 'YXZ';
       } else {
         // 通常モード: 安全な制御（従来の方式）
         targetRotation.current = {
@@ -57,9 +73,12 @@ export default function OrientationCamera({
           y: alphaRad * 0.1,
           z: 0
         };
+        
+        // 通常モードではXYZ順序
+        camera.rotation.order = 'XYZ';
       }
     }
-  }, [deviceOrientation, enableRotation, arMode]);
+  }, [deviceOrientation, enableRotation, arMode, camera]);
 
   // フレームごとにカメラの回転を滑らかに更新
   useFrame(() => {
