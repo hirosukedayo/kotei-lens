@@ -7,12 +7,14 @@ interface OrientationCameraProps {
   deviceOrientation: DeviceOrientation | null;
   enableRotation?: boolean;
   smoothing?: number; // 0-1の範囲、1が最も滑らか
+  arMode?: boolean; // ARモード：より直接的な制御
 }
 
 export default function OrientationCamera({ 
   deviceOrientation, 
   enableRotation = true,
-  smoothing = 0.1 
+  smoothing = 0.1,
+  arMode = false
 }: OrientationCameraProps) {
   const { camera } = useThree();
   const targetRotation = useRef({ x: 0, y: 0, z: 0 });
@@ -25,33 +27,34 @@ export default function OrientationCamera({
     const { alpha, beta, gamma } = deviceOrientation;
     
     if (alpha !== null && beta !== null && gamma !== null) {
-      // デバイス方位からカメラ制御用の回転を計算
-      // alpha: コンパス方向 (0°=北, 90°=東, 180°=南, 270°=西)
-      // beta: デバイスの前後傾斜 (-180°〜180°, 0°=水平)
-      // gamma: デバイスの左右傾斜 (-90°〜90°, 0°=水平)
-      
-      console.log('Device orientation raw:', { alpha, beta, gamma });
-      
       // ラジアンに変換
       const alphaRad = (alpha * Math.PI) / 180;
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
       
-      // より安全な座標変換（感度を大幅に下げる）
-      targetRotation.current = {
-        // X軸回転: 上下の傾きを小さく反映
-        x: betaRad * 0.1, // 感度を10%に下げる
-        
-        // Y軸回転: 左右の回転を小さく反映
-        y: alphaRad * 0.1, // 感度を10%に下げる
-        
-        // Z軸回転: 傾きはほぼ無効化
-        z: 0  // 一旦無効化
-      };
-      
-      console.log('Camera target rotation:', targetRotation.current);
+      if (arMode) {
+        // ARモード: より直接的で反応の良い制御
+        // iOS Safari向けの座標系調整
+        targetRotation.current = {
+          // X軸回転: 上下の傾き（beta: 前後傾斜）
+          x: -betaRad * 0.8 + Math.PI / 12, // 若干上向きに調整
+          
+          // Y軸回転: 左右の回転（alpha: コンパス方向）
+          y: -alphaRad + Math.PI, // 180度回転してiOSの座標系に合わせる
+          
+          // Z軸回転: 端末の傾き（gamma: 左右傾斜）
+          z: gammaRad * 0.3 // 軽く反映
+        };
+      } else {
+        // 通常モード: 安全な制御（従来の方式）
+        targetRotation.current = {
+          x: betaRad * 0.1,
+          y: alphaRad * 0.1,
+          z: 0
+        };
+      }
     }
-  }, [deviceOrientation, enableRotation]);
+  }, [deviceOrientation, enableRotation, arMode]);
 
   // フレームごとにカメラの回転を滑らかに更新
   useFrame(() => {
@@ -65,10 +68,17 @@ export default function OrientationCamera({
     current.y = lerpAngle(current.y, target.y, smoothing);
     current.z = lerp(current.z, target.z, smoothing);
     
-    // 回転制限を適用（極端な角度を防ぐ）
-    const maxTilt = Math.PI / 3; // 60度制限
-    current.x = Math.max(-maxTilt, Math.min(maxTilt, current.x));
-    current.z = Math.max(-maxTilt, Math.min(maxTilt, current.z));
+    if (arMode) {
+      // ARモード: より自由な回転を許可（ただし極端な角度は制限）
+      const maxTilt = Math.PI / 2; // 90度制限
+      current.x = Math.max(-maxTilt, Math.min(maxTilt * 0.8, current.x)); // 上向きは80%まで
+      current.z = Math.max(-maxTilt * 0.5, Math.min(maxTilt * 0.5, current.z)); // 傾きは50%まで
+    } else {
+      // 通常モード: 厳しい制限
+      const maxTilt = Math.PI / 3; // 60度制限
+      current.x = Math.max(-maxTilt, Math.min(maxTilt, current.x));
+      current.z = Math.max(-maxTilt, Math.min(maxTilt, current.z));
+    }
     
     // カメラの回転を適用
     camera.rotation.set(current.x, current.y, current.z);

@@ -41,11 +41,9 @@ export default function Scene3D() {
 
   // センサーを開始（許可後に一度だけ実行）
   useEffect(() => {
-    console.log('Scene3D センサー状態:', { isActive, sensorData });
     // Scene3Dが読み込まれた時点で許可画面は通過済みなので、
     // センサーを開始する
     if (!isActive) {
-      console.log('Scene3D読み込み時にセンサー開始を実行');
       startSensors();
     }
   }, []); // 空配列で一度だけ実行
@@ -263,20 +261,19 @@ export default function Scene3D() {
           {/* センサー情報表示 */}
           <SensorDebugInfo sensorData={sensorData} />
 
-          {/* デバイス方位によるカメラ制御（一時的に無効化） */}
-          {false && (
-            <OrientationCamera 
-              deviceOrientation={sensorData.orientation}
-              enableRotation={true}
-              smoothing={0.1}
-            />
-          )}
+          {/* デバイス方位によるARライクなカメラ制御 */}
+          <OrientationCamera 
+            deviceOrientation={sensorData.orientation}
+            enableRotation={sensorData.orientation !== null}
+            smoothing={0.05}
+            arMode={true}
+          />
 
-          {/* カメラコントロール（常に有効） */}
+          {/* カメラコントロール（ARモード時は制限、通常時は自由操作） */}
           <OrbitControls
-            enablePan={true}
+            enablePan={!sensorData.orientation}
             enableZoom={true}
-            enableRotate={true}
+            enableRotate={!sensorData.orientation}
             maxPolarAngle={Math.PI / 2}
             minDistance={5}
             maxDistance={1000}
@@ -299,7 +296,11 @@ export default function Scene3D() {
         }}
       >
         <h3 style={{ margin: '0 0 10px 0' }}>湖底レンズ - 3Dビュー</h3>
-        <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
+        {sensorData.orientation ? (
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>📱 ARモード: デバイスを動かしてください</p>
+        ) : (
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
+        )}
         <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 仮想的な小河内村の建物配置</p>
         <hr style={{ margin: '10px 0', opacity: 0.5 }} />
         <div style={{ fontSize: '12px', opacity: 0.8 }}>

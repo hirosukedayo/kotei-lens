@@ -58,18 +58,14 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       // GeolocationAPIの許可を実際に要求するため、getCurrentPositionを呼び出す
-      console.log('GPS permission requesting...');
-      
       // これによりブラウザの位置許可ダイアログが表示される
       await sensorManager.locationService.getCurrentPosition();
-      console.log('GPS permission granted through getCurrentPosition');
       
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
       }));
     } catch (error) {
-      console.warn('GPS permission failed:', error);
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },
@@ -85,7 +81,6 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const permission = await sensorManager.orientationService.requestPermission();
-      console.log('Orientation permission result:', permission);
       
       // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
@@ -93,7 +88,6 @@ export default function SensorPermissionRequest({
         orientation: { ...prev.orientation, permission },
       }));
     } catch (error) {
-      console.error('Orientation permission failed:', error);
       setSensorStatus((prev) => ({
         ...prev,
         orientation: { ...prev.orientation, permission: 'denied', error: String(error) },
@@ -109,7 +103,6 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const permission = await sensorManager.motionService.requestPermission();
-      console.log('Motion permission result:', permission);
       
       // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
@@ -117,7 +110,6 @@ export default function SensorPermissionRequest({
         motion: { ...prev.motion, permission },
       }));
     } catch (error) {
-      console.error('Motion permission failed:', error);
       setSensorStatus((prev) => ({
         ...prev,
         motion: { ...prev.motion, permission: 'denied', error: String(error) },
