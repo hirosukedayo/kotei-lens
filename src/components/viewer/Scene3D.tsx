@@ -95,7 +95,7 @@ export default function Scene3D() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{
-          position: [0, 10, 20],
+          position: [0, 50, 200], // より高く、遠くから全体を見渡す
           fov: 75,
           near: 0.1,
           far: 10000,
@@ -103,16 +103,22 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* 環境設定 */}
-          <Environment preset="sunset" />
+          {/* 環境設定 - より明るい空 */}
+          <Environment preset="city" />
 
-          {/* ライティング */}
-          <ambientLight intensity={0.4} />
+          {/* ライティング - より明るく */}
+          <ambientLight intensity={0.8} />
           <directionalLight
             position={[100, 100, 50]}
-            intensity={1}
+            intensity={1.5}
             castShadow
             shadow-mapSize={[2048, 2048]}
+          />
+          {/* 追加の照明 */}
+          <directionalLight
+            position={[-100, 50, -50]}
+            intensity={0.8}
+            color="#ffffff"
           />
 
           {/* 奥多摩湖の湖面（半透明） */}
@@ -140,11 +146,22 @@ export default function Scene3D() {
 
           {/* GPS位置に基づく歴史的地点オブジェクト */}
           <LocationBasedObjects 
-            userPosition={sensorData.gps}
+            userPosition={sensorData.gps || {
+              latitude: 35.789472, // 奥多摩ダム中心座標（テスト用）
+              longitude: 139.048889,
+              altitude: 530,
+              accuracy: 10,
+              timestamp: Date.now()
+            }}
             maxDistance={5000}
             maxObjects={15}
           />
 
+          {/* テスト用の建物（常に表示） */}
+          <Building position={[50, -15, 100]} />
+          <Building position={[-80, -15, 150]} />
+          <Building position={[120, -15, -50]} />
+          
           {/* センサー情報表示 */}
           <SensorDebugInfo sensorData={sensorData} />
 
