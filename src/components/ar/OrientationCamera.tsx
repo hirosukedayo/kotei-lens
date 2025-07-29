@@ -33,17 +33,18 @@ export default function OrientationCamera({
       const gammaRad = (gamma * Math.PI) / 180;
       
       if (arMode) {
-        // ARモード: より直接的で反応の良い制御
-        // iOS Safari向けの座標系調整
+        // ARモード: iPhone背面カメラの向きに合わせた座標系
+        // iPhoneが下を向いているときにアプリ内カメラも下を向くように調整
         targetRotation.current = {
-          // X軸回転: 上下の傾き（beta: 前後傾斜）
-          x: -betaRad * 0.8 + Math.PI / 12, // 若干上向きに調整
+          // X軸回転: 上下の傾き（beta値をそのまま使用してカメラの向きと一致）
+          x: betaRad, // iPhone背面カメラの上下方向と一致
           
           // Y軸回転: 左右の回転（alpha: コンパス方向）
-          y: -alphaRad + Math.PI, // 180度回転してiOSの座標系に合わせる
+          // iPhone背面カメラは画面と逆方向を向いているので180度回転
+          y: alphaRad + Math.PI, 
           
-          // Z軸回転: 端末の傾き（gamma: 左右傾斜）
-          z: gammaRad * 0.3 // 軽く反映
+          // Z軸回転: 端末の傾き（gamma: 左右傾斜を軽く反映）
+          z: -gammaRad * 0.5 // 符号を反転して自然な傾きに
         };
       } else {
         // 通常モード: 安全な制御（従来の方式）
