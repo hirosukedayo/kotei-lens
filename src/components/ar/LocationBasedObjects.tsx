@@ -40,21 +40,12 @@ export default function LocationBasedObjects({
       .map(location => {
         const distance = calculateDistance(userGPS, location.gpsCoordinate);
         
-        // 距離制限とGPS精度チェック（デバッグ情報付き）
+        // 距離制限とGPS精度チェック
         const withinDistance = distance <= maxDistance;
         const withinAccuracy = shouldShowObject(userGPS, location.gpsCoordinate, userPosition.accuracy);
         
-        // 方位角も計算してデバッグ
+        // 方位角も計算
         const bearing = calculateBearing(userGPS, location.gpsCoordinate);
-        
-        console.log(`Location: ${location.name}`, {
-          distance: Math.round(distance),
-          bearing: Math.round(bearing),
-          maxDistance,
-          withinDistance,
-          withinAccuracy,
-          userAccuracy: userPosition.accuracy
-        });
         
         if (!withinDistance || !withinAccuracy) {
           return null;
@@ -62,8 +53,6 @@ export default function LocationBasedObjects({
 
         // GPS座標を3D世界座標に変換
         const worldPosition = gpsToWorldCoordinate(location.gpsCoordinate);
-        
-        console.log(`${location.name} world position:`, worldPosition);
         
         return {
           id: location.id,
@@ -84,7 +73,6 @@ export default function LocationBasedObjects({
       })
       .slice(0, maxObjects); // 最大表示数に制限
 
-    console.log(`Visible objects: ${objects.length}`, objects.map(o => o.name));
     return objects;
   }, [userPosition, maxDistance, maxObjects]);
 
