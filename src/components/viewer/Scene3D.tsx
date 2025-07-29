@@ -175,11 +175,91 @@ export default function Scene3D() {
             maxObjects={15}
           />
 
-          {/* テスト用の建物（常に表示） */}
-          <Building position={[50, -15, 100]} />
-          <Building position={[-80, -15, 150]} />
-          <Building position={[120, -15, -50]} />
+          {/* 小河内村の建物群（湖底に配置） */}
+          {/* 村の中心部 */}
+          <Building position={[0, -15, 0]} />
+          <Building position={[20, -15, 10]} />
+          <Building position={[-15, -15, -5]} />
           
+          {/* 小学校（青い建物） */}
+          <Box position={[30, -12, 30]} args={[8, 6, 12]}>
+            <meshStandardMaterial color="#3498DB" />
+          </Box>
+          
+          {/* 庚申堂（紫の小さな建物） */}
+          <Box position={[-20, -16, 25]} args={[4, 4, 4]}>
+            <meshStandardMaterial color="#8E44AD" />
+          </Box>
+          
+          {/* 山田家住宅（大きな茅葺き風） */}
+          <Box position={[60, -14, -30]} args={[10, 8, 15]}>
+            <meshStandardMaterial color="#D4A574" />
+          </Box>
+          
+          {/* 石橋（低い石造り風） */}
+          <Box position={[-50, -18, 40]} args={[15, 2, 4]}>
+            <meshStandardMaterial color="#708090" />
+          </Box>
+          
+          {/* 追加の民家 */}
+          <Building position={[80, -15, 20]} />
+          <Building position={[-40, -15, -20]} />
+          <Building position={[40, -15, -60]} />
+          <Building position={[-30, -15, 60]} />
+          
+          {/* 村の案内プレート */}
+          <Text
+            position={[0, 30, 0]}
+            fontSize={8}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.5}
+            outlineColor="black"
+          >
+            小河内村 (1957年 奥多摩ダム建設により水没)
+          </Text>
+          
+          {/* 建物の説明ラベル */}
+          <Text
+            position={[30, 5, 30]}
+            fontSize={4}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+            rotation={[-Math.PI / 4, 0, 0]}
+            outlineWidth={0.2}
+            outlineColor="black"
+          >
+            小河内小学校
+          </Text>
+          
+          <Text
+            position={[-20, 5, 25]}
+            fontSize={3}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+            rotation={[-Math.PI / 4, 0, 0]}
+            outlineWidth={0.2}
+            outlineColor="black"
+          >
+            庚申堂
+          </Text>
+          
+          <Text
+            position={[60, 5, -30]}
+            fontSize={4}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+            rotation={[-Math.PI / 4, 0, 0]}
+            outlineWidth={0.2}
+            outlineColor="black"
+          >
+            山田家住宅
+          </Text>
+
           {/* センサー情報表示 */}
           <SensorDebugInfo sensorData={sensorData} />
 
