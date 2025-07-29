@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
 import './App.css';
@@ -8,6 +8,26 @@ type AppState = 'welcome' | 'permissions' | '3d-view' | 'permission-error';
 function App() {
   const [appState, setAppState] = useState<AppState>('welcome');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
+
+  // 3Dビュー表示時にrootに全画面クラスを追加
+  useEffect(() => {
+    const rootElement = document.getElementById('root');
+    if (rootElement) {
+      if (appState === '3d-view') {
+        rootElement.classList.add('fullscreen');
+      } else {
+        rootElement.classList.remove('fullscreen');
+      }
+    }
+
+    // クリーンアップ
+    return () => {
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        rootElement.classList.remove('fullscreen');
+      }
+    };
+  }, [appState]);
 
   const handleStart3D = () => {
     setAppState('permissions');
