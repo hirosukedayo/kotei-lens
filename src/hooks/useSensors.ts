@@ -40,6 +40,11 @@ export function useSensors() {
     setSensorData((prev) => ({ ...prev, gps: position }));
   }, []);
 
+  // GPS エラーコールバック
+  const handleGPSError = useCallback((error: any) => {
+    console.warn('GPS error:', error);
+  }, []);
+
   // 方位 コールバック
   const handleOrientationUpdate = useCallback(
     (orientation: DeviceOrientation) => {
@@ -73,7 +78,7 @@ export function useSensors() {
     try {
       // GPS開始
       if (services.location.isAvailable()) {
-        services.location.startWatching(handleGPSUpdate);
+        services.location.startWatching(handleGPSUpdate, handleGPSError);
       }
 
       // 方位センサー開始
@@ -90,7 +95,7 @@ export function useSensors() {
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }
-  }, [isActive, services, handleGPSUpdate, handleOrientationUpdate, handleMotionUpdate]);
+  }, [isActive, services, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate]);
 
   // センサー停止
   const stopSensors = useCallback(() => {

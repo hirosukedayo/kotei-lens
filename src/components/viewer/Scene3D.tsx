@@ -1,6 +1,6 @@
-import { Box, Environment, OrbitControls } from '@react-three/drei';
+import { Box, Environment, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import type { Mesh } from 'three';
 import {
   type WebGLSupport,
@@ -8,6 +8,9 @@ import {
   getRecommendedRenderer,
   getRendererConfig,
 } from '../../utils/webgl-detector';
+import { useSensors } from '../../hooks/useSensors';
+import LocationBasedObjects from '../ar/LocationBasedObjects';
+import OrientationCamera from '../ar/OrientationCamera';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -24,6 +27,7 @@ function Building({ position }: { position: [number, number, number] }) {
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
+  const { sensorData, isActive, startSensors } = useSensors();
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -34,6 +38,13 @@ export default function Scene3D() {
       console.log('Recommended Renderer:', recommended);
     });
   }, []);
+
+  // センサーを自動開始
+  useEffect(() => {
+    if (!isActive) {
+      startSensors();
+    }
+  }, [isActive, startSensors]);
 
   if (!webglSupport) {
     return (
@@ -80,45 +91,78 @@ export default function Scene3D() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{
-          position: [10, 10, 10],
-          fov: 60,
+          position: [0, 10, 20],
+          fov: 75,
           near: 0.1,
-          far: 1000,
+          far: 10000,
         }}
         gl={getRendererConfig(renderer)}
       >
-        {/* 環境設定 */}
-        <Environment preset="sunset" />
+        <Suspense fallback={null}>
+          {/* 環境設定 */}
+          <Environment preset="sunset" />
 
-        {/* ライティング */}
-        <ambientLight intensity={0.5} />
-        <directionalLight
-          position={[10, 10, 5]}
-          intensity={1}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-        />
+          {/* ライティング */}
+          <ambientLight intensity={0.4} />
+          <directionalLight
+            position={[100, 100, 50]}
+            intensity={1}
+            castShadow
+            shadow-mapSize={[2048, 2048]}
+          />
 
-        {/* 地面 */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-          <planeGeometry args={[50, 50]} />
-          <meshStandardMaterial color="#2D5016" />
-        </mesh>
+          {/* 奥多摩湖の湖面（半透明） */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+            <planeGeometry args={[2000, 2000]} />
+            <meshStandardMaterial 
+              color="#4A90E2" 
+              transparent 
+              opacity={0.6} 
+              roughness={0.1}
+              metalness={0.1}
+            />
+          </mesh>
+          
+          {/* 湖底の地面 */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -20, 0]} receiveShadow>
+            <planeGeometry args={[3000, 3000]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
 
-        {/* サンプル建物 */}
-        <Building position={[0, 0.5, 0]} />
-        <Building position={[5, 0.5, 0]} />
-        <Building position={[-3, 0.5, 2]} />
-        <Building position={[2, 0.5, -4]} />
+          {/* ダム（参考用） */}
+          <Box position={[0, 25, 800]} args={[200, 50, 20]}>
+            <meshStandardMaterial color="#666666" />
+          </Box>
 
-        {/* カメラコントロール */}
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={5}
-          maxDistance={50}
-        />
+          {/* GPS位置に基づく歴史的地点オブジェクト */}
+          <LocationBasedObjects 
+            userPosition={sensorData.gps}
+            maxDistance={5000}
+            maxObjects={15}
+          />
+
+          {/* センサー情報表示 */}
+          <SensorDebugInfo sensorData={sensorData} />
+
+          {/* デバイス方位によるカメラ制御 */}
+          <OrientationCamera 
+            deviceOrientation={sensorData.orientation}
+            enableRotation={true}
+            smoothing={0.1}
+          />
+
+          {/* カメラコントロール（デバイス方位が無い場合のフォールバック） */}
+          {!sensorData.orientation && (
+            <OrbitControls
+              enablePan={true}
+              enableZoom={true}
+              enableRotate={true}
+              maxPolarAngle={Math.PI / 2}
+              minDistance={5}
+              maxDistance={1000}
+            />
+          )}
+        </Suspense>
       </Canvas>
 
       {/* UI オーバーレイ */}
@@ -147,8 +191,69 @@ export default function Scene3D() {
             WebGPU: {webglSupport.webgpu ? '✅' : '❌'} | WebGL2:{' '}
             {webglSupport.webgl2 ? '✅' : '❌'} | WebGL: {webglSupport.webgl ? '✅' : '❌'}
           </p>
+          <hr style={{ margin: '8px 0', opacity: 0.3 }} />
+          <p style={{ margin: '3px 0' }}>
+            GPS: {sensorData.gps ? `${sensorData.gps.latitude.toFixed(6)}, ${sensorData.gps.longitude.toFixed(6)}` : '未取得'}
+          </p>
+          <p style={{ margin: '3px 0' }}>
+            方位: {sensorData.orientation && sensorData.compassHeading !== null ? `${sensorData.compassHeading.toFixed(1)}°` : '未取得'}
+          </p>
+          <p style={{ margin: '3px 0' }}>
+            精度: {sensorData.gps ? `${sensorData.gps.accuracy.toFixed(1)}m` : '不明'}
+          </p>
         </div>
       </div>
     </div>
+  );
+}
+
+// センサー情報のデバッグ表示（3D空間内）
+function SensorDebugInfo({ sensorData }: { sensorData: any }) {
+  const { gps, orientation, compassHeading } = sensorData;
+  
+  return (
+    <group position={[-80, 40, 0]}>
+      <Text
+        position={[0, 10, 0]}
+        fontSize={4}
+        color="white"
+        anchorX="left"
+        anchorY="top"
+        outlineWidth={0.2}
+        outlineColor="black"
+      >
+        {gps ? 
+          `GPS: ${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}` : 
+          'GPS: 未取得'
+        }
+      </Text>
+      
+      <Text
+        position={[0, 5, 0]}
+        fontSize={4}
+        color="white"
+        anchorX="left"
+        anchorY="top"
+        outlineWidth={0.2}
+        outlineColor="black"
+      >
+        {orientation && compassHeading !== null ? 
+          `方位: ${compassHeading.toFixed(1)}°` : 
+          '方位: 未取得'
+        }
+      </Text>
+      
+      <Text
+        position={[0, 0, 0]}
+        fontSize={4}
+        color="white"
+        anchorX="left"
+        anchorY="top"
+        outlineWidth={0.2}
+        outlineColor="black"
+      >
+        {gps ? `精度: ${gps.accuracy.toFixed(1)}m` : '精度: 不明'}
+      </Text>
+    </group>
   );
 }
