@@ -97,15 +97,15 @@ export default function Scene3D() {
           position: [0, 50, 200], // 初期位置（GPS取得後に更新される）
           fov: 75,
           near: 0.1,
-          far: 10000,
+          far: 50000000, // スカイボックスと同じ範囲まで見える
         }}
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* React Three Fiber標準のSkyコンポーネント */}
+          {/* React Three Fiber標準のSkyコンポーネント - 超巨大サイズ */}
           <Sky 
-            distance={450000}
-            sunPosition={[100, 20, 100]}
+            distance={45000000} // 45,000km（地球の円周より大きい）
+            sunPosition={[1000, 200, 1000]}
             inclination={0.6}
             azimuth={0.25}
           />
