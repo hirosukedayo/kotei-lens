@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LocationService } from '../../services/sensors/LocationService';
-import { MotionService } from '../../services/sensors/MotionService';
-import { OrientationService } from '../../services/sensors/OrientationService';
+import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 
 interface SensorPermissionRequestProps {
@@ -21,31 +19,30 @@ export default function SensorPermissionRequest({
 
   const [isRequesting, setIsRequesting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // SensorManagerのシングルトンインスタンスを使用
+  const sensorManager = getSensorManager();
 
   useEffect(() => {
     checkSensorAvailability();
   }, []);
 
   const checkSensorAvailability = async () => {
-    const locationService = new LocationService();
-    const orientationService = new OrientationService();
-    const motionService = new MotionService();
-
     const newStatus: SensorStatus = {
       gps: {
-        available: locationService.isAvailable(),
-        permission: await locationService.checkPermission(),
+        available: sensorManager.locationService.isAvailable(),
+        permission: await sensorManager.locationService.checkPermission(),
         lastUpdate: null,
         error: null,
       },
       orientation: {
-        available: orientationService.isAvailable(),
+        available: sensorManager.orientationService.isAvailable(),
         permission: 'prompt', // 初期状態
         lastUpdate: null,
         error: null,
       },
       motion: {
-        available: motionService.isAvailable(),
+        available: sensorManager.motionService.isAvailable(),
         permission: 'prompt', // 初期状態
         lastUpdate: null,
         error: null,
@@ -61,11 +58,10 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       // GeolocationAPIの許可を実際に要求するため、getCurrentPositionを呼び出す
-      const locationService = new LocationService();
       console.log('GPS permission requesting...');
       
       // これによりブラウザの位置許可ダイアログが表示される
-      await locationService.getCurrentPosition();
+      await sensorManager.locationService.getCurrentPosition();
       console.log('GPS permission granted through getCurrentPosition');
       
       setSensorStatus((prev) => ({
@@ -88,8 +84,7 @@ export default function SensorPermissionRequest({
     
     setIsRequesting(true);
     try {
-      const orientationService = new OrientationService();
-      const permission = await orientationService.requestPermission();
+      const permission = await sensorManager.orientationService.requestPermission();
       console.log('Orientation permission result:', permission);
       
       // テストは削除 - useSensorsで実際の利用時に行う
@@ -113,8 +108,7 @@ export default function SensorPermissionRequest({
     
     setIsRequesting(true);
     try {
-      const motionService = new MotionService();
-      const permission = await motionService.requestPermission();
+      const permission = await sensorManager.motionService.requestPermission();
       console.log('Motion permission result:', permission);
       
       // テストは削除 - useSensorsで実際の利用時に行う

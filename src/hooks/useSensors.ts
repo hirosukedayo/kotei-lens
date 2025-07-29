@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LocationService } from '../services/sensors/LocationService';
-import { MotionService } from '../services/sensors/MotionService';
-import { OrientationService } from '../services/sensors/OrientationService';
+import { getSensorManager } from '../services/sensors/SensorManager';
 import type { DeviceMotion, DeviceOrientation, GPSPosition } from '../types/sensors';
 
 interface SensorData {
@@ -12,11 +10,7 @@ interface SensorData {
   compassHeading: number | null;
 }
 
-interface SensorServices {
-  location: LocationService;
-  orientation: OrientationService;
-  motion: MotionService;
-}
+// SensorManager経由でサービスにアクセスするため、このインターフェースは不要
 
 export function useSensors() {
   const [sensorData, setSensorData] = useState<SensorData>({
@@ -27,11 +21,8 @@ export function useSensors() {
     compassHeading: null,
   });
 
-  const [services] = useState<SensorServices>(() => ({
-    location: new LocationService(),
-    orientation: new OrientationService(),
-    motion: new MotionService(),
-  }));
+  // SensorManagerのシングルトンインスタンスを使用
+  const sensorManager = getSensorManager();
 
   const [isActive, setIsActive] = useState(false);
 
@@ -49,7 +40,7 @@ export function useSensors() {
   // 方位 コールバック
   const handleOrientationUpdate = useCallback(
     (orientation: DeviceOrientation) => {
-      const compassHeading = services.orientation.getCompassHeading(orientation);
+      const compassHeading = sensorManager.orientationService.getCompassHeading(orientation);
       console.log('方位更新:', orientation, 'コンパス:', compassHeading);
       setSensorData((prev) => ({
         ...prev,
@@ -57,20 +48,20 @@ export function useSensors() {
         compassHeading,
       }));
     },
-    [services.orientation]
+    [sensorManager.orientationService]
   );
 
   // モーション コールバック
   const handleMotionUpdate = useCallback(
     (motion: DeviceMotion) => {
-      const isWalking = services.motion.detectWalking(motion);
+      const isWalking = sensorManager.motionService.detectWalking(motion);
       setSensorData((prev) => ({
         ...prev,
         motion,
         isWalking,
       }));
     },
-    [services.motion]
+    [sensorManager.motionService]
   );
 
   // センサー開始
@@ -81,19 +72,19 @@ export function useSensors() {
     }
 
     console.log('センサー開始を試行中...', {
-      gpsAvailable: services.location.isAvailable(),
-      orientationAvailable: services.orientation.isAvailable(),  
-      motionAvailable: services.motion.isAvailable(),
+      gpsAvailable: sensorManager.locationService.isAvailable(),
+      orientationAvailable: sensorManager.orientationService.isAvailable(),  
+      motionAvailable: sensorManager.motionService.isAvailable(),
     });
 
     try {
       let startedCount = 0;
       
       // GPS開始
-      if (services.location.isAvailable()) {
+      if (sensorManager.locationService.isAvailable()) {
         console.log('GPS開始を試行中...');
         try {
-          services.location.startWatching(handleGPSUpdate, handleGPSError);
+          sensorManager.locationService.startWatching(handleGPSUpdate, handleGPSError);
           console.log('GPS監視開始完了');
           startedCount++;
         } catch (gpsError) {
@@ -104,10 +95,10 @@ export function useSensors() {
       }
 
       // 方位センサー開始
-      if (services.orientation.isAvailable()) {
+      if (sensorManager.orientationService.isAvailable()) {
         console.log('方位センサー開始を試行中...');
         try {
-          await services.orientation.startTracking(handleOrientationUpdate);
+          await sensorManager.orientationService.startTracking(handleOrientationUpdate);
           console.log('方位センサー開始完了');
           startedCount++;
         } catch (orientationError) {
@@ -118,10 +109,10 @@ export function useSensors() {
       }
 
       // モーションセンサー開始
-      if (services.motion.isAvailable()) {
+      if (sensorManager.motionService.isAvailable()) {
         console.log('モーションセンサー開始を試行中...');
         try {
-          await services.motion.startTracking(handleMotionUpdate);
+          await sensorManager.motionService.startTracking(handleMotionUpdate);
           console.log('モーションセンサー開始完了');
           startedCount++;
         } catch (motionError) {
@@ -146,34 +137,33 @@ export function useSensors() {
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }
-  }, [isActive, services, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate, sensorData]);
+  }, [isActive, sensorManager, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate, sensorData]);
 
   // センサー停止
   const stopSensors = useCallback(() => {
     if (!isActive) return;
 
-    services.location.stopWatching();
-    services.orientation.stopTracking();
-    services.motion.stopTracking();
+    sensorManager.locationService.stopWatching();
+    sensorManager.orientationService.stopTracking();
+    sensorManager.motionService.stopTracking();
 
     setIsActive(false);
-  }, [isActive, services]);
+  }, [isActive, sensorManager]);
 
   // テスト用：モック位置データ設定
   const setMockLocation = useCallback(() => {
-    const mockPosition = services.location.getMockPosition();
+    const mockPosition = sensorManager.locationService.getMockPosition();
     setSensorData((prev) => ({ ...prev, gps: mockPosition }));
-  }, [services.location]);
+  }, [sensorManager.locationService]);
 
   // クリーンアップ
   useEffect(() => {
     return () => {
       stopSensors();
-      services.location.dispose();
-      services.orientation.dispose();
-      services.motion.dispose();
+      // シングルトンなので個別のdisposeは行わない
+      // sensorManager.dispose() は必要に応じて別途実行
     };
-  }, [stopSensors, services]);
+  }, [stopSensors]);
 
   return {
     sensorData,
@@ -181,6 +171,6 @@ export function useSensors() {
     startSensors,
     stopSensors,
     setMockLocation,
-    services,
+    sensorManager,
   };
 }
