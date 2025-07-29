@@ -1,4 +1,4 @@
-import { DeviceMotion, MotionCallback } from '../../types/sensors';
+import type { DeviceMotion, MotionCallback } from '../../types/sensors';
 
 export class MotionService {
   private callbacks: MotionCallback[] = [];
@@ -7,7 +7,7 @@ export class MotionService {
 
   // 歩行検知用パラメーター
   private walkingThreshold = 2.5; // 歩行検知の閾値 (m/s²)
-  private shakeThreshold = 15.0;   // シェイク検知の閾値 (m/s²)
+  private shakeThreshold = 15.0; // シェイク検知の閾値 (m/s²)
 
   // 平滑化用バッファ
   private motionBuffer: DeviceMotion[] = [];
@@ -18,10 +18,6 @@ export class MotionService {
   private lastStepTime = 0;
   private isWalking = false;
 
-  constructor() {
-    // 初期化
-  }
-
   // デバイスモーションセンサー対応チェック
   public isAvailable(): boolean {
     return 'DeviceMotionEvent' in window;
@@ -30,8 +26,10 @@ export class MotionService {
   // iOS 13+ での許可要求
   public async requestPermission(): Promise<PermissionState> {
     // iOS 13+ では許可が必要
-    if (typeof window.DeviceMotionEvent !== 'undefined' && 
-        typeof window.DeviceMotionEvent.requestPermission === 'function') {
+    if (
+      typeof window.DeviceMotionEvent !== 'undefined' &&
+      typeof window.DeviceMotionEvent.requestPermission === 'function'
+    ) {
       try {
         const permission = await window.DeviceMotionEvent.requestPermission();
         console.log('DeviceMotion permission result:', permission);
@@ -41,7 +39,7 @@ export class MotionService {
         return 'denied';
       }
     }
-    
+
     // その他のブラウザでは自動的に許可
     return 'granted';
   }
@@ -94,30 +92,30 @@ export class MotionService {
   public detectWalking(motion: DeviceMotion): boolean {
     const { x, y, z } = motion.accelerationIncludingGravity;
     if (x === null || y === null || z === null) return false;
-    
+
     // 加速度の大きさ計算
     const magnitude = Math.sqrt(x * x + y * y + z * z);
     const gravityFiltered = Math.abs(magnitude - 9.8); // 重力を除去
-    
+
     const now = Date.now();
     const timeSinceLastStep = now - this.lastStepTime;
-    
+
     // 一定時間間隔での振動検知（歩行パターン）
     if (gravityFiltered > this.walkingThreshold && timeSinceLastStep > 300) {
       this.stepCount++;
       this.lastStepTime = now;
       this.isWalking = true;
-      
+
       // 3秒間歩行が検知されなければ停止とみなす
       setTimeout(() => {
         if (Date.now() - this.lastStepTime > 3000) {
           this.isWalking = false;
         }
       }, 3000);
-      
+
       return true;
     }
-    
+
     return this.isWalking && timeSinceLastStep < 3000;
   }
 
@@ -125,23 +123,25 @@ export class MotionService {
   public detectShake(motion: DeviceMotion): boolean {
     const { x, y, z } = motion.accelerationIncludingGravity;
     if (x === null || y === null || z === null) return false;
-    
+
     const magnitude = Math.sqrt(x * x + y * y + z * z);
     return magnitude > this.shakeThreshold;
   }
 
   // デバイスの向き検知（加速度センサーベース）
-  public getDeviceOrientation(motion: DeviceMotion): 'portrait' | 'landscape-left' | 'landscape-right' | 'portrait-upside-down' | 'unknown' {
+  public getDeviceOrientation(
+    motion: DeviceMotion
+  ): 'portrait' | 'landscape-left' | 'landscape-right' | 'portrait-upside-down' | 'unknown' {
     const { x, y } = motion.accelerationIncludingGravity;
     if (x === null || y === null) return 'unknown';
-    
+
     const angle = Math.atan2(x, y) * (180 / Math.PI);
-    
+
     if (angle >= -45 && angle < 45) return 'portrait';
     if (angle >= 45 && angle < 135) return 'landscape-left';
     if (angle >= 135 || angle < -135) return 'portrait-upside-down';
     if (angle >= -135 && angle < -45) return 'landscape-right';
-    
+
     return 'unknown';
   }
 
@@ -149,7 +149,7 @@ export class MotionService {
   public isStationary(motion: DeviceMotion, threshold = 0.5): boolean {
     const { x, y, z } = motion.acceleration;
     if (x === null || y === null || z === null) return true;
-    
+
     const magnitude = Math.sqrt(x * x + y * y + z * z);
     return magnitude < threshold;
   }
@@ -158,12 +158,12 @@ export class MotionService {
   public getAccelerationChange(current: DeviceMotion, previous: DeviceMotion): number | null {
     const curr = current.accelerationIncludingGravity;
     const prev = previous.accelerationIncludingGravity;
-    
+
     if (!curr.x || !curr.y || !curr.z || !prev.x || !prev.y || !prev.z) return null;
-    
+
     const currentMag = Math.sqrt(curr.x * curr.x + curr.y * curr.y + curr.z * curr.z);
     const prevMag = Math.sqrt(prev.x * prev.x + prev.y * prev.y + prev.z * prev.z);
-    
+
     return Math.abs(currentMag - prevMag);
   }
 
@@ -210,7 +210,7 @@ export class MotionService {
         gamma: event.rotationRate?.gamma || null,
       },
       interval: event.interval,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // 平滑化処理
@@ -218,13 +218,15 @@ export class MotionService {
     this.lastMotion = smoothedMotion;
 
     // コールバック実行
-    this.callbacks.forEach(callback => callback(smoothedMotion));
+    for (const callback of this.callbacks) {
+      callback(smoothedMotion);
+    }
   };
 
   // 平滑化処理（ノイズ除去）
   private smoothMotion(motion: DeviceMotion): DeviceMotion {
     this.motionBuffer.push(motion);
-    
+
     if (this.motionBuffer.length > this.BUFFER_SIZE) {
       this.motionBuffer.shift();
     }
@@ -267,9 +269,18 @@ export class MotionService {
         z: motion.acceleration.z !== null ? averages.acceleration.z / count : null,
       },
       accelerationIncludingGravity: {
-        x: motion.accelerationIncludingGravity.x !== null ? averages.accelerationIncludingGravity.x / count : null,
-        y: motion.accelerationIncludingGravity.y !== null ? averages.accelerationIncludingGravity.y / count : null,
-        z: motion.accelerationIncludingGravity.z !== null ? averages.accelerationIncludingGravity.z / count : null,
+        x:
+          motion.accelerationIncludingGravity.x !== null
+            ? averages.accelerationIncludingGravity.x / count
+            : null,
+        y:
+          motion.accelerationIncludingGravity.y !== null
+            ? averages.accelerationIncludingGravity.y / count
+            : null,
+        z:
+          motion.accelerationIncludingGravity.z !== null
+            ? averages.accelerationIncludingGravity.z / count
+            : null,
       },
       rotationRate: {
         alpha: motion.rotationRate.alpha !== null ? averages.rotationRate.alpha / count : null,
@@ -277,7 +288,7 @@ export class MotionService {
         gamma: motion.rotationRate.gamma !== null ? averages.rotationRate.gamma / count : null,
       },
       interval: motion.interval,
-      timestamp: motion.timestamp
+      timestamp: motion.timestamp,
     };
   }
 

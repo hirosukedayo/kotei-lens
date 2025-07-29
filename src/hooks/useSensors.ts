@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { LocationService } from '../services/sensors/LocationService';
-import { OrientationService } from '../services/sensors/OrientationService';
 import { MotionService } from '../services/sensors/MotionService';
-import { GPSPosition, DeviceOrientation, DeviceMotion } from '../types/sensors';
+import { OrientationService } from '../services/sensors/OrientationService';
+import type { DeviceMotion, DeviceOrientation, GPSPosition } from '../types/sensors';
 
 interface SensorData {
   gps: GPSPosition | null;
@@ -37,28 +37,34 @@ export function useSensors() {
 
   // GPS コールバック
   const handleGPSUpdate = useCallback((position: GPSPosition) => {
-    setSensorData(prev => ({ ...prev, gps: position }));
+    setSensorData((prev) => ({ ...prev, gps: position }));
   }, []);
 
   // 方位 コールバック
-  const handleOrientationUpdate = useCallback((orientation: DeviceOrientation) => {
-    const compassHeading = services.orientation.getCompassHeading(orientation);
-    setSensorData(prev => ({ 
-      ...prev, 
-      orientation,
-      compassHeading 
-    }));
-  }, [services.orientation]);
+  const handleOrientationUpdate = useCallback(
+    (orientation: DeviceOrientation) => {
+      const compassHeading = services.orientation.getCompassHeading(orientation);
+      setSensorData((prev) => ({
+        ...prev,
+        orientation,
+        compassHeading,
+      }));
+    },
+    [services.orientation]
+  );
 
-  // モーション コールバック  
-  const handleMotionUpdate = useCallback((motion: DeviceMotion) => {
-    const isWalking = services.motion.detectWalking(motion);
-    setSensorData(prev => ({ 
-      ...prev, 
-      motion,
-      isWalking 
-    }));
-  }, [services.motion]);
+  // モーション コールバック
+  const handleMotionUpdate = useCallback(
+    (motion: DeviceMotion) => {
+      const isWalking = services.motion.detectWalking(motion);
+      setSensorData((prev) => ({
+        ...prev,
+        motion,
+        isWalking,
+      }));
+    },
+    [services.motion]
+  );
 
   // センサー開始
   const startSensors = useCallback(async () => {
@@ -93,14 +99,14 @@ export function useSensors() {
     services.location.stopWatching();
     services.orientation.stopTracking();
     services.motion.stopTracking();
-    
+
     setIsActive(false);
   }, [isActive, services]);
 
   // テスト用：モック位置データ設定
   const setMockLocation = useCallback(() => {
     const mockPosition = services.location.getMockPosition();
-    setSensorData(prev => ({ ...prev, gps: mockPosition }));
+    setSensorData((prev) => ({ ...prev, gps: mockPosition }));
   }, [services.location]);
 
   // クリーンアップ

@@ -7,9 +7,7 @@ interface GPU {
   requestAdapter(options?: GPURequestAdapterOptions): Promise<GPUAdapter | null>;
 }
 
-interface GPUAdapter {
-  // 基本的なプロパティのみ定義
-}
+type GPUAdapter = Record<string, unknown>;
 
 interface GPURequestAdapterOptions {
   powerPreference?: 'low-power' | 'high-performance';

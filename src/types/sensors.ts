@@ -21,9 +21,9 @@ export interface GPSError {
 
 // デバイス方位関連の型定義
 export interface DeviceOrientation {
-  alpha: number | null;  // Z軸周りの回転 (0-360°)
-  beta: number | null;   // X軸周りの回転 (-180-180°)
-  gamma: number | null;  // Y軸周りの回転 (-90-90°)
+  alpha: number | null; // Z軸周りの回転 (0-360°)
+  beta: number | null; // X軸周りの回転 (-180-180°)
+  gamma: number | null; // Y軸周りの回転 (-90-90°)
   absolute: boolean;
   timestamp: number;
 }
@@ -32,7 +32,7 @@ export interface DeviceOrientation {
 export interface DeviceMotion {
   acceleration: {
     x: number | null;
-    y: number | null; 
+    y: number | null;
     z: number | null;
   };
   accelerationIncludingGravity: {

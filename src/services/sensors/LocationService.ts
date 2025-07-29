@@ -1,16 +1,16 @@
-import { 
-  GPSOptions, 
-  GPSPosition, 
-  GPSError, 
-  GPSCallback, 
-  GPSErrorCallback 
+import type {
+  GPSCallback,
+  GPSError,
+  GPSErrorCallback,
+  GPSOptions,
+  GPSPosition,
 } from '../../types/sensors';
 
 export class LocationService {
   private options: GPSOptions = {
-    enableHighAccuracy: true,    // 高精度モード
-    timeout: 10000,              // タイムアウト: 10秒
-    maximumAge: 5000            // キャッシュ有効期限: 5秒
+    enableHighAccuracy: true, // 高精度モード
+    timeout: 10000, // タイムアウト: 10秒
+    maximumAge: 5000, // キャッシュ有効期限: 5秒
   };
 
   private watchId: number | null = null;
@@ -23,7 +23,7 @@ export class LocationService {
     north: 35.795,
     south: 35.785,
     east: 139.055,
-    west: 139.045
+    west: 139.045,
   };
 
   constructor(customOptions?: Partial<GPSOptions>) {
@@ -74,10 +74,7 @@ export class LocationService {
   }
 
   // 継続的位置監視開始
-  public startWatching(
-    callback: GPSCallback,
-    errorCallback?: GPSErrorCallback
-  ): void {
+  public startWatching(callback: GPSCallback, errorCallback?: GPSErrorCallback): void {
     if (!this.isAvailable()) {
       throw new Error('Geolocation is not supported');
     }
@@ -93,11 +90,15 @@ export class LocationService {
         (position) => {
           const gpsPosition = this.convertPosition(position);
           this.lastPosition = gpsPosition;
-          this.callbacks.forEach(cb => cb(gpsPosition));
+          for (const cb of this.callbacks) {
+            cb(gpsPosition);
+          }
         },
         (error) => {
           const gpsError = this.convertError(error);
-          this.errorCallbacks.forEach(cb => cb(gpsError));
+          for (const cb of this.errorCallbacks) {
+            cb(gpsError);
+          }
         },
         this.options
       );
@@ -141,11 +142,11 @@ export class LocationService {
   // テスト用：小河内ダム中心座標を返す
   public getMockPosition(): GPSPosition {
     return {
-      latitude: 35.789472,  // 小河内ダム堤体中心
+      latitude: 35.789472, // 小河内ダム堤体中心
       longitude: 139.048889,
-      altitude: 530,        // 水面標高
+      altitude: 530, // 水面標高
       accuracy: 5,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -154,15 +155,16 @@ export class LocationService {
     const R = 6371000; // 地球の半径（メートル）
     const dLat = this.toRadians(pos2.latitude - pos1.latitude);
     const dLon = this.toRadians(pos2.longitude - pos1.longitude);
-    
-    const a = 
+
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(pos1.latitude)) * 
-      Math.cos(this.toRadians(pos2.latitude)) * 
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
+      Math.cos(this.toRadians(pos1.latitude)) *
+        Math.cos(this.toRadians(pos2.latitude)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
+
     return R * c;
   }
 
@@ -173,7 +175,7 @@ export class LocationService {
       longitude: position.coords.longitude,
       altitude: position.coords.altitude,
       accuracy: position.coords.accuracy,
-      timestamp: position.timestamp
+      timestamp: position.timestamp,
     };
   }
 
@@ -181,7 +183,7 @@ export class LocationService {
     return {
       code: error.code,
       message: error.message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 

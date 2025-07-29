@@ -1,20 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Sawarabi+Mincho&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Sawarabi+Mincho&display=swap");
 
 :root {
   /* プライマリカラー */
-  --color-lake-blue: #2B6CB0;
-  --color-memory-sepia: #8B7355;
-  --color-forest-green: #2D5016;
-  
+  --color-lake-blue: #2b6cb0;
+  --color-memory-sepia: #8b7355;
+  --color-forest-green: #2d5016;
+
   /* セカンダリカラー */
-  --color-mist-white: #F5F5F0;
-  --color-sunset-orange: #FF6B35;
-  --color-stone-gray: #4A4A4A;
-  
+  --color-mist-white: #f5f5f0;
+  --color-sunset-orange: #ff6b35;
+  --color-stone-gray: #4a4a4a;
+
   /* フォント */
-  --font-primary: 'Noto Sans JP', sans-serif;
-  --font-secondary: 'Sawarabi Mincho', serif;
-  --font-mono: 'Source Code Pro', monospace;
+  --font-primary: "Noto Sans JP", sans-serif;
+  --font-secondary: "Sawarabi Mincho", serif;
+  --font-mono: "Source Code Pro", monospace;
 }
 
 * {
@@ -72,7 +72,7 @@ button:focus-visible {
     color: #f6f6f6;
     background-color: #2f2f2f;
   }
-  
+
   body {
     background: linear-gradient(135deg, #2f2f2f 0%, #1a1a1a 100%);
   }

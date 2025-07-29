@@ -1,4 +1,4 @@
-import { DeviceOrientation, OrientationCallback } from '../../types/sensors';
+import type { DeviceOrientation, OrientationCallback } from '../../types/sensors';
 
 export class OrientationService {
   private magneticDeclination = 7.3; // 東京の磁気偏角（西偏）
@@ -24,8 +24,10 @@ export class OrientationService {
   // iOS 13+ での許可要求
   public async requestPermission(): Promise<PermissionState> {
     // iOS 13+ では許可が必要
-    if (typeof window.DeviceOrientationEvent !== 'undefined' && 
-        typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+    if (
+      typeof window.DeviceOrientationEvent !== 'undefined' &&
+      typeof window.DeviceOrientationEvent.requestPermission === 'function'
+    ) {
       try {
         const permission = await window.DeviceOrientationEvent.requestPermission();
         console.log('DeviceOrientation permission result:', permission);
@@ -35,7 +37,7 @@ export class OrientationService {
         return 'denied';
       }
     }
-    
+
     // その他のブラウザでは自動的に許可
     return 'granted';
   }
@@ -56,7 +58,7 @@ export class OrientationService {
 
     if (!this.isTracking) {
       this.isTracking = true;
-      
+
       // deviceorientationabsolute イベントを優先（コンパス基準）
       window.addEventListener('deviceorientation', this.handleOrientationEvent);
     }
@@ -88,14 +90,14 @@ export class OrientationService {
   // コンパス方位を取得（北を0度とする）
   public getCompassHeading(orientation: DeviceOrientation): number | null {
     if (orientation.alpha === null) return null;
-    
+
     // 磁気偏角補正を適用
     let heading = orientation.alpha + this.magneticDeclination;
-    
+
     // 0-360度の範囲に正規化
     if (heading < 0) heading += 360;
     if (heading >= 360) heading -= 360;
-    
+
     return heading;
   }
 
@@ -105,41 +107,40 @@ export class OrientationService {
     if (currentHeading === null) return null;
 
     let relativeAngle = targetHeading - currentHeading;
-    
+
     // -180から180度の範囲に正規化
     while (relativeAngle > 180) relativeAngle -= 360;
     while (relativeAngle < -180) relativeAngle += 360;
-    
+
     return relativeAngle;
   }
 
   // デバイスが平らかどうかチェック
   public isDeviceFlat(orientation: DeviceOrientation, threshold = 15): boolean {
     if (orientation.beta === null || orientation.gamma === null) return false;
-    
-    return Math.abs(orientation.beta) < threshold && 
-           Math.abs(orientation.gamma) < threshold;
+
+    return Math.abs(orientation.beta) < threshold && Math.abs(orientation.gamma) < threshold;
   }
 
-  // デバイスが縦向きかどうかチェック  
+  // デバイスが縦向きかどうかチェック
   public isDevicePortrait(orientation: DeviceOrientation): boolean {
     if (orientation.gamma === null) return true;
-    
+
     return Math.abs(orientation.gamma) < 45;
   }
 
   // 方位変化の検出
   public hasSignificantChange(
-    current: DeviceOrientation, 
-    previous: DeviceOrientation, 
+    current: DeviceOrientation,
+    previous: DeviceOrientation,
     threshold = 5
   ): boolean {
     if (current.alpha === null || previous.alpha === null) return false;
-    
+
     const alphaDiff = Math.abs(current.alpha - previous.alpha);
     const betaDiff = Math.abs((current.beta || 0) - (previous.beta || 0));
     const gammaDiff = Math.abs((current.gamma || 0) - (previous.gamma || 0));
-    
+
     return alphaDiff > threshold || betaDiff > threshold || gammaDiff > threshold;
   }
 
@@ -155,7 +156,7 @@ export class OrientationService {
       beta: event.beta,
       gamma: event.gamma,
       absolute: event.absolute || false,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // 平滑化処理
@@ -163,13 +164,15 @@ export class OrientationService {
     this.lastOrientation = smoothedOrientation;
 
     // コールバック実行
-    this.callbacks.forEach(callback => callback(smoothedOrientation));
+    for (const callback of this.callbacks) {
+      callback(smoothedOrientation);
+    }
   };
 
   // 平滑化処理（ノイズ除去）
   private smoothOrientation(orientation: DeviceOrientation): DeviceOrientation {
     this.orientationBuffer.push(orientation);
-    
+
     if (this.orientationBuffer.length > this.BUFFER_SIZE) {
       this.orientationBuffer.shift();
     }
@@ -189,13 +192,13 @@ export class OrientationService {
     );
 
     const count = this.orientationBuffer.length;
-    
+
     return {
       alpha: orientation.alpha !== null ? averages.alpha / count : null,
       beta: orientation.beta !== null ? averages.beta / count : null,
       gamma: orientation.gamma !== null ? averages.gamma / count : null,
       absolute: orientation.absolute,
-      timestamp: orientation.timestamp
+      timestamp: orientation.timestamp,
     };
   }
 

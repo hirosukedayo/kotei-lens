@@ -8,15 +8,15 @@ export interface WebGLSupport {
 
 export async function detectWebGLSupport(): Promise<WebGLSupport> {
   const canvas = document.createElement('canvas');
-  
+
   // WebGL 1.0 チェック
   const webglContext = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   const webgl = !!webglContext;
-  
+
   // WebGL 2.0 チェック
   const webgl2Context = canvas.getContext('webgl2');
   const webgl2 = !!webgl2Context;
-  
+
   // WebGPU チェック
   let webgpu = false;
   if ('gpu' in navigator && navigator.gpu) {
@@ -28,7 +28,7 @@ export async function detectWebGLSupport(): Promise<WebGLSupport> {
       webgpu = false;
     }
   }
-  
+
   // クリーンアップ
   if (webglContext && webglContext instanceof WebGLRenderingContext) {
     const ext = webglContext.getExtension('WEBGL_lose_context');
@@ -39,11 +39,13 @@ export async function detectWebGLSupport(): Promise<WebGLSupport> {
     if (ext) ext.loseContext();
   }
   canvas.remove();
-  
+
   return { webgl, webgl2, webgpu };
 }
 
-export function getRecommendedRenderer(support: WebGLSupport): 'webgpu' | 'webgl2' | 'webgl' | 'none' {
+export function getRecommendedRenderer(
+  support: WebGLSupport
+): 'webgpu' | 'webgl2' | 'webgl' | 'none' {
   if (support.webgpu) return 'webgpu';
   if (support.webgl2) return 'webgl2';
   if (support.webgl) return 'webgl';

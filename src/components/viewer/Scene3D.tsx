@@ -1,8 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { Box, Environment, OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Box, Environment } from '@react-three/drei';
-import { Mesh } from 'three';
-import { detectWebGLSupport, getRecommendedRenderer, getRendererConfig, type WebGLSupport } from '../../utils/webgl-detector';
+import React, { useRef, useState, useEffect } from 'react';
+import type { Mesh } from 'three';
+import {
+  type WebGLSupport,
+  detectWebGLSupport,
+  getRecommendedRenderer,
+  getRendererConfig,
+} from '../../utils/webgl-detector';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -15,7 +20,7 @@ function Building({ position }: { position: [number, number, number] }) {
   );
 }
 
-// 3Dシーンコンポーネント  
+// 3Dシーンコンポーネント
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
@@ -32,16 +37,18 @@ export default function Scene3D() {
 
   if (!webglSupport) {
     return (
-      <div style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        backgroundColor: '#2B6CB0',
-        color: 'white',
-        fontSize: '18px'
-      }}>
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#2B6CB0',
+          color: 'white',
+          fontSize: '18px',
+        }}
+      >
         3D環境を初期化中...
       </div>
     );
@@ -49,17 +56,19 @@ export default function Scene3D() {
 
   if (renderer === 'none') {
     return (
-      <div style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center',
-        backgroundColor: '#F44336',
-        color: 'white',
-        padding: '20px'
-      }}>
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#F44336',
+          color: 'white',
+          padding: '20px',
+        }}
+      >
         <h2>WebGL未対応</h2>
         <p>お使いのブラウザまたはデバイスは3D表示に対応していません。</p>
         <p>Chrome、Firefox、Safari等の最新ブラウザでお試しください。</p>
@@ -80,7 +89,7 @@ export default function Scene3D() {
       >
         {/* 環境設定 */}
         <Environment preset="sunset" />
-        
+
         {/* ライティング */}
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -127,21 +136,16 @@ export default function Scene3D() {
         }}
       >
         <h3 style={{ margin: '0 0 10px 0' }}>湖底レンズ - 3Dビュー</h3>
-        <p style={{ margin: '5px 0', fontSize: '14px' }}>
-          🖱️ マウス: 回転・ズーム・パン
-        </p>
-        <p style={{ margin: '5px 0', fontSize: '14px' }}>
-          📍 仮想的な小河内村の建物配置
-        </p>
+        <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
+        <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 仮想的な小河内村の建物配置</p>
         <hr style={{ margin: '10px 0', opacity: 0.5 }} />
         <div style={{ fontSize: '12px', opacity: 0.8 }}>
           <p style={{ margin: '3px 0' }}>
             レンダラー: <strong>{renderer.toUpperCase()}</strong>
           </p>
           <p style={{ margin: '3px 0' }}>
-            WebGPU: {webglSupport.webgpu ? '✅' : '❌'} |
-            WebGL2: {webglSupport.webgl2 ? '✅' : '❌'} |
-            WebGL: {webglSupport.webgl ? '✅' : '❌'}
+            WebGPU: {webglSupport.webgpu ? '✅' : '❌'} | WebGL2:{' '}
+            {webglSupport.webgl2 ? '✅' : '❌'} | WebGL: {webglSupport.webgl ? '✅' : '❌'}
           </p>
         </div>
       </div>
