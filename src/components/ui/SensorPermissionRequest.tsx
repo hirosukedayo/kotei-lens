@@ -186,9 +186,11 @@ export default function SensorPermissionRequest({
         style={{
           backgroundColor: 'white',
           borderRadius: '12px',
-          padding: '30px',
+          padding: '20px',
           maxWidth: '400px',
           width: '90%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
         }}
       >
@@ -214,39 +216,22 @@ export default function SensorPermissionRequest({
           各センサーの「許可する」ボタンをタップして、必要な機能を有効にしてください：
         </p>
 
-        {/* iOS用の特別な注意書き */}
+        {/* iOS用の簡潔な注意書き */}
         {/iPhone|iPad|iPod/i.test(navigator.userAgent) && (
           <div
             style={{
               backgroundColor: '#fff3cd',
               border: '1px solid #ffeaa7',
               borderRadius: '6px',
-              padding: '12px',
-              marginBottom: '20px',
-              fontSize: '13px',
+              padding: '10px',
+              marginBottom: '15px',
+              fontSize: '12px',
               color: '#856404',
-              lineHeight: '1.4',
+              lineHeight: '1.3',
             }}
           >
-            <strong>📱 iOS をお使いの方へ:</strong>
-            <br />
-            <div style={{ marginTop: '8px' }}>
-              <strong>⚠️ 重要:</strong> 各センサーの「許可する」ボタンを個別にタップしてください。
-              <br />
-              <strong>1.</strong> まず位置情報から許可してみてください
-              <br />
-              <strong>2.</strong> 方位・モーションセンサーで許可ダイアログが表示されない場合：
-              <br />
-              　　• アドレスバー横の「🔒」または「ⓐA」をタップ
-              <br />
-              　　• 「Webサイトの設定」を開く
-              <br />
-              　　• 「モーションと画面の向きへのアクセス」を許可に変更
-              <br />
-              <strong>3.</strong> プライベートブラウズモードでは動作しません
-              <br />
-              <strong>4.</strong> センサーが使えなくても「アプリを開始」で続行できます
-            </div>
+            <strong>📱 iOS:</strong> 各「許可する」ボタンを個別タップ。
+            ダイアログが出ない場合はアドレスバー横の🔒から「モーションと画面の向きへのアクセス」を許可に変更。
           </div>
         )}
 
