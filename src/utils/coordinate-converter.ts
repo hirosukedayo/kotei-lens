@@ -12,12 +12,15 @@ export interface Vector3D {
   z: number;
 }
 
-// 小河内ダム周辺の基準座標（奥多摩湖）
-export const OKUTAMA_DAM_CENTER: GPSCoordinate = {
-  latitude: 35.7858, // 北緯35度47分09秒
-  longitude: 139.0411, // 東経139度02分28秒
-  altitude: 530, // 標高約530m（ダム湖水面）
+// 指定された中心座標
+export const SCENE_CENTER: GPSCoordinate = {
+  latitude: 35.779417, // 北緯35度46分45.9秒
+  longitude: 139.024694, // 東経139度01分28.9秒
+  altitude: 0, // 標高は後で調整可能
 };
+
+// 小河内ダム周辺の基準座標（奥多摩湖）- 後方互換性のため保持
+export const OKUTAMA_DAM_CENTER: GPSCoordinate = SCENE_CENTER;
 
 // 地球の半径（メートル）
 const EARTH_RADIUS = 6371000;
