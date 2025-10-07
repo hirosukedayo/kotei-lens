@@ -14,7 +14,10 @@ import LakeModel from '../3d/LakeModel';
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(() => {
+    // ローカルストレージから許可状態を復元
+    return localStorage.getItem('deviceOrientationPermission') === 'granted';
+  });
   const deviceOrientationControlsRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -32,6 +35,8 @@ export default function Scene3D() {
     if (deviceOrientationControlsRef.current) {
       deviceOrientationControlsRef.current.connect();
       setPermissionGranted(true);
+      // 許可状態をローカルストレージに保存
+      localStorage.setItem('deviceOrientationPermission', 'granted');
     }
   };
 

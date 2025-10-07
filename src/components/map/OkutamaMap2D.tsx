@@ -305,6 +305,54 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
             <div style={{ padding: 12, display: 'flex', justifyContent: 'center' }}>
               <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#e5e7eb' }} />
             </div>
+            {/* 固定ヘッダー */}
+            <div style={{
+              position: 'sticky',
+              top: 0,
+              background: '#ffffff',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '0 16px 16px 16px',
+              zIndex: 1
+            }}>
+              {sheetMode === 'pin-detail' && selectedPin ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={backToList}
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: '1px solid #e5e7eb',
+                      background: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: '#6b7280'
+                    }}
+                  >
+                    ←
+                  </button>
+                  <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 800, color: '#111827', lineHeight: '1.35' }}>
+                      {selectedPin.title}
+                    </h3>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                      {pinTypeStyles[selectedPin.type].label}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <FaMapSigns size={24} color="#3c4043" />
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>一覧</h3>
+                </div>
+              )}
+            </div>
+            
+            {/* スクロール可能なコンテンツ */}
             <div
               ref={sheetContentRef}
               style={{
@@ -319,26 +367,6 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
             >
               {sheetMode === 'pin-detail' && selectedPin ? (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
-                    <div>
-                      <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 800, color: '#111827', lineHeight: '1.35' }}>
-                        {selectedPin.title}
-                      </h3>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {pinTypeStyles[selectedPin.type].label}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    <button
-                      type="button"
-                      onClick={backToList}
-                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#111827', fontWeight: 600 }}
-                    >
-                      一覧に戻る
-                    </button>
-                  </div>
                   {selectedPin.image && (
                     <div style={{ marginBottom: '12px' }}>
                       <img
@@ -365,8 +393,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               ) : null}
               {sheetMode === 'pin-list' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px 0' }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#111827' }}>ピン一覧</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', margin: '0 0 8px 0' }}>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>{okutamaPins.length} 件</div>
                   </div>
                   <div>
