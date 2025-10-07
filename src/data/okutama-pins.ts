@@ -8,7 +8,6 @@ export const okutamaPins: PinData[] = [
     coordinates: [35.778998, 139.031988],
     type: 'cultural',
     description: '1918年創業の老舗ラーメン・そば店。店主は3代目で、30年以上厨房に立ち、昔ながらの手作りのこだわりが特徴です。水没前に移転し、現在も経営・存続している。',
-    image: '/images/koguchi-village.jpg',
     mapUrl: 'https://www.google.co.jp/maps/place/Nonkiya/@35.7787394,139.0321038,16.15z/data=!4m6!3m5!1s0x6019482f510eddb5:0x8c67b1ad75b59770!8m2!3d35.7828694!4d139.0358055!16s%2Fg%2F1tffd7h5?entry=ttu&g_ep=EgoyMDI1MTAwNC4wIKXMDSoASAFQAw%3D%3D'
   },
   {
