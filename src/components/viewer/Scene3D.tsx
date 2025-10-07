@@ -1,36 +1,20 @@
-import { Box, Environment, OrbitControls, Text, Sky } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
-import React, { useRef, useState, useEffect, Suspense } from 'react';
-import type { Mesh } from 'three';
+import { Environment, Sky } from '@react-three/drei';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import React, { useState, useEffect, Suspense } from 'react';
+import type { WebGLSupport } from '../../utils/webgl-detector';
 import {
-  type WebGLSupport,
   detectWebGLSupport,
   getRecommendedRenderer,
   getRendererConfig,
 } from '../../utils/webgl-detector';
-import { useSensors } from '../../hooks/useSensors';
-import LocationBasedObjects from '../ar/LocationBasedObjects';
-import OrientationCamera from '../ar/OrientationCamera';
-import GPSCamera from '../ar/GPSCamera';
 import LakeModel from '../3d/LakeModel';
-
-// 基本的な建物コンポーネント
-function Building({ position }: { position: [number, number, number] }) {
-  const meshRef = useRef<Mesh>(null);
-
-  return (
-    <Box ref={meshRef} position={position} args={[2, 3, 2]}>
-      <meshStandardMaterial color="#8B7355" />
-    </Box>
-  );
-}
 
 // 3Dシーンコンポーネント
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
-  const [manualMode, setManualMode] = useState<boolean>(false); // 手動モード切り替え
-  const { sensorData, isActive, startSensors } = useSensors();
+  // GPS/ARモードは一旦削除し、常に手動操作のみとする
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -42,14 +26,7 @@ export default function Scene3D() {
     });
   }, []);
 
-  // センサーを開始（許可後に一度だけ実行）
-  useEffect(() => {
-    // Scene3Dが読み込まれた時点で許可画面は通過済みなので、
-    // センサーを開始する
-    if (!isActive) {
-      startSensors();
-    }
-  }, []); // 空配列で一度だけ実行
+  // センサー機能は停止（GPS/AR非対応の当面構成）
 
   if (!webglSupport) {
     return (
@@ -96,14 +73,16 @@ export default function Scene3D() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{
-          position: [100, 80, 150], // 湖モデルが見やすい位置に固定
-          fov: 60,
+          position: [-141.07, -71.11, -9.7], // 人の目線程度の高さでモデル手前に配置
+          fov: 65,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
         }}
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
+          <KeyboardPanLogger />
+          <DeviceYawRotator />
           {/* React Three Fiber標準のSkyコンポーネント - 超巨大サイズ */}
           <Sky 
             distance={45000000} // 45,000km（地球の円周より大きい）
@@ -121,326 +100,131 @@ export default function Scene3D() {
           {/* 湖の3Dモデル */}
           <LakeModel 
             position={[0, 0, 0]}
-            scale={[1, 1, 1]}
+            scale={[10, 10, 10]}
             rotation={[0, 0, 0]}
             visible={true}
           />
           
-          {/* 奥多摩湖の湖面（半透明）- フォールバック */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-            <planeGeometry args={[2000, 2000]} />
-            <meshStandardMaterial 
-              color="#6AB7FF" 
-              transparent 
-              opacity={0.7} 
-              roughness={0.05}
-              metalness={0.2}
-              emissive="#1a4a6b"
-              emissiveIntensity={0.1}
-            />
-          </mesh>
+          {/* 水面は非表示に変更 */}
           
-          {/* 湖底の地面 */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -20, 0]} receiveShadow>
-            <planeGeometry args={[3000, 3000]} />
-            <meshStandardMaterial 
-              color="#A0522D" 
-              emissive="#2d1810"
-              emissiveIntensity={0.05}
-            />
-          </mesh>
-
-          {/* ダム（参考用） */}
-          <Box position={[0, 25, 800]} args={[200, 50, 20]}>
-            <meshStandardMaterial color="#666666" />
-          </Box>
-
-          {/* GPS位置に基づく歴史的地点オブジェクト */}
-          <LocationBasedObjects 
-            userPosition={sensorData.gps}
-            maxDistance={10000} // 10kmに拡大して春水亭・奥多摩駅も表示
-            maxObjects={20} // オブジェクト数も増加
-          />
-
-          {/* 小河内村の建物群（湖底に配置） */}
-          {/* 村の中心部 */}
-          <Building position={[0, -15, 0]} />
-          <Building position={[20, -15, 10]} />
-          <Building position={[-15, -15, -5]} />
-          
-          {/* 小学校（青い建物） */}
-          <Box position={[30, -12, 30]} args={[8, 6, 12]}>
-            <meshStandardMaterial color="#3498DB" />
-          </Box>
-          
-          {/* 庚申堂（紫の小さな建物） */}
-          <Box position={[-20, -16, 25]} args={[4, 4, 4]}>
-            <meshStandardMaterial color="#8E44AD" />
-          </Box>
-          
-          {/* 山田家住宅（大きな茅葺き風） */}
-          <Box position={[60, -14, -30]} args={[10, 8, 15]}>
-            <meshStandardMaterial color="#D4A574" />
-          </Box>
-          
-          {/* 石橋（低い石造り風） */}
-          <Box position={[-50, -18, 40]} args={[15, 2, 4]}>
-            <meshStandardMaterial color="#708090" />
-          </Box>
-          
-          {/* 追加の民家 */}
-          <Building position={[80, -15, 20]} />
-          <Building position={[-40, -15, -20]} />
-          <Building position={[40, -15, -60]} />
-          <Building position={[-30, -15, 60]} />
-          
-          {/* 村の案内プレート */}
-          <Text
-            position={[0, 30, 0]}
-            fontSize={8}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            outlineWidth={0.5}
-            outlineColor="black"
-          >
-            小河内村 (1957年 奥多摩ダム建設により水没)
-          </Text>
-          
-          {/* 建物の説明ラベル */}
-          <Text
-            position={[30, 5, 30]}
-            fontSize={4}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            rotation={[-Math.PI / 4, 0, 0]}
-            outlineWidth={0.2}
-            outlineColor="black"
-          >
-            小河内小学校
-          </Text>
-          
-          <Text
-            position={[-20, 5, 25]}
-            fontSize={3}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            rotation={[-Math.PI / 4, 0, 0]}
-            outlineWidth={0.2}
-            outlineColor="black"
-          >
-            庚申堂
-          </Text>
-          
-          <Text
-            position={[60, 5, -30]}
-            fontSize={4}
-            color="white"
-            anchorX="center"
-            anchorY="middle"
-            rotation={[-Math.PI / 4, 0, 0]}
-            outlineWidth={0.2}
-            outlineColor="black"
-          >
-            山田家住宅
-          </Text>
-
-          {/* センサー情報表示 */}
-          <SensorDebugInfo sensorData={sensorData} />
-
-          {/* GPS位置に基づくカメラ位置制御 */}
-          <GPSCamera 
-            gpsPosition={sensorData.gps}
-            enablePositioning={!manualMode && sensorData.gps !== null}
-            smoothing={0.05}
-          />
-
-          {/* デバイス方位によるARライクなカメラ制御 */}
-          <OrientationCamera 
-            deviceOrientation={sensorData.orientation}
-            enableRotation={!manualMode && sensorData.orientation !== null}
-            smoothing={0.05}
-            arMode={true}
-          />
-
-          {/* カメラコントロール（手動モード時は完全自由、GPSモード時は制限） */}
-          <OrbitControls
-            enablePan={manualMode || (!sensorData.orientation && !sensorData.gps)}
-            enableZoom={true}
-            enableRotate={manualMode || !sensorData.orientation}
-            maxPolarAngle={Math.PI / 2}
-            minDistance={5}
-            maxDistance={1000}
-          />
+          {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
       </Canvas>
 
-      {/* UI オーバーレイ */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          background: 'rgba(43, 108, 176, 0.9)',
-          color: 'white',
-          padding: '15px',
-          borderRadius: '8px',
-          fontFamily: 'Noto Sans JP, sans-serif',
-          maxWidth: '300px',
-        }}
-      >
-        <h3 style={{ margin: '0 0 10px 0' }}>湖底レンズ - 3Dビュー</h3>
-        
-        {/* モード切り替えボタン */}
-        <div style={{ margin: '10px 0', display: 'flex', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={() => setManualMode(false)}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: !manualMode ? '#4CAF50' : '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            🌍 GPSモード
-          </button>
-          <button
-            type="button"
-            onClick={() => setManualMode(true)}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: manualMode ? '#2196F3' : '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            🖱️ 手動モード
-          </button>
-        </div>
-        
-        {/* 現在のモード表示 */}
-        <p style={{ 
-          margin: '5px 0', 
-          fontSize: '14px', 
-          color: manualMode ? '#2196F3' : '#4CAF50',
-          fontWeight: 'bold'
-        }}>
-          {manualMode ? '🖱️ 手動モード: 自由にカメラ操作' : '🌍 GPSモード: 実際の位置に基づく表示'}
-        </p>
-        
-        {sensorData.gps ? (
-          <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 GPS位置: {sensorData.gps.latitude.toFixed(6)}, {sensorData.gps.longitude.toFixed(6)}</p>
-        ) : null}
-        {!manualMode && sensorData.orientation ? (
-          <p style={{ margin: '5px 0', fontSize: '14px' }}>📱 ARモード: デバイスを動かしてください</p>
-        ) : !manualMode && sensorData.gps ? (
-          <p style={{ margin: '5px 0', fontSize: '14px' }}>🌍 GPS位置モード: 実際の位置に基づく表示</p>
-        ) : manualMode ? (
-          <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パンで自由に操作</p>
-        ) : (
-          <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
-        )}
-        <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 仮想的な小河内村の建物配置</p>
-        <p style={{ margin: '5px 0', fontSize: '12px', opacity: 0.8 }}>
-          シーン中心: 35°46'45.9"N 139°01'28.9"E
-        </p>
-        <hr style={{ margin: '10px 0', opacity: 0.5 }} />
-        <div style={{ fontSize: '12px', opacity: 0.8 }}>
-          <p style={{ margin: '3px 0' }}>
-            レンダラー: <strong>{renderer.toUpperCase()}</strong>
-          </p>
-          <p style={{ margin: '3px 0' }}>
-            WebGPU: {webglSupport.webgpu ? '✅' : '❌'} | WebGL2:{' '}
-            {webglSupport.webgl2 ? '✅' : '❌'} | WebGL: {webglSupport.webgl ? '✅' : '❌'}
-          </p>
-          <hr style={{ margin: '8px 0', opacity: 0.3 }} />
-          <p style={{ margin: '3px 0' }}>
-            GPS: {sensorData.gps ? `${sensorData.gps.latitude.toFixed(6)}, ${sensorData.gps.longitude.toFixed(6)}` : '未取得'}
-          </p>
-          <p style={{ margin: '3px 0' }}>
-            方位: {sensorData.orientation && sensorData.compassHeading !== null ? `${sensorData.compassHeading.toFixed(1)}°` : '未取得'}
-          </p>
-          <p style={{ margin: '3px 0' }}>
-            精度: {sensorData.gps ? `${sensorData.gps.accuracy.toFixed(1)}m` : '不明'}
-          </p>
-          <hr style={{ margin: '8px 0', opacity: 0.3 }} />
-          <p style={{ margin: '3px 0', fontSize: '11px' }}>
-            センサー状態 (isActive: {isActive ? '✅' : '❌'})
-          </p>
-          <p style={{ margin: '3px 0', fontSize: '11px' }}>
-            方位生データ: {sensorData.orientation ? 
-              `α:${sensorData.orientation.alpha?.toFixed(1) || 'null'} β:${sensorData.orientation.beta?.toFixed(1) || 'null'} γ:${sensorData.orientation.gamma?.toFixed(1) || 'null'}` : 
-              '未取得'
-            }
-          </p>
-          <p style={{ margin: '3px 0', fontSize: '11px' }}>
-            モーション: {sensorData.motion && sensorData.motion.acceleration ? 
-              `x:${sensorData.motion.acceleration.x?.toFixed(2) || '0'} y:${sensorData.motion.acceleration.y?.toFixed(2) || '0'} z:${sensorData.motion.acceleration.z?.toFixed(2) || '0'}` : 
-              '未取得'
-            }
-          </p>
-        </div>
-      </div>
+      {/* GPSモードUIは削除 */}
     </div>
   );
 }
 
-// センサー情報のデバッグ表示（3D空間内）
-function SensorDebugInfo({ sensorData }: { sensorData: any }) {
-  const { gps, orientation, compassHeading } = sensorData;
-  
-  return (
-    <group position={[-80, 40, 0]}>
-      <Text
-        position={[0, 10, 0]}
-        fontSize={4}
-        color="white"
-        anchorX="left"
-        anchorY="top"
-        outlineWidth={0.2}
-        outlineColor="black"
-      >
-        {gps ? 
-          `GPS: ${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}` : 
-          'GPS: 未取得'
-        }
-      </Text>
-      
-      <Text
-        position={[0, 5, 0]}
-        fontSize={4}
-        color="white"
-        anchorX="left"
-        anchorY="top"
-        outlineWidth={0.2}
-        outlineColor="black"
-      >
-        {orientation && compassHeading !== null ? 
-          `方位: ${compassHeading.toFixed(1)}°` : 
-          '方位: 未取得'
-        }
-      </Text>
-      
-      <Text
-        position={[0, 0, 0]}
-        fontSize={4}
-        color="white"
-        anchorX="left"
-        anchorY="top"
-        outlineWidth={0.2}
-        outlineColor="black"
-      >
-        {gps ? `精度: ${gps.accuracy.toFixed(1)}m` : '精度: 不明'}
-      </Text>
-    </group>
-  );
+// キーボードで縦横のみ移動し、変更毎に設定をログ出力
+function KeyboardPanLogger() {
+  const { camera } = useThree();
+  React.useEffect(() => {
+    const step = 2;
+    const dir = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const handleKey = (e: KeyboardEvent) => {
+      let moved = false;
+      switch (e.key) {
+        case 'ArrowLeft':
+          camera.position.x -= step;
+          moved = true;
+          break;
+        case 'ArrowRight':
+          camera.position.x += step;
+          moved = true;
+          break;
+        case 'ArrowUp':
+          camera.position.y += step;
+          moved = true;
+          break;
+        case 'ArrowDown':
+          camera.position.y -= step;
+          moved = true;
+          break;
+        // 前進・後退（カメラの向きに沿ってZを含む前後移動）
+        case 'w':
+        case 'W':
+          camera.getWorldDirection(dir).normalize();
+          camera.position.addScaledVector(dir, step);
+          moved = true;
+          break;
+        case 's':
+        case 'S':
+          camera.getWorldDirection(dir).normalize();
+          camera.position.addScaledVector(dir, -step);
+          moved = true;
+          break;
+        // 水平ストレーフ（A/D）: カメラ右方向ベクトルで左右移動
+        case 'a':
+        case 'A':
+          camera.getWorldDirection(dir).normalize();
+          right.set(dir.z, 0, -dir.x).normalize();
+          camera.position.addScaledVector(right, -step);
+          moved = true;
+          break;
+        case 'd':
+        case 'D':
+          camera.getWorldDirection(dir).normalize();
+          right.set(dir.z, 0, -dir.x).normalize();
+          camera.position.addScaledVector(right, step);
+          moved = true;
+          break;
+        default:
+          break;
+      }
+      if (moved) {
+        camera.updateProjectionMatrix();
+        // 設定ログ（貼り付けしやすい形式）
+        console.log('Camera config:', {
+          position: [Number(camera.position.x.toFixed(2)), Number(camera.position.y.toFixed(2)), Number(camera.position.z.toFixed(2))],
+          fov: camera.fov,
+          near: camera.near,
+          far: camera.far,
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [camera]);
+  return null;
+}
+
+// デバイスの向き（方位）で画面の向き（ヨー）だけを制御
+function DeviceYawRotator() {
+  const { camera } = useThree();
+  const targetQuatRef = React.useRef(new THREE.Quaternion());
+  const eulerRef = React.useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
+  const smooth = 0.15; // スムージング係数（0-1）
+
+  React.useEffect(() => {
+    const toRad = (deg: number | null) => (deg === null ? 0 : (deg * Math.PI) / 180);
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      // ヨー（方位）
+      // @ts-ignore iOS拡張
+      const hasWebkit = typeof e.webkitCompassHeading === 'number';
+      // @ts-ignore
+      const heading = hasWebkit ? (360 - e.webkitCompassHeading) : (e.alpha ?? 0);
+      const yaw = toRad(heading);
+      // ピッチ（上下）
+      const pitch = toRad(e.beta ?? 0);
+      // ロール（傾き）
+      const roll = toRad(e.gamma ?? 0);
+
+      // Three.jsのカメラに適した回転順で適用（Y: yaw, X: pitch, Z: roll）
+      const euler = eulerRef.current;
+      euler.set(pitch, yaw, -roll, 'YXZ');
+      targetQuatRef.current.setFromEuler(euler);
+    };
+
+    const type: keyof WindowEventMap = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(type, handleOrientation as EventListener);
+    return () => window.removeEventListener(type, handleOrientation as EventListener);
+  }, []);
+
+  // 毎フレーム、ターゲット回転にスムーズ追従
+  useFrame(() => {
+    camera.quaternion.slerp(targetQuatRef.current, smooth);
+  });
+  return null;
 }
