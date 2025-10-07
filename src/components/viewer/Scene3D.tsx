@@ -178,7 +178,6 @@ function KeyboardPanLogger() {
         // 設定ログ（貼り付けしやすい形式）
         console.log('Camera config:', {
           position: [Number(camera.position.x.toFixed(2)), Number(camera.position.y.toFixed(2)), Number(camera.position.z.toFixed(2))],
-          fov: camera.fov,
           near: camera.near,
           far: camera.far,
         });
