@@ -172,11 +172,11 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         maxBounds={okutamaBounds}
         maxBoundsViscosity={1.0}
         minZoom={14}
-        maxZoom={14}
-        zoomControl={false}
-        scrollWheelZoom={false}
-        doubleClickZoom={false}
-        touchZoom={false}
+        maxZoom={20}
+        zoomControl={true}
+        scrollWheelZoom={true}
+        doubleClickZoom={true}
+        touchZoom={true}
         boxZoom={false}
         keyboard={false}
         style={{ width: '100%', height: '100%' }}
