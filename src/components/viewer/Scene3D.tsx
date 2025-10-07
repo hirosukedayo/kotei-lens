@@ -1,4 +1,4 @@
-import { Environment, Sky } from '@react-three/drei';
+import { Environment, Sky, DeviceOrientationControls } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense } from 'react';
@@ -14,7 +14,8 @@ import LakeModel from '../3d/LakeModel';
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
-  // GPS/ARモードは一旦削除し、常に手動操作のみとする
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const deviceOrientationControlsRef = React.useRef<any>(null);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -26,7 +27,13 @@ export default function Scene3D() {
     });
   }, []);
 
-  // センサー機能は停止（GPS/AR非対応の当面構成）
+  // デバイス向き許可のハンドラ
+  const handleDeviceOrientationPermission = () => {
+    if (deviceOrientationControlsRef.current) {
+      deviceOrientationControlsRef.current.connect();
+      setPermissionGranted(true);
+    }
+  };
 
   if (!webglSupport) {
     return (
@@ -82,7 +89,7 @@ export default function Scene3D() {
       >
         <Suspense fallback={null}>
           <KeyboardPanLogger />
-          <DeviceOrientationController />
+          <DeviceOrientationControls ref={deviceOrientationControlsRef} />
           {/* React Three Fiber標準のSkyコンポーネント - 超巨大サイズ */}
           <Sky 
             distance={45000000} // 45,000km（地球の円周より大きい）
@@ -111,7 +118,43 @@ export default function Scene3D() {
         </Suspense>
       </Canvas>
 
-      {/* GPSモードUIは削除 */}
+      {/* デバイス向き許可ボタン */}
+      {!permissionGranted && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1000,
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            textAlign: 'center',
+          }}
+        >
+          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可が必要です</h3>
+          <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
+            3Dビューでデバイスの向きに応じてカメラを制御するために、デバイス向きの許可が必要です。
+          </p>
+          <button
+            type="button"
+            onClick={handleDeviceOrientationPermission}
+            style={{
+              background: '#2B6CB0',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+          >
+            デバイス向きを許可
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,58 +232,3 @@ function KeyboardPanLogger() {
   return null;
 }
 
-// デバイスの向き（方位）で画面の向き（ヨー）だけを制御
-function DeviceOrientationController() {
-  const { camera } = useThree();
-  const targetQuatRef = React.useRef(new THREE.Quaternion());
-  const currentQuatRef = React.useRef(new THREE.Quaternion());
-  const smooth = 0.15;
-
-  React.useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      // デバイス向きの値を取得
-      const alpha = e.alpha !== null ? e.alpha : 0; // ヨー（方位）
-      const beta = e.beta !== null ? e.beta : 0;     // ピッチ（上下）
-      const gamma = e.gamma !== null ? e.gamma : 0;  // ロール（左右傾き）
-
-      // iOSのwebkitCompassHeadingを使用（より正確な方位）
-      // @ts-ignore
-      const heading = e.webkitCompassHeading !== undefined ? e.webkitCompassHeading : alpha;
-      
-      // 度をラジアンに変換
-      const yaw = THREE.MathUtils.degToRad(heading);
-      const pitch = THREE.MathUtils.degToRad(beta);
-      const roll = THREE.MathUtils.degToRad(gamma);
-
-      // 背面カメラ基準の座標変換
-      // デバイス座標系からThree.js座標系への変換
-      const euler = new THREE.Euler();
-      
-      // 背面カメラの向きを前方とするため、X軸で-90度回転を適用
-      // これにより、デバイスが下向きでも視線が前方（背面カメラ方向）を向く
-      euler.set(pitch, yaw, -roll, 'YXZ');
-      
-      // 背面カメラ基準の補正（X軸で-90度回転）
-      const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-      
-      targetQuatRef.current.setFromEuler(euler);
-      targetQuatRef.current.multiply(correction);
-    };
-
-    // デバイス向きイベントをリッスン
-    const eventType = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
-    window.addEventListener(eventType, handleOrientation as EventListener);
-    
-    return () => {
-      window.removeEventListener(eventType, handleOrientation as EventListener);
-    };
-  }, []);
-
-  useFrame(() => {
-    // スムーズにターゲット回転に追従
-    currentQuatRef.current.slerp(targetQuatRef.current, smooth);
-    camera.quaternion.copy(currentQuatRef.current);
-  });
-
-  return null;
-}
