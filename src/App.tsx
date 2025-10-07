@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaMapLocationDot } from 'react-icons/fa6';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
 import OkutamaMap2D from './components/map/OkutamaMap2D';
@@ -31,7 +32,7 @@ function App() {
   }, [appState]);
 
   const handleStart3D = () => {
-    setAppState('permissions');
+    setAppState('3d-view');
   };
 
   const handleBackTo2D = () => {
@@ -60,29 +61,34 @@ function App() {
     return (
       <div>
         <Scene3D />
-        {/* 2Dに戻るボタン（3DオーバーレイのUIと干渉しない位置に表示） */}
+        {/* 2Dに戻る（右上・円形アイコンボタン） */}
         <div
           style={{
             position: 'fixed',
-            bottom: '20px',
-            right: '20px',
+            top: '16px',
+            right: '16px',
             zIndex: 1000,
           }}
         >
           <button
             type="button"
+            aria-label="2Dマップへ戻る"
             onClick={handleBackTo2D}
             style={{
-              padding: '10px 14px',
-              backgroundColor: '#374151',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 700,
+              width: 72,
+              height: 72,
+              borderRadius: 9999,
+              background: '#ffffff',
+              color: '#111827',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
             }}
           >
-            2Dマップへ戻る
+            <FaMapLocationDot size={64} />
           </button>
         </div>
       </div>

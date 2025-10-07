@@ -182,7 +182,7 @@ export default function LakeModel({
           meshRef.current.clear();
           meshRef.current.add(object);
           setIsLoaded(true);
-          console.log('湖の3Dモデルが正常に読み込まれました（重心を中心に配置）');
+          console.log('湖の3Dモデルが正常に読み込まれました（重心を原点に移動）');
         }
       },
       (progress: ProgressEvent) => {

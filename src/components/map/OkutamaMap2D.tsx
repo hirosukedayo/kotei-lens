@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
+import L from 'leaflet';
+import { FaMapSigns } from 'react-icons/fa';
+import { PiCubeFocusFill } from 'react-icons/pi';
+import { getSensorManager } from '../../services/sensors/SensorManager';
 import 'leaflet/dist/leaflet.css';
 import { Drawer } from 'vaul';
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
@@ -17,6 +21,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
+  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
   const sheetContentRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const MapRefBinder = () => {
@@ -26,6 +31,68 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       mapRef.current = map;
     }, [map]);
     return null;
+  };
+
+  // カスタムアイコン（選択時に強調表示）
+  const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
+    const style = pinTypeStyles[pinType];
+    const baseColor = style.color;
+    const color = isSelected ? '#dc2626' : baseColor; // 選択時は赤系で強調
+    const size = isSelected ? 32 : 28;
+    const border = isSelected ? '3px solid #fecaca' : '3px solid white';
+    const ring = isSelected
+      ? '<span style="position:absolute; width:48px; height:48px; border-radius:9999px; border:2px solid rgba(220,38,38,0.35); transform:translate(-50%, -50%);"></span>'
+      : '';
+    return L.divIcon({
+      html: `
+        <div style="position:relative; transform: translate(-50%, -100%);">
+          ${ring}
+          <div style="
+            width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
+            color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.3);
+          ">
+            <span style="font-size:${isSelected ? '16px' : '14px'}; line-height:1;">${style.icon}</span>
+          </div>
+        </div>
+      `,
+      className: 'custom-pin',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size],
+    });
+  };
+  // 一覧を開く
+  const openPinList = () => {
+    setSheetMode('pin-list');
+    setSheetOpen(true);
+  };
+  // 一覧から選択 → 詳細 + 地図パン
+  const handleSelectPinFromList = (pin: PinData) => {
+    setSelectedPin(pin);
+    setSheetMode('pin-detail');
+    setSheetOpen(true);
+    const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
+    if (Array.isArray(coords) && coords.length === 2) {
+      mapRef.current?.flyTo(coords as any, 14, { duration: 0.6 });
+    }
+  };
+  // 詳細→一覧に戻る
+  const backToList = () => {
+    setSheetMode('pin-list');
+    setSelectedPin(null);
+  };
+  // 3D切替: クリック時に方位センサーの許可を要求し、許可時のみ遷移
+  const handleRequest3DWithPermission = async () => {
+    try {
+      const permission = await getSensorManager().orientationService.requestPermission();
+      if (permission === 'granted') {
+        onRequest3D?.();
+      } else {
+        // 許可が得られない場合は何もしない（必要なら通知やシート表示へ）
+      }
+    } catch {
+      // 例外時も遷移しない
+    }
   };
   // iOSなどで100vhがアドレスバーで縮まないように調整
   useEffect(() => {
@@ -91,6 +158,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   // ピンクリック時の処理
   const handlePinClick = (pin: PinData) => {
     setSelectedPin(pin);
+    setSheetMode('pin-detail');
     setSheetOpen(true);
   };
 
@@ -133,21 +201,16 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         {/* ピンマーカー */}
         {okutamaPins.map((pin) => {
           const style = pinTypeStyles[pin.type];
+          const isSelected = selectedPin?.id === pin.id;
           return (
             <Marker
               key={pin.id}
               position={pin.coordinates}
+              icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
               eventHandlers={{
                 click: () => handlePinClick(pin),
               }}
             >
-              <Popup>
-                <div style={{ textAlign: 'center', minWidth: '120px' }}>
-                  <div style={{ fontSize: '20px', marginBottom: '4px' }}>{style.icon}</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{pin.title}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{style.label}</div>
-                </div>
-              </Popup>
             </Marker>
           );
         })}
@@ -165,53 +228,61 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           zIndex: 10000,
         }}
       >
-        <div
-          style={{
-            background: 'rgba(255,255,255,0.9)',
-            color: '#111827',
-            padding: '8px 10px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <label htmlFor="overlayOpacity" style={{ fontSize: '12px', fontWeight: 700 }}>
-            透過
-          </label>
-          <input
-            id="overlayOpacity"
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={overlayOpacity}
-            onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
-            style={{ width: '120px' }}
-          />
-          <span style={{ fontSize: '12px', width: '32px', textAlign: 'right' }}>
-            {(overlayOpacity * 100).toFixed(0)}%
-          </span>
-        </div>
         <button
           type="button"
-          onClick={onRequest3D}
+          onClick={handleRequest3DWithPermission}
           style={{
-            padding: '10px 14px',
-            backgroundColor: '#2B6CB0',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 700,
+            width: 72,
+            height: 72,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}
+          aria-label="3Dビューへ"
+        >
+          <PiCubeFocusFill size={64} />
+        </button>
+      </div>
+
+      {/* 左下：ピン一覧（アイコン） */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '16px',
+          bottom: '16px',
+          zIndex: 10000
+        }}
+      >
+        <button
+          type="button"
+          aria-label="ピン一覧"
+          onClick={openPinList}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
           }}
         >
-          3Dビューへ
+          <FaMapSigns size={22} />
         </button>
       </div>
 
       {/* Vaul Bottom Sheet: ピン情報表示 */}
-      <VDrawer.Root open={sheetOpen} onOpenChange={(open: boolean) => { setSheetOpen(open); if (!open) { setSelectedPin(null); mapRef.current?.closePopup(); } }}>
+      <VDrawer.Root open={sheetOpen} onOpenChange={(open: boolean) => { setSheetOpen(open); if (!open) { setSelectedPin(null); setSheetMode('pin-list'); mapRef.current?.closePopup(); } }}>
         <VDrawer.Portal>
           <VDrawer.Overlay style={{ background: 'rgba(0,0,0,.15)' }} />
           <VDrawer.Content
@@ -244,7 +315,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                 touchAction: 'pan-y'
               }}
             >
-              {selectedPin ? (
+              {sheetMode === 'pin-detail' && selectedPin ? (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                     <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
@@ -257,7 +328,15 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                       </div>
                     </div>
                   </div>
-                  
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <button
+                      type="button"
+                      onClick={backToList}
+                      style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#111827', fontWeight: 600 }}
+                    >
+                      一覧に戻る
+                    </button>
+                  </div>
                   {selectedPin.image && (
                     <div style={{ marginBottom: '12px' }}>
                       <img
@@ -281,12 +360,47 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                     座標: {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
                   </div>
                 </div>
-              ) : (
+              ) : null}
+              {sheetMode === 'pin-list' && (
                 <div>
-                  <h3 style={{ margin: '4px 0 8px 0' }}>奥多摩 − 情報</h3>
-                  <p style={{ margin: 0, fontSize: 14, color: '#374151' }}>
-                    地図上のピンをタップして詳細情報を表示できます。
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px 0' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#111827' }}>ピン一覧</h3>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{okutamaPins.length} 件</div>
+                  </div>
+                  <div>
+                    {okutamaPins.map((pin) => {
+                      const style = pinTypeStyles[pin.type];
+                      return (
+                        <button
+                          key={pin.id}
+                          type="button"
+                          onClick={() => handleSelectPinFromList(pin)}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            background: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: 8,
+                            padding: '10px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            marginBottom: 8,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ fontSize: 20 }}>{style.icon}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {pin.title}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
+                          </div>
+                          <div style={{ color: '#9ca3af' }}>›</div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
