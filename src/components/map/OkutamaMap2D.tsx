@@ -45,7 +45,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       : '';
     return L.divIcon({
       html: `
-        <div style="position:relative; transform: translate(-50%, -100%);">
+        <div style="position:relative;">
           ${ring}
           <div style="
             width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
