@@ -255,7 +255,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         style={{
           position: 'absolute',
           left: '16px',
-          bottom: '16px',
+          bottom: '80px',
           zIndex: 10000
         }}
       >
