@@ -9,6 +9,8 @@ export interface PinData {
   description: string;
   image?: string; // 画像URL（オプション）
   icon?: string; // カスタムアイコン（オプション）
+  mapUrl?: string; // マップアプリで開くURL（オプション）
+  hasLocation?: boolean; // 現在位置として表示するかどうか
 }
 
 // ピンタイプごとのスタイル設定

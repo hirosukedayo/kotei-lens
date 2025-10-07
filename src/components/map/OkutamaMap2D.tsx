@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns } from 'react-icons/fa';
+import { FaMapSigns, FaMapMarkerAlt } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import 'leaflet/dist/leaflet.css';
@@ -320,16 +320,27 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                     type="button"
                     onClick={backToList}
                     style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      border: '1px solid #e5e7eb',
-                      background: '#fff',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '4px',
+                      border: 'none',
+                      background: 'transparent',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      color: '#6b7280'
+                      color: '#6b7280',
+                      fontSize: '18px',
+                      fontWeight: '400',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f9fafb';
+                      e.currentTarget.style.color = '#4b5563';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#6b7280';
                     }}
                   >
                     ←
@@ -389,6 +400,42 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                   <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
                     座標: {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
                   </div>
+                  
+                  {selectedPin.mapUrl && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={() => window.open(selectedPin.mapUrl, '_blank')}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          backgroundColor: 'transparent',
+                          color: '#374151',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f9fafb';
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.borderColor = '#e5e7eb';
+                        }}
+                      >
+                        <FaMapMarkerAlt size={16} />
+                        現在の場所
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : null}
               {sheetMode === 'pin-list' && (
