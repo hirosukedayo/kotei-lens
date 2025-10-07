@@ -82,7 +82,7 @@ export default function Scene3D() {
       >
         <Suspense fallback={null}>
           <KeyboardPanLogger />
-          <DeviceYawRotator />
+          <DeviceOrientationController />
           {/* React Three Fiber標準のSkyコンポーネント - 超巨大サイズ */}
           <Sky 
             distance={45000000} // 45,000km（地球の円周より大きい）
@@ -190,40 +190,57 @@ function KeyboardPanLogger() {
 }
 
 // デバイスの向き（方位）で画面の向き（ヨー）だけを制御
-function DeviceYawRotator() {
+function DeviceOrientationController() {
   const { camera } = useThree();
   const targetQuatRef = React.useRef(new THREE.Quaternion());
-  const eulerRef = React.useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
-  const smooth = 0.15; // スムージング係数（0-1）
+  const currentQuatRef = React.useRef(new THREE.Quaternion());
+  const smooth = 0.15;
 
   React.useEffect(() => {
-    const toRad = (deg: number | null) => (deg === null ? 0 : (deg * Math.PI) / 180);
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      // ヨー（方位）
-      // @ts-ignore iOS拡張
-      const hasWebkit = typeof e.webkitCompassHeading === 'number';
-      // @ts-ignore
-      const heading = hasWebkit ? (360 - e.webkitCompassHeading) : (e.alpha ?? 0);
-      const yaw = toRad(heading);
-      // ピッチ（上下）
-      const pitch = toRad(e.beta ?? 0);
-      // ロール（傾き）
-      const roll = toRad(e.gamma ?? 0);
+      // デバイス向きの値を取得
+      const alpha = e.alpha !== null ? e.alpha : 0; // ヨー（方位）
+      const beta = e.beta !== null ? e.beta : 0;     // ピッチ（上下）
+      const gamma = e.gamma !== null ? e.gamma : 0;  // ロール（左右傾き）
 
-      // Three.jsのカメラに適した回転順で適用（Y: yaw, X: pitch, Z: roll）
-      const euler = eulerRef.current;
+      // iOSのwebkitCompassHeadingを使用（より正確な方位）
+      // @ts-ignore
+      const heading = e.webkitCompassHeading !== undefined ? e.webkitCompassHeading : alpha;
+      
+      // 度をラジアンに変換
+      const yaw = THREE.MathUtils.degToRad(heading);
+      const pitch = THREE.MathUtils.degToRad(beta);
+      const roll = THREE.MathUtils.degToRad(gamma);
+
+      // 背面カメラ基準の座標変換
+      // デバイス座標系からThree.js座標系への変換
+      const euler = new THREE.Euler();
+      
+      // 背面カメラの向きを前方とするため、X軸で-90度回転を適用
+      // これにより、デバイスが下向きでも視線が前方（背面カメラ方向）を向く
       euler.set(pitch, yaw, -roll, 'YXZ');
+      
+      // 背面カメラ基準の補正（X軸で-90度回転）
+      const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+      
       targetQuatRef.current.setFromEuler(euler);
+      targetQuatRef.current.multiply(correction);
     };
 
-    const type: keyof WindowEventMap = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
-    window.addEventListener(type, handleOrientation as EventListener);
-    return () => window.removeEventListener(type, handleOrientation as EventListener);
+    // デバイス向きイベントをリッスン
+    const eventType = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    window.addEventListener(eventType, handleOrientation as EventListener);
+    
+    return () => {
+      window.removeEventListener(eventType, handleOrientation as EventListener);
+    };
   }, []);
 
-  // 毎フレーム、ターゲット回転にスムーズ追従
   useFrame(() => {
-    camera.quaternion.slerp(targetQuatRef.current, smooth);
+    // スムーズにターゲット回転に追従
+    currentQuatRef.current.slerp(targetQuatRef.current, smooth);
+    camera.quaternion.copy(currentQuatRef.current);
   });
+
   return null;
 }
