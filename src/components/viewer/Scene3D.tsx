@@ -12,6 +12,7 @@ import { useSensors } from '../../hooks/useSensors';
 import LocationBasedObjects from '../ar/LocationBasedObjects';
 import OrientationCamera from '../ar/OrientationCamera';
 import GPSCamera from '../ar/GPSCamera';
+import LakeModel from '../3d/LakeModel';
 
 // 基本的な建物コンポーネント
 function Building({ position }: { position: [number, number, number] }) {
@@ -28,6 +29,7 @@ function Building({ position }: { position: [number, number, number] }) {
 export default function Scene3D() {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
+  const [manualMode, setManualMode] = useState<boolean>(false); // 手動モード切り替え
   const { sensorData, isActive, startSensors } = useSensors();
 
   useEffect(() => {
@@ -94,8 +96,8 @@ export default function Scene3D() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{
-          position: [0, 50, 200], // 初期位置（GPS取得後に更新される）
-          fov: 75,
+          position: [100, 80, 150], // 湖モデルが見やすい位置に固定
+          fov: 60,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
         }}
@@ -113,28 +115,18 @@ export default function Scene3D() {
           {/* 環境マップ（オプション：反射などに使用） */}
           {/* <Environment preset="sunset" /> */}
 
-          {/* 強力なライティング */}
-          <ambientLight intensity={1.2} color="#ffffff" />
-          <directionalLight
-            position={[500, 500, 200]}
-            intensity={2.0}
-            color="#ffffff"
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-          />
-          {/* 追加の照明 - 複数方向から */}
-          <directionalLight
-            position={[-500, 300, -200]}
-            intensity={1.0}
-            color="#ffffff"
-          />
-          <directionalLight
-            position={[0, 800, 0]}
-            intensity={1.5}
-            color="#f0f8ff"
-          />
+          {/* 環境光を追加 */}
+          <ambientLight intensity={0.4} color="#ffffff" />
 
-          {/* 奥多摩湖の湖面（半透明） */}
+          {/* 湖の3Dモデル */}
+          <LakeModel 
+            position={[0, 0, 0]}
+            scale={[1, 1, 1]}
+            rotation={[0, 0, 0]}
+            visible={true}
+          />
+          
+          {/* 奥多摩湖の湖面（半透明）- フォールバック */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
             <planeGeometry args={[2000, 2000]} />
             <meshStandardMaterial 
@@ -261,23 +253,23 @@ export default function Scene3D() {
           {/* GPS位置に基づくカメラ位置制御 */}
           <GPSCamera 
             gpsPosition={sensorData.gps}
-            enablePositioning={sensorData.gps !== null}
+            enablePositioning={!manualMode && sensorData.gps !== null}
             smoothing={0.05}
           />
 
           {/* デバイス方位によるARライクなカメラ制御 */}
           <OrientationCamera 
             deviceOrientation={sensorData.orientation}
-            enableRotation={sensorData.orientation !== null}
+            enableRotation={!manualMode && sensorData.orientation !== null}
             smoothing={0.05}
             arMode={true}
           />
 
-          {/* カメラコントロール（ARモード時は制限、通常時は自由操作） */}
+          {/* カメラコントロール（手動モード時は完全自由、GPSモード時は制限） */}
           <OrbitControls
-            enablePan={!sensorData.orientation && !sensorData.gps}
+            enablePan={manualMode || (!sensorData.orientation && !sensorData.gps)}
             enableZoom={true}
-            enableRotate={!sensorData.orientation}
+            enableRotate={manualMode || !sensorData.orientation}
             maxPolarAngle={Math.PI / 2}
             minDistance={5}
             maxDistance={1000}
@@ -300,17 +292,67 @@ export default function Scene3D() {
         }}
       >
         <h3 style={{ margin: '0 0 10px 0' }}>湖底レンズ - 3Dビュー</h3>
+        
+        {/* モード切り替えボタン */}
+        <div style={{ margin: '10px 0', display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setManualMode(false)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: !manualMode ? '#4CAF50' : '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            🌍 GPSモード
+          </button>
+          <button
+            type="button"
+            onClick={() => setManualMode(true)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: manualMode ? '#2196F3' : '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            🖱️ 手動モード
+          </button>
+        </div>
+        
+        {/* 現在のモード表示 */}
+        <p style={{ 
+          margin: '5px 0', 
+          fontSize: '14px', 
+          color: manualMode ? '#2196F3' : '#4CAF50',
+          fontWeight: 'bold'
+        }}>
+          {manualMode ? '🖱️ 手動モード: 自由にカメラ操作' : '🌍 GPSモード: 実際の位置に基づく表示'}
+        </p>
+        
         {sensorData.gps ? (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 GPS位置: {sensorData.gps.latitude.toFixed(6)}, {sensorData.gps.longitude.toFixed(6)}</p>
         ) : null}
-        {sensorData.orientation ? (
+        {!manualMode && sensorData.orientation ? (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>📱 ARモード: デバイスを動かしてください</p>
-        ) : sensorData.gps ? (
+        ) : !manualMode && sensorData.gps ? (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>🌍 GPS位置モード: 実際の位置に基づく表示</p>
+        ) : manualMode ? (
+          <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パンで自由に操作</p>
         ) : (
           <p style={{ margin: '5px 0', fontSize: '14px' }}>🖱️ マウス: 回転・ズーム・パン</p>
         )}
         <p style={{ margin: '5px 0', fontSize: '14px' }}>📍 仮想的な小河内村の建物配置</p>
+        <p style={{ margin: '5px 0', fontSize: '12px', opacity: 0.8 }}>
+          シーン中心: 35°46'45.9"N 139°01'28.9"E
+        </p>
         <hr style={{ margin: '10px 0', opacity: 0.5 }} />
         <div style={{ fontSize: '12px', opacity: 0.8 }}>
           <p style={{ margin: '3px 0' }}>

@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
+import OkutamaMap2D from './components/map/OkutamaMap2D';
 import './App.css';
 
-type AppState = 'welcome' | 'permissions' | '3d-view' | 'permission-error';
+type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
 
 function App() {
-  const [appState, setAppState] = useState<AppState>('welcome');
+  const [appState, setAppState] = useState<AppState>('2d-view');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
 
   // 3Dビュー表示時にrootに全画面クラスを追加
   useEffect(() => {
     const rootElement = document.getElementById('root');
     if (rootElement) {
-      if (appState === '3d-view') {
+      if (appState === '3d-view' || appState === '2d-view') {
         rootElement.classList.add('fullscreen');
       } else {
         rootElement.classList.remove('fullscreen');
@@ -31,6 +32,10 @@ function App() {
 
   const handleStart3D = () => {
     setAppState('permissions');
+  };
+
+  const handleBackTo2D = () => {
+    setAppState('2d-view');
   };
 
   const handlePermissionsGranted = () => {
@@ -52,7 +57,36 @@ function App() {
 
   // 3Dビュー表示
   if (appState === '3d-view') {
-    return <Scene3D />;
+    return (
+      <div>
+        <Scene3D />
+        {/* 2Dに戻るボタン（3DオーバーレイのUIと干渉しない位置に表示） */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleBackTo2D}
+            style={{
+              padding: '10px 14px',
+              backgroundColor: '#374151',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 700,
+            }}
+          >
+            2Dマップへ戻る
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // センサー許可画面
@@ -100,36 +134,9 @@ function App() {
     );
   }
 
+  // 2Dマップをデフォルトで表示
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>湖底レンズ (Kotei Lens)</h1>
-        <p>小河内ダムに沈んだ村の記憶を3D空間で再現</p>
-        <p>
-          <strong>React Three Fiber セットアップ完了</strong>
-        </p>
-        <button
-          type="button"
-          onClick={handleStart3D}
-          style={{
-            marginTop: '20px',
-            padding: '12px 24px',
-            fontSize: '16px',
-            backgroundColor: '#FF6B35',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'white',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          3D ビューを開始
-        </button>
-        <p style={{ marginTop: '15px', fontSize: '14px', opacity: 0.8 }}>
-          ※ 3D表示にはWebGLが必要です
-        </p>
-      </header>
-    </div>
+    <OkutamaMap2D onRequest3D={handleStart3D} />
   );
 }
 
