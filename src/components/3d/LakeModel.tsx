@@ -65,6 +65,7 @@ export default function LakeModel({
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<any>(null);
   const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const basePath = getBasePath();
   const unityMaterial = parseUnityMaterial();
@@ -75,6 +76,15 @@ export default function LakeModel({
     const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
     
     console.log('glTFファイルパス:', gltfPath);
+    console.log('デバイス情報:', {
+      userAgent: navigator.userAgent,
+      isMobile: /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase()),
+      memory: (navigator as any).deviceMemory || 'unknown',
+      connection: (navigator as any).connection?.effectiveType || 'unknown'
+    });
+    
+    // モバイル用の読み込み設定
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
     
     gltfLoader.load(
       gltfPath,
@@ -83,49 +93,60 @@ export default function LakeModel({
         setIsLoaded(true);
         setWaterDrainStartTime(Date.now()); // 干上がりアニメーション開始時間を設定
         console.log('glTFファイルが正常に読み込まれました');
-        console.log('glTF情報:', {
-          scene: loadedGltf.scene,
-          animations: loadedGltf.animations,
-          cameras: loadedGltf.cameras,
-          asset: loadedGltf.asset
-        });
         
-        // シーンの詳細情報を出力
-        console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
-        loadedGltf.scene.traverse((child) => {
-          console.log('オブジェクト:', child.name, child.type);
-        });
-        
-        // バウンディングボックスを計算してログ出力
-        const box = new THREE.Box3().setFromObject(loadedGltf.scene);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        
-        console.log('=== モデルのバウンディングボックス ===');
-        console.log('最小値 (min):', {
-          x: box.min.x,
-          y: box.min.y,
-          z: box.min.z
-        });
-        console.log('最大値 (max):', {
-          x: box.max.x,
-          y: box.max.y,
-          z: box.max.z
-        });
-        console.log('中心点 (center):', {
-          x: center.x,
-          y: center.y,
-          z: center.z
-        });
-        console.log('サイズ (size):', {
-          x: size.x,
-          y: size.y,
-          z: size.z
-        });
-        console.log('=====================================');
+        if (!isMobile) {
+          // PCでのみ詳細ログを出力
+          console.log('glTF情報:', {
+            scene: loadedGltf.scene,
+            animations: loadedGltf.animations,
+            cameras: loadedGltf.cameras,
+            asset: loadedGltf.asset
+          });
+          
+          // シーンの詳細情報を出力
+          console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
+          loadedGltf.scene.traverse((child) => {
+            console.log('オブジェクト:', child.name, child.type);
+          });
+          
+          // バウンディングボックスを計算してログ出力
+          const box = new THREE.Box3().setFromObject(loadedGltf.scene);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          
+          console.log('=== モデルのバウンディングボックス ===');
+          console.log('最小値 (min):', {
+            x: box.min.x,
+            y: box.min.y,
+            z: box.min.z
+          });
+          console.log('最大値 (max):', {
+            x: box.max.x,
+            y: box.max.y,
+            z: box.max.z
+          });
+          console.log('中心点 (center):', {
+            x: center.x,
+            y: center.y,
+            z: center.z
+          });
+          console.log('サイズ (size):', {
+            x: size.x,
+            y: size.y,
+            z: size.z
+          });
+          console.log('=====================================');
+        }
       },
       (progress) => {
-        console.log('glTF読み込み進捗:', (progress.loaded / progress.total) * 100, '%');
+        const percentage = (progress.loaded / progress.total) * 100;
+        setLoadingProgress(percentage);
+        console.log('glTF読み込み進捗:', percentage.toFixed(1), '%');
+        
+        // モバイルでの読み込みが遅い場合の警告
+        if (isMobile && percentage < 10 && progress.total > 0) {
+          console.warn('モバイルでの読み込みが遅い可能性があります。ファイルサイズ:', (progress.total / 1024 / 1024).toFixed(1), 'MB');
+        }
       },
       (error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
@@ -335,13 +356,21 @@ export default function LakeModel({
         />
       )}
       
-      {/* ローディング表示 */}
-      {!isLoaded && (
-        <mesh>
-          <boxGeometry args={[10, 1, 10]} />
-          <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
-        </mesh>
-      )}
+            {/* ローディング表示 */}
+            {!isLoaded && (
+              <mesh>
+                <boxGeometry args={[10, 1, 10]} />
+                <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
+              </mesh>
+            )}
+            
+            {/* ローディング進捗表示（モバイル用） */}
+            {!isLoaded && loadingProgress > 0 && (
+              <mesh position={[0, 5, 0]}>
+                <planeGeometry args={[20, 2]} />
+                <meshBasicMaterial color="#000000" transparent opacity={0.7} />
+              </mesh>
+            )}
     </group>
   );
 }
