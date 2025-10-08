@@ -1,5 +1,5 @@
 // ピン情報の型定義
-export type PinType = 'historical' | 'landmark' | 'nature' | 'cultural' | 'viewpoint';
+export type PinType = 'historical' | 'landmark' | 'nature' | 'cultural' | 'viewpoint' | 'restaurant';
 
 export interface PinData {
   id: string;
@@ -10,6 +10,7 @@ export interface PinData {
   image?: string; // 画像URL（オプション）
   icon?: string; // カスタムアイコン（オプション）
   mapUrl?: string; // マップアプリで開くURL（オプション）
+  externalUrl?: string; // 外部リンクURL（ブログなど）（オプション）
   hasLocation?: boolean; // 現在位置として表示するかどうか
 }
 
@@ -43,5 +44,10 @@ export const pinTypeStyles: Record<PinType, {
     color: '#FF6347',
     icon: '👁️',
     label: '展望'
+  },
+  restaurant: {
+    color: '#FF6B35',
+    icon: '🍜',
+    label: '飲食店'
   }
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import 'leaflet/dist/leaflet.css';
@@ -401,8 +401,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                     座標: {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
                   </div>
                   
-                  {selectedPin.mapUrl && (
-                    <div style={{ marginTop: '12px' }}>
+                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedPin.mapUrl && (
                       <button
                         type="button"
                         onClick={() => window.open(selectedPin.mapUrl, '_blank')}
@@ -434,8 +434,42 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                         <FaMapMarkerAlt size={16} />
                         現在の場所
                       </button>
-                    </div>
-                  )}
+                    )}
+                    
+                    {selectedPin.externalUrl && (
+                      <button
+                        type="button"
+                        onClick={() => window.open(selectedPin.externalUrl, '_blank')}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          backgroundColor: 'transparent',
+                          color: '#374151',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f9fafb';
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.borderColor = '#e5e7eb';
+                        }}
+                      >
+                        <FaExternalLinkAlt size={16} />
+                        詳細情報
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : null}
               {sheetMode === 'pin-list' && (
