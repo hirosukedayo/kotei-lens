@@ -109,15 +109,18 @@ export default function Scene3D() {
           {/* 環境光を追加 */}
           <ambientLight intensity={0.4} color="#ffffff" />
 
-          {/* 湖の3Dモデル */}
+          {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
           <LakeModel 
             position={[0, 0, 0]}
-            scale={[10, 10, 10]}
+            scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
             visible={true}
+            showTerrain={true} // 地形を表示
+            showWater={false} // 水面を非表示
+            terrainScale={[10, 10, 10]} // 地形のスケール
+            waterScale={[10, 10, 10]} // 水面のスケール
+            waterPosition={[0, 0, 0]} // 水面の位置
           />
-          
-          {/* 水面は非表示に変更 */}
           
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>

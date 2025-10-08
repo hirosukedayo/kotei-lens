@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useLoader } from '@react-three/fiber';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
 
@@ -10,6 +10,11 @@ interface LakeModelProps {
   scale?: [number, number, number];
   rotation?: [number, number, number];
   visible?: boolean;
+  showTerrain?: boolean;
+  showWater?: boolean;
+  terrainScale?: [number, number, number];
+  waterScale?: [number, number, number];
+  waterPosition?: [number, number, number];
 }
 
 // ベースパスを動的に取得
@@ -44,171 +49,80 @@ const parseUnityMaterial = () => {
 };
 
 export default function LakeModel({
-  position = [0, 0, 0], // デフォルトで中心座標に配置
+  position = [0, 0, 0],
   scale = [1, 1, 1],
   rotation = [0, 0, 0],
-  visible = true
+  visible = true,
+  showTerrain = true,
+  showWater = true,
+  terrainScale = [1, 1, 1],
+  waterScale = [1, 1, 1],
+  waterPosition = [0, 0, 0]
 }: LakeModelProps) {
-  const meshRef = useRef<THREE.Group>(null);
+  const terrainRef = useRef<THREE.Group>(null);
+  const waterRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const [gltf, setGltf] = useState<any>(null);
 
   const basePath = getBasePath();
   const unityMaterial = parseUnityMaterial();
 
-  // テクスチャの読み込み（エラーハンドリング付き）
+  // glTFファイルの読み込み
   useEffect(() => {
-    const textureLoader = new TextureLoader();
-    const texturePath = `${basePath}models/lake_photo.png`;
+    const gltfLoader = new GLTFLoader();
+    const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
     
-    console.log('テクスチャパス:', texturePath);
+    console.log('glTFファイルパス:', gltfPath);
     
-    textureLoader.load(
-      texturePath,
-      (loadedTexture) => {
-        setTexture(loadedTexture);
-        console.log('テクスチャが正常に読み込まれました');
-        console.log('テクスチャ情報:', {
-          image: loadedTexture.image,
-          format: loadedTexture.format,
-          type: loadedTexture.type,
-          wrapS: loadedTexture.wrapS,
-          wrapT: loadedTexture.wrapT
+    gltfLoader.load(
+      gltfPath,
+      (loadedGltf) => {
+        setGltf(loadedGltf);
+        setIsLoaded(true);
+        console.log('glTFファイルが正常に読み込まれました');
+        console.log('glTF情報:', {
+          scene: loadedGltf.scene,
+          animations: loadedGltf.animations,
+          cameras: loadedGltf.cameras,
+          asset: loadedGltf.asset
         });
       },
       undefined,
       (error) => {
-        console.error('テクスチャの読み込みに失敗:', error);
-        setError('テクスチャの読み込みに失敗しました');
+        console.error('glTFファイルの読み込みに失敗:', error);
+        setError('glTFファイルの読み込みに失敗しました');
       }
     );
   }, [basePath]);
 
-  useEffect(() => {
-    if (!texture) return; // テクスチャが読み込まれるまで待機
+  // 地形と水面を分離して取得する関数
+  const getTerrainObject = () => {
+    if (!gltf) return null;
+    return gltf.scene.getObjectByName("Displacement.001");
+  };
 
-    // OBJファイルの読み込み
-    const objLoader = new OBJLoader();
-    const objPath = `${basePath}models/lake.obj`;
-    
-    console.log('OBJファイルパス:', objPath);
-    
-    objLoader.load(
-      objPath,
-      (object: THREE.Group) => {
-        // Unityマテリアルファイルの情報を基にマテリアルを設定
-        object.traverse((child: THREE.Object3D) => {
-          if (child instanceof THREE.Mesh) {
-            // Unityマテリアルファイルの情報を基にマテリアルを設定
-            const material = new THREE.MeshStandardMaterial({
-              map: texture,
-              // Unityの_Color設定
-              color: new THREE.Color(
-                unityMaterial.color.r,
-                unityMaterial.color.g,
-                unityMaterial.color.b
-              ),
-              // Unityの_Glossiness設定（roughness = 1 - glossiness）
-              roughness: 1 - unityMaterial.glossiness,
-              // Unityの_Metallic設定
-              metalness: unityMaterial.metallic,
-              // Unityの_EmissionColor設定
-              emissive: new THREE.Color(
-                unityMaterial.emissionColor.r,
-                unityMaterial.emissionColor.g,
-                unityMaterial.emissionColor.b
-              ),
-              emissiveIntensity: 0.0,
-              // 透明度設定
-              transparent: unityMaterial.mode !== 0, // 0以外は透明
-              opacity: unityMaterial.color.a,
-              // カットオフ設定
-              alphaTest: unityMaterial.cutoff,
-              // 深度書き込み設定
-              depthWrite: unityMaterial.zWrite === 1,
-              // 表面設定
-              side: THREE.FrontSide,
-            });
-            
-            // デバッグ情報を出力
-            console.log('Unityマテリアル設定:', {
-              type: material.type,
-              color: material.color,
-              roughness: material.roughness,
-              metalness: material.metalness,
-              map: !!material.map,
-              side: material.side,
-              transparent: material.transparent,
-              opacity: material.opacity
-            });
+  const getWaterObject = () => {
+    if (!gltf) return null;
+    return gltf.scene.getObjectByName("Water");
+  };
 
-            // テクスチャの設定（Unityの設定を反映）
-            if (texture) {
-              texture.wrapS = THREE.RepeatWrapping;
-              texture.wrapT = THREE.RepeatWrapping;
-              texture.repeat.set(
-                unityMaterial.mainTex.scale.x,
-                unityMaterial.mainTex.scale.y
-              );
-              texture.offset.set(
-                unityMaterial.mainTex.offset.x,
-                unityMaterial.mainTex.offset.y
-              );
-            }
-
-            child.material = material;
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-
-        // モデルの重心を計算して中心に配置
-        const box = new THREE.Box3().setFromObject(object);
-        const center = box.getCenter(new THREE.Vector3());
-        
-        console.log('モデルのバウンディングボックス:', {
-          min: box.min,
-          max: box.max,
-          center: center,
-          size: box.getSize(new THREE.Vector3())
-        });
-        
-        // 重心を原点に移動
-        object.position.sub(center);
-        
-        // グループに追加
-        if (meshRef.current) {
-          meshRef.current.clear();
-          meshRef.current.add(object);
-          setIsLoaded(true);
-          console.log('湖の3Dモデルが正常に読み込まれました（重心を原点に移動）');
-        }
-      },
-      (progress: ProgressEvent) => {
-        console.log('Loading progress:', (progress.loaded / progress.total) * 100, '%');
-      },
-      (error: unknown) => {
-        console.error('Error loading OBJ:', error);
-        setError('モデルの読み込みに失敗しました');
-      }
-    );
-  }, [texture, basePath]);
-
-  // アニメーション（水面の波効果）- 一時的に無効化
+  // アニメーション（水面の波効果）
   useFrame((state, delta) => {
-    if (meshRef.current && isLoaded) {
-      // 水面の波アニメーション（微細な動き）- 一時的に無効化
-      // meshRef.current.rotation.y += delta * 0.05;
+    if (waterRef.current && isLoaded && showWater) {
+      // 水面の微細な波アニメーション
+      waterRef.current.rotation.y += delta * 0.01;
       
-      // マテリアルの反射効果を動的に調整 - 一時的に無効化
-      // meshRef.current.traverse((child) => {
-      //   if (child instanceof THREE.Mesh && child.material) {
-      //     const material = child.material as THREE.MeshStandardMaterial;
-      //     // 時間に基づいて反射強度を変化させる
-      //     material.metalness = 0.1 + Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
-      //   }
-      // });
+      // 水面のマテリアル効果を動的に調整
+      waterRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as THREE.MeshStandardMaterial;
+          // 時間に基づいて反射強度を変化させる
+          if (material.metalness !== undefined) {
+            material.metalness = 0.1 + Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
+          }
+        }
+      });
     }
   });
 
@@ -224,13 +138,27 @@ export default function LakeModel({
   }
 
   return (
-    <group
-      ref={meshRef}
-      position={position}
-      scale={scale}
-      rotation={rotation}
-      visible={visible}
-    >
+    <group position={position} scale={scale} rotation={rotation} visible={visible}>
+      {/* 地形の表示 */}
+      {showTerrain && isLoaded && getTerrainObject() && (
+        <primitive
+          ref={terrainRef}
+          object={getTerrainObject()}
+          scale={terrainScale}
+        />
+      )}
+      
+      {/* 水面の表示 */}
+      {showWater && isLoaded && getWaterObject() && (
+        <primitive
+          ref={waterRef}
+          object={getWaterObject()}
+          position={waterPosition}
+          scale={waterScale}
+        />
+      )}
+      
+      {/* ローディング表示 */}
       {!isLoaded && (
         <mesh>
           <boxGeometry args={[10, 1, 10]} />
