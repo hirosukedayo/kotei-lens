@@ -233,8 +233,6 @@ export default function LakeModel({
         
         // 水面を下に移動（-25まで下げる、-50の50%）
         waterY = -25 * easedProgress;
-        
-        console.log(`干上がり進行度: ${(drainProgress * 100).toFixed(1)}%`);
       }
       
       // 水面の波アニメーション（干上がり中は波を小さく、50%で停止）
