@@ -35,8 +35,11 @@ export default function Scene3D() {
       const userAgent = navigator.userAgent.toLowerCase();
       const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      setIsMobile(isMobileDevice || isTouchDevice);
-      console.log('Device detection:', { isMobileDevice, isTouchDevice, isMobile: isMobileDevice || isTouchDevice });
+      const mobile = isMobileDevice || isTouchDevice;
+      setIsMobile(mobile);
+      console.log('Device detection:', { isMobileDevice, isTouchDevice, isMobile: mobile });
+      console.log('User Agent:', navigator.userAgent);
+      console.log('Touch support:', 'ontouchstart' in window, 'maxTouchPoints:', navigator.maxTouchPoints);
     };
     
     checkDevice();
@@ -112,6 +115,15 @@ export default function Scene3D() {
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
           {isMobile && permissionGranted && <DeviceOrientationControls ref={deviceOrientationControlsRef} />}
+          {/* モバイル用のOrbitControls（デバイス向き許可がない場合） */}
+          {isMobile && !permissionGranted && <OrbitControls 
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            minDistance={10}
+            maxDistance={1000}
+            target={[0, 0, 0]}
+          />}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
           {/* React Three Fiber標準のSkyコンポーネント - 適切なサイズ */}
@@ -171,25 +183,44 @@ export default function Scene3D() {
             textAlign: 'center',
           }}
         >
-          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可が必要です</h3>
+          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可</h3>
           <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
             3Dビューでデバイスの向きに応じてカメラを制御するために、デバイス向きの許可が必要です。
+            <br />
+            許可しない場合は、タッチ操作でカメラを制御できます。
           </p>
-          <button
-            type="button"
-            onClick={handleDeviceOrientationPermission}
-            style={{
-              background: '#2B6CB0',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}
-          >
-            デバイス向きを許可
-          </button>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={handleDeviceOrientationPermission}
+              style={{
+                background: '#2B6CB0',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '16px',
+              }}
+            >
+              デバイス向きを許可
+            </button>
+            <button
+              type="button"
+              onClick={() => setPermissionGranted(false)}
+              style={{
+                background: '#6B7280',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontSize: '16px',
+              }}
+            >
+              タッチ操作で使用
+            </button>
+          </div>
         </div>
       )}
     </div>
