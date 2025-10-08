@@ -109,21 +109,10 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* キーボードコントロール（モバイルのみ） */}
-          {isMobile && <KeyboardPanLogger />}
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
           {isMobile && permissionGranted && <DeviceOrientationControls ref={deviceOrientationControlsRef} />}
-          {/* モバイル用のOrbitControls（デバイス向き許可がない場合） */}
-          {isMobile && !permissionGranted && <OrbitControls 
-            enablePan={true}
-            enableZoom={true}
-            enableRotate={true}
-            minDistance={10}
-            maxDistance={1000}
-            target={[0, 0, 0]}
-          />}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
           {/* React Three Fiber標準のSkyコンポーネント - 適切なサイズ */}
@@ -183,44 +172,25 @@ export default function Scene3D() {
             textAlign: 'center',
           }}
         >
-          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可</h3>
+          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可が必要です</h3>
           <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
             3Dビューでデバイスの向きに応じてカメラを制御するために、デバイス向きの許可が必要です。
-            <br />
-            許可しない場合は、タッチ操作でカメラを制御できます。
           </p>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={handleDeviceOrientationPermission}
-              style={{
-                background: '#2B6CB0',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontSize: '16px',
-              }}
-            >
-              デバイス向きを許可
-            </button>
-            <button
-              type="button"
-              onClick={() => setPermissionGranted(false)}
-              style={{
-                background: '#6B7280',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontSize: '16px',
-              }}
-            >
-              タッチ操作で使用
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleDeviceOrientationPermission}
+            style={{
+              background: '#2B6CB0',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+          >
+            デバイス向きを許可
+          </button>
         </div>
       )}
     </div>
@@ -355,76 +325,4 @@ function PCKeyboardControls() {
   return null;
 }
 
-// キーボードで縦横のみ移動し、変更毎に設定をログ出力
-function KeyboardPanLogger() {
-  const { camera } = useThree();
-  React.useEffect(() => {
-    const step = 2;
-    const dir = new THREE.Vector3();
-    const right = new THREE.Vector3();
-    const handleKey = (e: KeyboardEvent) => {
-      let moved = false;
-      switch (e.key) {
-        case 'ArrowLeft':
-          camera.position.x -= step;
-          moved = true;
-          break;
-        case 'ArrowRight':
-          camera.position.x += step;
-          moved = true;
-          break;
-        case 'ArrowUp':
-          camera.position.y += step;
-          moved = true;
-          break;
-        case 'ArrowDown':
-          camera.position.y -= step;
-          moved = true;
-          break;
-        // 前進・後退（カメラの向きに沿ってZを含む前後移動）
-        case 'w':
-        case 'W':
-          camera.getWorldDirection(dir).normalize();
-          camera.position.addScaledVector(dir, step);
-          moved = true;
-          break;
-        case 's':
-        case 'S':
-          camera.getWorldDirection(dir).normalize();
-          camera.position.addScaledVector(dir, -step);
-          moved = true;
-          break;
-        // 水平ストレーフ（A/D）: カメラ右方向ベクトルで左右移動
-        case 'a':
-        case 'A':
-          camera.getWorldDirection(dir).normalize();
-          right.set(dir.z, 0, -dir.x).normalize();
-          camera.position.addScaledVector(right, -step);
-          moved = true;
-          break;
-        case 'd':
-        case 'D':
-          camera.getWorldDirection(dir).normalize();
-          right.set(dir.z, 0, -dir.x).normalize();
-          camera.position.addScaledVector(right, step);
-          moved = true;
-          break;
-        default:
-          break;
-      }
-      if (moved) {
-        camera.updateProjectionMatrix();
-        // 設定ログ（貼り付けしやすい形式）
-        console.log('Camera config:', {
-          position: [Number(camera.position.x.toFixed(2)), Number(camera.position.y.toFixed(2)), Number(camera.position.z.toFixed(2))],
-          near: camera.near,
-          far: camera.far,
-        });
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [camera]);
-  return null;
-}
 
