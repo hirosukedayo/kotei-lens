@@ -16,7 +16,9 @@ export default function Scene3D() {
   const [renderer, setRenderer] = useState<string>('webgl2');
   const [permissionGranted, setPermissionGranted] = useState(() => {
     // ローカルストレージから許可状態を復元
-    return localStorage.getItem('deviceOrientationPermission') === 'granted';
+    const stored = localStorage.getItem('deviceOrientationPermission');
+    console.log('保存された許可状態:', stored);
+    return stored === 'granted';
   });
   const [isMobile, setIsMobile] = useState(false);
   const deviceOrientationControlsRef = React.useRef<any>(null);
@@ -43,15 +45,54 @@ export default function Scene3D() {
     };
     
     checkDevice();
-  }, []);
+    
+    // デバイス向きイベントの状態を監視
+    const checkOrientationPermission = () => {
+      if (typeof DeviceOrientationEvent !== 'undefined') {
+        // デバイス向きイベントが利用可能かテスト
+        const testHandler = () => {
+          console.log('デバイス向きイベントが利用可能です');
+          setPermissionGranted(true);
+          localStorage.setItem('deviceOrientationPermission', 'granted');
+          window.removeEventListener('deviceorientation', testHandler);
+        };
+        
+        window.addEventListener('deviceorientation', testHandler, { once: true });
+        
+        // 3秒後にタイムアウト
+        setTimeout(() => {
+          window.removeEventListener('deviceorientation', testHandler);
+        }, 3000);
+      }
+    };
+    
+    // モバイルの場合のみチェック
+    if (isMobile) {
+      checkOrientationPermission();
+    }
+  }, [isMobile]);
 
   // デバイス向き許可のハンドラ
-  const handleDeviceOrientationPermission = () => {
-    if (deviceOrientationControlsRef.current) {
-      deviceOrientationControlsRef.current.connect();
-      setPermissionGranted(true);
-      // 許可状態をローカルストレージに保存
-      localStorage.setItem('deviceOrientationPermission', 'granted');
+  const handleDeviceOrientationPermission = async () => {
+    try {
+      // デバイス向きイベントの許可をリクエスト
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setPermissionGranted(true);
+          localStorage.setItem('deviceOrientationPermission', 'granted');
+          console.log('デバイス向き許可が取得されました');
+        } else {
+          console.warn('デバイス向き許可が拒否されました');
+        }
+      } else {
+        // 古いブラウザや許可が不要な場合
+        setPermissionGranted(true);
+        localStorage.setItem('deviceOrientationPermission', 'granted');
+        console.log('デバイス向き許可が不要です');
+      }
+    } catch (error) {
+      console.error('デバイス向き許可の取得に失敗:', error);
     }
   };
 
