@@ -32,6 +32,7 @@ export function useSensors() {
   }, []);
 
   // GPS エラーコールバック
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleGPSError = useCallback((error: any) => {
     console.warn('GPS error:', error);
   }, []);

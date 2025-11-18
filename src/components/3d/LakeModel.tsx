@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 
 interface LakeModelProps {
@@ -35,7 +37,7 @@ export default function LakeModel({
   const waterRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gltf, setGltf] = useState<any>(null);
+  const [gltf, setGltf] = useState<GLTF | null>(null);
   const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
@@ -50,8 +52,8 @@ export default function LakeModel({
     console.log('デバイス情報:', {
       userAgent: navigator.userAgent,
       isMobile: /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase()),
-      memory: (navigator as any).deviceMemory || 'unknown',
-      connection: (navigator as any).connection?.effectiveType || 'unknown'
+      memory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 'unknown',
+      connection: (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || 'unknown'
     });
     
     // モバイル用の読み込み設定
@@ -210,7 +212,7 @@ export default function LakeModel({
   };
 
   // アニメーション（水面の波効果と干上がり）
-  useFrame((state, delta) => {
+  useFrame((state: { clock: { elapsedTime: number } }, delta: number) => {
     if (waterRef.current && isLoaded && showWater) {
       const time = state.clock.elapsedTime;
       
@@ -288,7 +290,7 @@ export default function LakeModel({
       {showTerrain && isLoaded && getTerrainObject() && (
         <primitive
           ref={terrainRef}
-          object={getTerrainObject()}
+          object={getTerrainObject()!}
           scale={terrainScale}
         />
       )}
@@ -297,13 +299,13 @@ export default function LakeModel({
       {showWater && isLoaded && getWaterObject() && (
         <primitive
           ref={waterRef}
-          object={getWaterObject()}
+          object={getWaterObject()!}
           position={waterPosition}
           scale={waterScale}
-          onUpdate={(self: any) => {
+          onUpdate={(self: THREE.Object3D) => {
             // 水面のマテリアルを動的に調整
             if (self && self.traverse) {
-              self.traverse((child: any) => {
+              self.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh && child.material) {
                   const material = child.material as THREE.MeshStandardMaterial;
                   

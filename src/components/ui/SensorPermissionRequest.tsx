@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 
@@ -22,11 +22,7 @@ export default function SensorPermissionRequest({
   // SensorManagerのシングルトンインスタンスを使用
   const sensorManager = getSensorManager();
 
-  useEffect(() => {
-    checkSensorAvailability();
-  }, []);
-
-  const checkSensorAvailability = async () => {
+  const checkSensorAvailability = useCallback(async () => {
     const newStatus: SensorStatus = {
       gps: {
         available: sensorManager.locationService.isAvailable(),
@@ -49,7 +45,11 @@ export default function SensorPermissionRequest({
     };
 
     setSensorStatus(newStatus);
-  };
+  }, [sensorManager]);
+
+  useEffect(() => {
+    checkSensorAvailability();
+  }, [checkSensorAvailability]);
 
   const requestGPSPermission = async () => {
     if (!sensorStatus.gps.available) return;

@@ -13,7 +13,7 @@ function App() {
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
   const { isDevMode, toggleDevMode } = useDevModeStore();
   const tapCountRef = useRef(0);
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const CORNER_SIZE = 50; // 右下角の検出範囲（px）
   const REQUIRED_TAPS = 5; // devモード切り替えに必要なタップ数
   const TAP_TIMEOUT = 2000; // タップ間のタイムアウト（ms）
