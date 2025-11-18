@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaMapLocationDot } from 'react-icons/fa6';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
 import OkutamaMap2D from './components/map/OkutamaMap2D';
+import { useDevModeStore } from './stores/devMode';
 import './App.css';
 
 type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
@@ -10,6 +11,12 @@ type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
 function App() {
   const [appState, setAppState] = useState<AppState>('2d-view');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
+  const { isDevMode, toggleDevMode } = useDevModeStore();
+  const tapCountRef = useRef(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const CORNER_SIZE = 50; // 右下角の検出範囲（px）
+  const REQUIRED_TAPS = 5; // devモード切り替えに必要なタップ数
+  const TAP_TIMEOUT = 2000; // タップ間のタイムアウト（ms）
 
   // 3Dビュー表示時にrootに全画面クラスを追加
   useEffect(() => {
@@ -30,6 +37,56 @@ function App() {
       }
     };
   }, [appState]);
+
+  // 右下角の連続タップでdevモードを切り替える
+  useEffect(() => {
+    const handleTap = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+
+      // 右下角（右下からCORNER_SIZE以内）をタップしたかチェック
+      if (clientX >= windowWidth - CORNER_SIZE && clientY >= windowHeight - CORNER_SIZE) {
+        tapCountRef.current += 1;
+
+        // タイムアウトをリセット
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+        }
+
+        // 必要な回数タップされたらdevモードを切り替え
+        if (tapCountRef.current >= REQUIRED_TAPS) {
+          toggleDevMode();
+          tapCountRef.current = 0;
+          console.log(`Dev mode ${isDevMode ? 'disabled' : 'enabled'}`);
+        } else {
+          // タイムアウトを設定（一定時間タップがないとリセット）
+          tapTimeoutRef.current = setTimeout(() => {
+            tapCountRef.current = 0;
+          }, TAP_TIMEOUT);
+        }
+      } else {
+        // 右下角以外をタップしたらリセット
+        tapCountRef.current = 0;
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+        }
+      }
+    };
+
+    // マウスとタッチの両方に対応
+    window.addEventListener('click', handleTap);
+    window.addEventListener('touchstart', handleTap, { passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleTap);
+      window.removeEventListener('touchstart', handleTap);
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, [toggleDevMode, isDevMode]);
 
   const handleStart3D = () => {
     setAppState('3d-view');
@@ -91,6 +148,27 @@ function App() {
             <FaMapLocationDot size={64} />
           </button>
         </div>
+        {/* Devモード表示バッジ */}
+        {isDevMode && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '16px',
+              left: '16px',
+              zIndex: 1000,
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              pointerEvents: 'none',
+            }}
+          >
+            DEV MODE
+          </div>
+        )}
       </div>
     );
   }
@@ -142,7 +220,30 @@ function App() {
 
   // 2Dマップをデフォルトで表示
   return (
-    <OkutamaMap2D onRequest3D={handleStart3D} />
+    <>
+      <OkutamaMap2D onRequest3D={handleStart3D} />
+      {/* Devモード表示バッジ */}
+      {isDevMode && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '16px',
+            zIndex: 1000,
+            backgroundColor: '#10b981',
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            pointerEvents: 'none',
+          }}
+        >
+          DEV MODE
+        </div>
+      )}
+    </>
   );
 }
 
