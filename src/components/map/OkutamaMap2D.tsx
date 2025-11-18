@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
@@ -18,7 +18,7 @@ type OkutamaMap2DProps = {
 
 export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   // ローカル歴史タイルの不透明度（UIで調整可能）
-  const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
+  const [overlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
@@ -202,7 +202,6 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
 
         {/* ピンマーカー */}
         {okutamaPins.map((pin) => {
-          const style = pinTypeStyles[pin.type];
           const isSelected = selectedPin?.id === pin.id;
           return (
             <Marker

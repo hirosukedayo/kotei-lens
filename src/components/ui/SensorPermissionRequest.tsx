@@ -9,7 +9,6 @@ interface SensorPermissionRequestProps {
 
 export default function SensorPermissionRequest({
   onPermissionsGranted,
-  onPermissionsDenied,
 }: SensorPermissionRequestProps) {
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>({
     gps: { available: false, permission: 'unknown', lastUpdate: null, error: null },
@@ -152,19 +151,6 @@ export default function SensorPermissionRequest({
     }
   };
 
-  const getStatusText = (permission: string, available: boolean) => {
-    if (!available) return '未対応';
-    switch (permission) {
-      case 'granted':
-        return '許可済み';
-      case 'denied':
-        return '拒否';
-      case 'prompt':
-        return '許可待ち';
-      default:
-        return '確認中';
-    }
-  };
 
   return (
     <div

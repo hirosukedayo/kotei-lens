@@ -1,5 +1,5 @@
-import { Environment, Sky, DeviceOrientationControls, OrbitControls } from '@react-three/drei';
-import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { Environment, Sky, DeviceOrientationControls } from '@react-three/drei';
+import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
@@ -308,7 +308,6 @@ function PCKeyboardControls() {
     const moveSpeed = 5;
     const dir = new THREE.Vector3();
     const right = new THREE.Vector3();
-    const up = new THREE.Vector3();
     
     const handleKey = (e: KeyboardEvent) => {
       let moved = false;

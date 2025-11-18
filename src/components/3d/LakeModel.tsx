@@ -1,8 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TextureLoader } from 'three';
 import * as THREE from 'three';
 
 interface LakeModelProps {
@@ -21,31 +18,6 @@ interface LakeModelProps {
 const getBasePath = () => {
   // Viteの環境変数からベースパスを取得
   return import.meta.env.BASE_URL || '/';
-};
-
-// Unityマテリアルファイルの情報を解析
-const parseUnityMaterial = () => {
-  return {
-    // テクスチャ設定
-    mainTex: {
-      scale: { x: 1, y: 1 },
-      offset: { x: 0, y: 0 }
-    },
-    // マテリアルプロパティ
-    color: { r: 1, g: 1, b: 1, a: 1 },
-    emissionColor: { r: 0, g: 0, b: 0, a: 1 },
-    // 物理プロパティ
-    metallic: 0,
-    glossiness: 0.5,
-    smoothness: 0.5,
-    // ブレンド設定
-    srcBlend: 1, // SrcAlpha
-    dstBlend: 0, // OneMinusSrcAlpha
-    // その他
-    cutoff: 0.5,
-    zWrite: 1,
-    mode: 0 // Opaque
-  };
 };
 
 export default function LakeModel({
@@ -68,7 +40,6 @@ export default function LakeModel({
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   const basePath = getBasePath();
-  const unityMaterial = parseUnityMaterial();
 
   // glTFファイルの読み込み
   useEffect(() => {

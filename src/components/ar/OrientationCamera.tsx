@@ -1,6 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
-import type { Camera } from 'three';
 import type { DeviceOrientation } from '../../types/sensors';
 
 interface OrientationCameraProps {
