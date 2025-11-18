@@ -7,6 +7,7 @@ import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import 'leaflet/dist/leaflet.css';
 import { Drawer } from 'vaul';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
@@ -75,6 +76,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     setSheetOpen(true);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
     if (Array.isArray(coords) && coords.length === 2) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mapRef.current?.flyTo(coords as any, 14, { duration: 0.6 });
     }
   };
