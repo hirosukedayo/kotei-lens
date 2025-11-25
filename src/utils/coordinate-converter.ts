@@ -22,6 +22,13 @@ export const SCENE_CENTER: GPSCoordinate = {
 // 小河内ダム周辺の基準座標（奥多摩湖）- 後方互換性のため保持
 export const OKUTAMA_DAM_CENTER: GPSCoordinate = SCENE_CENTER;
 
+// 小河内神社の座標（エリア外の場合の初期表示位置）
+export const OGOUCHI_SHRINE: GPSCoordinate = {
+  latitude: 35.777041,
+  longitude: 139.0185245,
+  altitude: 0, // 標高は後で調整可能
+};
+
 // 地球の半径（メートル）
 const EARTH_RADIUS = 6371000;
 

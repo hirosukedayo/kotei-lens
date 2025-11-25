@@ -253,6 +253,47 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         </button>
       </div>
 
+      {/* 画面中央：十字マーク */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '30px',
+          height: '30px',
+          zIndex: 10000,
+          pointerEvents: 'none',
+        }}
+      >
+        {/* 縦線 */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '2px',
+            height: '30px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
+          }}
+        />
+        {/* 横線 */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '30px',
+            height: '2px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
+          }}
+        />
+      </div>
+
       {/* 左下：ピン一覧（アイコン） */}
       <div
         style={{
