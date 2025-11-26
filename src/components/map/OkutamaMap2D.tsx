@@ -5,6 +5,8 @@ import L from 'leaflet';
 import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
+import { useSensors } from '../../hooks/useSensors';
+import { OGOUCHI_SHRINE } from '../../utils/coordinate-converter';
 import 'leaflet/dist/leaflet.css';
 import { Drawer } from 'vaul';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +27,15 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
   const sheetContentRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  
+  // GPS位置取得とセンサー管理
+  const { sensorData, startSensors, sensorManager } = useSensors();
+  
+  // 画面中心位置（初期値は小河内神社）
+  const [center, setCenter] = useState<LatLngExpression>([
+    OGOUCHI_SHRINE.latitude,
+    OGOUCHI_SHRINE.longitude,
+  ]);
   const MapRefBinder = () => {
     const map = useMap();
     useEffect(() => {
@@ -109,8 +120,35 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     return () => window.removeEventListener('resize', setVh);
   }, []);
 
-  // 奥多摩湖周辺のざっくり中心座標
-  const center: LatLngExpression = [35.77386, 139.02469];
+  // GPS位置取得とエリア判定、画面中心位置の設定
+  useEffect(() => {
+    // センサーを開始
+    startSensors();
+  }, [startSensors]);
+
+  // GPS位置が更新されたときにエリア判定と中心位置を更新
+  useEffect(() => {
+    const gpsPosition = sensorData.gps;
+    if (!gpsPosition) return;
+
+    const isInArea = sensorManager.locationService.isInOkutamaArea(gpsPosition);
+    
+    if (isInArea) {
+      // エリア内の場合：GPS位置を中心に設定
+      const newCenter: LatLngExpression = [gpsPosition.latitude, gpsPosition.longitude];
+      setCenter(newCenter);
+      // マップの中心位置を更新
+      mapRef.current?.flyTo(newCenter, 14, { duration: 0.6 });
+    } else {
+      // エリア外の場合：小河内神社を中心に設定
+      const shrineCenter: LatLngExpression = [
+        OGOUCHI_SHRINE.latitude,
+        OGOUCHI_SHRINE.longitude,
+      ];
+      setCenter(shrineCenter);
+      mapRef.current?.flyTo(shrineCenter, 14, { duration: 0.6 });
+    }
+  }, [sensorData.gps, sensorManager.locationService]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
@@ -201,6 +239,41 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           opacity={overlayOpacity}
           zIndex={700}
         />
+
+        {/* GPS位置マーカー（エリア内の場合のみ表示） */}
+        {sensorData.gps &&
+          sensorManager.locationService.isInOkutamaArea(sensorData.gps) && (
+            <Marker
+              position={[sensorData.gps.latitude, sensorData.gps.longitude]}
+              icon={L.divIcon({
+                html: `
+                  <div style="
+                    width: 24px;
+                    height: 24px;
+                    background: #3b82f6;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    position: relative;
+                  ">
+                    <div style="
+                      position: absolute;
+                      top: 50%;
+                      left: 50%;
+                      transform: translate(-50%, -50%);
+                      width: 8px;
+                      height: 8px;
+                      background: white;
+                      border-radius: 50%;
+                    "></div>
+                  </div>
+                `,
+                className: 'gps-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12],
+              })}
+            />
+          )}
 
         {/* ピンマーカー */}
         {okutamaPins.map((pin) => {
