@@ -223,7 +223,7 @@ export default function LakeModel({
               const drainProgress = Math.min(elapsed / 15.0, 0.5); // 15秒で50%まで（30秒の50%）
         
         // イージング関数（easeOutCubic）
-        const easedProgress = 1 - Math.pow(1 - drainProgress, 3);
+        const easedProgress = 1 - (1 - drainProgress) ** 3;
         
         // 水面を下に移動（-25まで下げる、-50の50%）
         waterY = -25 * easedProgress;
@@ -287,25 +287,30 @@ export default function LakeModel({
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
-      {showTerrain && isLoaded && getTerrainObject() && (
-        <primitive
-          ref={terrainRef}
-          object={getTerrainObject()!}
-          scale={terrainScale}
-        />
-      )}
+      {showTerrain && isLoaded && (() => {
+        const terrain = getTerrainObject();
+        return terrain ? (
+          <primitive
+            ref={terrainRef}
+            object={terrain}
+            scale={terrainScale}
+          />
+        ) : null;
+      })()}
       
       {/* 水面の表示 */}
-      {showWater && isLoaded && getWaterObject() && (
-        <primitive
-          ref={waterRef}
-          object={getWaterObject()!}
-          position={waterPosition}
-          scale={waterScale}
-          onUpdate={(self: THREE.Object3D) => {
-            // 水面のマテリアルを動的に調整
-            if (self && self.traverse) {
-              self.traverse((child: THREE.Object3D) => {
+      {showWater && isLoaded && (() => {
+        const water = getWaterObject();
+        return water ? (
+          <primitive
+            ref={waterRef}
+            object={water}
+            position={waterPosition}
+            scale={waterScale}
+            onUpdate={(self: THREE.Object3D) => {
+              // 水面のマテリアルを動的に調整
+              if (self?.traverse) {
+                self.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh && child.material) {
                   const material = child.material as THREE.MeshStandardMaterial;
                   
@@ -327,7 +332,8 @@ export default function LakeModel({
             }
           }}
         />
-      )}
+        ) : null;
+      })()}
       
             {/* ローディング表示 */}
             {!isLoaded && (
