@@ -1,7 +1,7 @@
 import { Environment, Sky, DeviceOrientationControls } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
 import {
   detectWebGLSupport,
@@ -9,9 +9,15 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
+import { gpsToWorldCoordinate } from '../../utils/coordinate-converter';
+import type { Initial3DPosition } from '../map/OkutamaMap2D';
+
+interface Scene3DProps {
+  initialPosition?: Initial3DPosition | null;
+}
 
 // 3Dシーンコンポーネント
-export default function Scene3D() {
+export default function Scene3D({ initialPosition }: Scene3DProps) {
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
   const [permissionGranted, setPermissionGranted] = useState(() => {
@@ -99,6 +105,38 @@ export default function Scene3D() {
     }
   };
 
+  // 初期位置と方位からカメラの初期位置と回転を計算
+  const initialCameraConfig = useMemo(() => {
+    if (initialPosition) {
+      // GPS座標を3D座標に変換
+      const worldPos = gpsToWorldCoordinate({
+        latitude: initialPosition.latitude,
+        longitude: initialPosition.longitude,
+        altitude: 0, // 標高は後で地形に合わせて調整
+      });
+      
+      // カメラの高さを調整（地面から少し上に、最低10m）
+      const cameraHeight = Math.max(worldPos.y + 10, 10);
+      
+      // 初期回転（方位角をY軸回転に変換）
+      // alphaは0-360度（北が0、時計回り）、Three.jsのY軸回転はラジアン（反時計回りが正）
+      // 変換: yRotation = -alpha * Math.PI / 180
+      const initialHeading = initialPosition.heading ?? 0;
+      const yRotation = -initialHeading * (Math.PI / 180);
+      
+      return {
+        position: [worldPos.x, cameraHeight, worldPos.z] as [number, number, number],
+        rotation: [0, yRotation, 0] as [number, number, number],
+      };
+    }
+    
+    // デフォルト位置
+    return {
+      position: [-63.43, 105.73, 1.65] as [number, number, number],
+      rotation: [0, 0, 0] as [number, number, number],
+    };
+  }, [initialPosition]);
+
   if (!webglSupport) {
     return (
       <div
@@ -145,7 +183,8 @@ export default function Scene3D() {
       <Canvas
         style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}
         camera={{
-          position: [-63.43, 105.73, 1.65], // +Z方向を向くように配置
+          position: initialCameraConfig.position,
+          rotation: initialCameraConfig.rotation,
           fov: 65,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
@@ -153,6 +192,8 @@ export default function Scene3D() {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
+          {/* カメラの初期位置と回転を設定 */}
+          <CameraInitializer initialConfig={initialCameraConfig} />
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
@@ -239,6 +280,27 @@ export default function Scene3D() {
       )}
     </div>
   );
+}
+
+// カメラの初期位置と回転を設定するコンポーネント
+function CameraInitializer({ 
+  initialConfig 
+}: { 
+  initialConfig: { position: [number, number, number]; rotation: [number, number, number] } 
+}) {
+  const { camera } = useThree();
+  const hasInitialized = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!hasInitialized.current) {
+      // カメラの初期位置と回転を設定
+      camera.position.set(...initialConfig.position);
+      camera.rotation.set(...initialConfig.rotation);
+      hasInitialized.current = true;
+    }
+  }, [camera, initialConfig]);
+
+  return null;
 }
 
 // FPSスタイルカメラコントロール
