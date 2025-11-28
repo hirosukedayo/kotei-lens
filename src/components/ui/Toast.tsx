@@ -43,22 +43,38 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
     <div
       style={{
         position: 'absolute',
+        top: '16px',
         left: '50%',
-        bottom: '24px',
         transform: 'translateX(-50%)',
         zIndex: 20000,
-        maxWidth: '90vw',
-        background: colors.background,
+        maxWidth: '92vw',
+        background: 'rgba(15, 23, 42, 0.9)', // ベースはダーク
         color: colors.text,
-        padding: '12px 16px',
-        borderRadius: 9999,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-        fontSize: '13px',
+        padding: '10px 14px',
+        borderRadius: 12,
+        boxShadow: '0 18px 45px rgba(15,23,42,0.45)',
+        fontSize: '12px',
         lineHeight: 1.5,
         textAlign: 'center',
+        backdropFilter: 'blur(12px)',
+        border: `1px solid rgba(148, 163, 184, 0.35)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
       }}
     >
-      {message}
+      <span
+        style={{
+          display: 'inline-block',
+          width: 6,
+          height: 6,
+          borderRadius: '9999px',
+          backgroundColor: colors.background,
+          boxShadow: '0 0 0 3px rgba(148,163,184,0.3)',
+        }}
+      />
+      <span>{message}</span>
     </div>
   );
 }
