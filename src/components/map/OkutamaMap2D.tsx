@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt, FaLayerGroup } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
-import { OGOUCHI_SHRINE } from '../../utils/coordinate-converter';
+import { OGOUCHI_SHRINE, worldToGpsCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -17,8 +17,14 @@ import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
 
+export interface Initial3DPosition {
+  latitude: number;
+  longitude: number;
+  heading?: number; // デバイスの方位角（度、0-360、北が0）
+}
+
 type OkutamaMap2DProps = {
-  onRequest3D?: () => void;
+  onRequest3D?: (initialPosition: Initial3DPosition) => void;
 };
 
 export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
@@ -109,7 +115,14 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     try {
       const permission = await getSensorManager().orientationService.requestPermission();
       if (permission === 'granted') {
-        onRequest3D?.();
+        // 2Dマップの中心位置とデバイスの方位を取得
+        const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
+        const initialPosition: Initial3DPosition = {
+          latitude: centerLatLng[0],
+          longitude: centerLatLng[1],
+          heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
+        };
+        onRequest3D?.(initialPosition);
       } else {
         // 許可が得られない場合は何もしない（必要なら通知やシート表示へ）
       }
@@ -175,6 +188,34 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     [35.84, 139.11], // 北東（少し広めに）
   ];
 
+  // devモード時: 3Dモデルの範囲を2Dマップ上に描画
+  // モデルの配置: position=[776, 0, -776], terrainScale=[10, 10, 10]
+  // モデルの元のサイズ: 1552m x 1552m → スケール後: 15520m x 15520m
+  const modelBounds = useMemo(() => {
+    if (!isDevMode) return null;
+
+    // モデルの中心位置（3D座標）
+    const modelCenterX = 776;
+    const modelCenterZ = -776;
+    const modelHalfSize = 15520 / 2; // 7760m
+
+    // 四隅の3D座標
+    const corners3D = [
+      { x: modelCenterX - modelHalfSize, y: 0, z: modelCenterZ - modelHalfSize }, // 北西
+      { x: modelCenterX + modelHalfSize, y: 0, z: modelCenterZ - modelHalfSize }, // 北東
+      { x: modelCenterX + modelHalfSize, y: 0, z: modelCenterZ + modelHalfSize }, // 南東
+      { x: modelCenterX - modelHalfSize, y: 0, z: modelCenterZ + modelHalfSize }, // 南西
+    ];
+
+    // 3D座標をGPS座標に変換
+    const cornersGPS = corners3D.map((corner) => {
+      const gps = worldToGpsCoordinate(corner, SCENE_CENTER);
+      return [gps.latitude, gps.longitude] as [number, number];
+    });
+
+    return cornersGPS;
+  }, [isDevMode]);
+
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
     if (selectedPin?.id === pin.id) {
@@ -226,6 +267,20 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           opacity={overlayOpacity}
           zIndex={700}
         />
+
+        {/* devモード時: 3Dモデルの範囲を矩形で表示 */}
+        {isDevMode && modelBounds && (
+          <Polygon
+            positions={modelBounds}
+            pathOptions={{
+              color: '#10b981',
+              fillColor: '#10b981',
+              fillOpacity: 0.2,
+              weight: 2,
+              dashArray: '10, 5',
+            }}
+          />
+        )}
 
         {/* GPS位置マーカー（エリア内の場合、またはdevモードの場合に表示） */}
         {sensorData.gps &&

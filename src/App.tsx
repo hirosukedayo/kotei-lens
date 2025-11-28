@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaMapLocationDot } from 'react-icons/fa6';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
-import OkutamaMap2D from './components/map/OkutamaMap2D';
+import OkutamaMap2D, { type Initial3DPosition } from './components/map/OkutamaMap2D';
 import { useDevModeStore } from './stores/devMode';
 import './App.css';
 
@@ -11,6 +11,7 @@ type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
 function App() {
   const [appState, setAppState] = useState<AppState>('2d-view');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
+  const [initial3DPosition, setInitial3DPosition] = useState<Initial3DPosition | null>(null);
   const { isDevMode, toggleDevMode } = useDevModeStore();
   const tapCountRef = useRef(0);
   const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,7 +89,8 @@ function App() {
     };
   }, [toggleDevMode, isDevMode]);
 
-  const handleStart3D = () => {
+  const handleStart3D = (initialPosition: Initial3DPosition) => {
+    setInitial3DPosition(initialPosition);
     setAppState('3d-view');
   };
 
@@ -117,7 +119,7 @@ function App() {
   if (appState === '3d-view') {
     return (
       <div>
-        <Scene3D />
+        <Scene3D initialPosition={initial3DPosition} />
         {/* 2Dに戻る（右上・円形アイコンボタン） */}
         <div
           style={{
