@@ -1,5 +1,5 @@
 import { Environment, Sky, DeviceOrientationControls } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
@@ -9,8 +9,9 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import { gpsToWorldCoordinate } from '../../utils/coordinate-converter';
+import { gpsToWorldCoordinate, worldToGpsCoordinate } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
+import { useDevModeStore } from '../../stores/devMode';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -18,6 +19,7 @@ interface Scene3DProps {
 
 // 3Dシーンコンポーネント
 export default function Scene3D({ initialPosition }: Scene3DProps) {
+  const { isDevMode } = useDevModeStore();
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
   const [permissionGranted, setPermissionGranted] = useState(() => {
@@ -27,7 +29,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
     return stored === 'granted';
   });
   const [isMobile, setIsMobile] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deviceOrientationControlsRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -83,9 +84,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
   const handleDeviceOrientationPermission = async () => {
     try {
       // デバイス向きイベントの許可をリクエスト
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const permission = await (DeviceOrientationEvent as any).requestPermission();
         if (permission === 'granted') {
           setPermissionGranted(true);
@@ -188,6 +187,8 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
+          {/* devモード時: カメラ位置を監視 */}
+          {isDevMode && <CameraPositionTracker />}
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
@@ -272,6 +273,106 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           </button>
         </div>
       )}
+
+      {/* devモード時: 座標情報を表示 */}
+      {isDevMode && <CoordinateDebugInfo initialPosition={initialPosition} />}
+    </div>
+  );
+}
+
+// カメラ位置を監視してstateに保存するコンポーネント
+function CameraPositionTracker() {
+  const { camera } = useThree();
+  const [cameraPos, setCameraPos] = useState({ x: 0, y: 0, z: 0 });
+
+  useFrame(() => {
+    setCameraPos({
+      x: camera.position.x,
+      y: camera.position.y,
+      z: camera.position.z,
+    });
+  });
+
+  // グローバルstateに保存（簡易的な方法として、windowオブジェクトに保存）
+  React.useEffect(() => {
+    (window as any).__cameraPosition3D = cameraPos;
+  }, [cameraPos]);
+
+  return null;
+}
+
+// devモード時: 座標情報を表示するコンポーネント
+function CoordinateDebugInfo({ 
+  initialPosition 
+}: { 
+  initialPosition?: Initial3DPosition | null 
+}) {
+  const [cameraPos3D, setCameraPos3D] = useState({ x: 0, y: 0, z: 0 });
+  const [cameraPosGPS, setCameraPosGPS] = useState({ latitude: 0, longitude: 0, altitude: 0 });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const pos = (window as any).__cameraPosition3D;
+      if (pos) {
+        setCameraPos3D(pos);
+        // 3D座標をGPS座標に変換
+        const gps = worldToGpsCoordinate({ x: pos.x, y: pos.y, z: pos.z });
+        setCameraPosGPS({
+          latitude: gps.latitude,
+          longitude: gps.longitude,
+          altitude: gps.altitude ?? 0,
+        });
+      }
+    }, 100); // 100msごとに更新
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: '16px',
+        left: '16px',
+        background: 'rgba(0, 0, 0, 0.8)',
+        color: '#ffffff',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        zIndex: 10000,
+        maxWidth: '90vw',
+        lineHeight: 1.6,
+      }}
+    >
+      <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#10b981' }}>
+        DEV MODE - 座標情報
+      </div>
+      
+      {initialPosition && (
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>2Dマップの中心位置:</div>
+          <div>緯度: {initialPosition.latitude.toFixed(6)}</div>
+          <div>経度: {initialPosition.longitude.toFixed(6)}</div>
+          {initialPosition.heading !== undefined && (
+            <div>方位角: {initialPosition.heading.toFixed(1)}°</div>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3Dカメラ位置:</div>
+        <div>X: {cameraPos3D.x.toFixed(2)}m</div>
+        <div>Y: {cameraPos3D.y.toFixed(2)}m</div>
+        <div>Z: {cameraPos3D.z.toFixed(2)}m</div>
+      </div>
+
+      <div>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3D位置をGPS座標に変換:</div>
+        <div>緯度: {cameraPosGPS.latitude.toFixed(6)}</div>
+        <div>経度: {cameraPosGPS.longitude.toFixed(6)}</div>
+        <div>標高: {cameraPosGPS.altitude.toFixed(2)}m</div>
+      </div>
     </div>
   );
 }
