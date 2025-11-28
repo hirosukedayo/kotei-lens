@@ -113,14 +113,25 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     try {
       const permission = await getSensorManager().orientationService.requestPermission();
       if (permission === 'granted') {
-        // 2Dマップの中心位置とデバイスの方位を取得
-        const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
-        const initialPosition: Initial3DPosition = {
-          latitude: centerLatLng[0],
-          longitude: centerLatLng[1],
-          heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
-        };
-        onRequest3D?.(initialPosition);
+        // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
+        const currentCenter = mapRef.current?.getCenter();
+        if (currentCenter) {
+          const initialPosition: Initial3DPosition = {
+            latitude: currentCenter.lat,
+            longitude: currentCenter.lng,
+            heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
+          };
+          onRequest3D?.(initialPosition);
+        } else {
+          // マップが初期化されていない場合は、stateのcenterを使用
+          const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
+          const initialPosition: Initial3DPosition = {
+            latitude: centerLatLng[0],
+            longitude: centerLatLng[1],
+            heading: sensorData.orientation?.alpha ?? undefined,
+          };
+          onRequest3D?.(initialPosition);
+        }
       } else {
         // 許可が得られない場合は何もしない（必要なら通知やシート表示へ）
       }
