@@ -160,11 +160,12 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
 
-  // 固定の表示範囲（緯度経度）。体験エリアと小河内神社を十分に含むように広めに設定
+  // 固定の表示範囲（緯度経度）。
+  // 体験エリア + 小河内神社 + その周辺を十分に含むよう、以前よりかなり広めに設定
   // south, west / north, east の順
   const okutamaBounds: LatLngBoundsExpression = [
-    [35.76, 139.00], // 南西
-    [35.81, 139.08], // 北東
+    [35.73, 138.97], // 南西（少し広めに）
+    [35.84, 139.11], // 北東（少し広めに）
   ];
 
   // ピンクリック時の処理
@@ -183,7 +184,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         bounds={okutamaBounds}
         maxBounds={okutamaBounds}
         maxBoundsViscosity={1.0}
-        minZoom={14}
+        // もう少し引きで見られるように、最小ズームを 13 まで許可
+        minZoom={13}
         maxZoom={20}
         zoomControl={true}
         scrollWheelZoom={true}
