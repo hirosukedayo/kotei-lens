@@ -29,7 +29,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
     return stored === 'granted';
   });
   const [isMobile, setIsMobile] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deviceOrientationControlsRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -85,9 +84,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
   const handleDeviceOrientationPermission = async () => {
     try {
       // デバイス向きイベントの許可をリクエスト
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const permission = await (DeviceOrientationEvent as any).requestPermission();
         if (permission === 'granted') {
           setPermissionGranted(true);

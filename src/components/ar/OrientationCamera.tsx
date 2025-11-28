@@ -27,7 +27,6 @@ export default function OrientationCamera({
     if (arMode) {
       // 画面の向きを取得（iOS Safari対応）
       const screenOrientation = window.screen?.orientation?.angle ?? 
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 (window as any).orientation ?? 0;
       
       // Three.js DeviceOrientationControls準拠のオフセット設定
