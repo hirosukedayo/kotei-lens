@@ -115,18 +115,15 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         altitude: 0, // 標高は後で地形に合わせて調整
       });
       
-      // カメラの高さを調整（地面から少し上に、最低10m）
-      const cameraHeight = Math.max(worldPos.y + 10, 10);
+      // カメラの高さを調整（以前の位置と同じ105.73m）
+      // 以前の位置: [-63.43, 105.73, 1.65] を基準に、GPS座標から計算した位置に移動
+      const cameraHeight = worldPos.y + 105.73;
       
-      // 初期回転（方位角をY軸回転に変換）
-      // alphaは0-360度（北が0、時計回り）、Three.jsのY軸回転はラジアン（反時計回りが正）
-      // 変換: yRotation = -alpha * Math.PI / 180
-      const initialHeading = initialPosition.heading ?? 0;
-      const yRotation = -initialHeading * (Math.PI / 180);
-      
+      // 回転はDeviceOrientationControlsが自動的に制御するため、初期回転は設定しない
+      // 以前の位置では回転が[0, 0, 0]だった
       return {
         position: [worldPos.x, cameraHeight, worldPos.z] as [number, number, number],
-        rotation: [0, yRotation, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
       };
     }
     
@@ -293,10 +290,16 @@ function CameraInitializer({
 
   React.useEffect(() => {
     if (!hasInitialized.current) {
-      // カメラの初期位置と回転を設定
+      // カメラの初期位置を設定
       camera.position.set(...initialConfig.position);
+      // カメラの初期回転を設定（回転順序をYXZに設定）
+      camera.rotation.order = 'YXZ';
       camera.rotation.set(...initialConfig.rotation);
       hasInitialized.current = true;
+      console.log('Camera initialized:', {
+        position: initialConfig.position,
+        rotation: initialConfig.rotation,
+      });
     }
   }, [camera, initialConfig]);
 
