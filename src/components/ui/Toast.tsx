@@ -47,34 +47,36 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 20000,
-        maxWidth: '92vw',
-        background: 'rgba(15, 23, 42, 0.9)', // ベースはダーク
+        // 画面上部に横長のバーとして表示
+        maxWidth: 'min(640px, 96vw)',
+        minWidth: 'min(360px, 96vw)',
+        background: colors.background,
         color: colors.text,
-        padding: '10px 14px',
-        borderRadius: 12,
+        padding: '12px 20px',
+        borderRadius: 9999,
         boxShadow: '0 18px 45px rgba(15,23,42,0.45)',
-        fontSize: '12px',
-        lineHeight: 1.5,
-        textAlign: 'center',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(148, 163, 184, 0.35)',
+        fontSize: '14px',
+        lineHeight: 1.6,
+        textAlign: 'left',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(15, 23, 42, 0.45)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
+        justifyContent: 'flex-start',
+        gap: 10,
       }}
     >
       <span
         style={{
           display: 'inline-block',
-          width: 6,
-          height: 6,
+          width: 8,
+          height: 8,
           borderRadius: '9999px',
           backgroundColor: colors.background,
-          boxShadow: '0 0 0 3px rgba(148,163,184,0.3)',
+          boxShadow: '0 0 0 4px rgba(15,23,42,0.35)',
         }}
       />
-      <span>{message}</span>
+      <span style={{ fontWeight: 500 }}>{message}</span>
     </div>
   );
 }
