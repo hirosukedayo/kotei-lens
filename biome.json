@@ -12,7 +12,7 @@
         "useTemplate": "error"
       },
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "off"
       },
       "correctness": {
         "useExhaustiveDependencies": "warn"
