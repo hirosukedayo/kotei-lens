@@ -181,7 +181,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}
         camera={{
           position: initialCameraConfig.position,
-          rotation: initialCameraConfig.rotation,
           fov: 65,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
@@ -189,8 +188,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
-          {/* カメラの初期位置と回転を設定 */}
-          <CameraInitializer initialConfig={initialCameraConfig} />
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
@@ -279,32 +276,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
   );
 }
 
-// カメラの初期位置と回転を設定するコンポーネント
-function CameraInitializer({ 
-  initialConfig 
-}: { 
-  initialConfig: { position: [number, number, number]; rotation: [number, number, number] } 
-}) {
-  const { camera } = useThree();
-  const hasInitialized = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!hasInitialized.current) {
-      // カメラの初期位置を設定
-      camera.position.set(...initialConfig.position);
-      // カメラの初期回転を設定（回転順序をYXZに設定）
-      camera.rotation.order = 'YXZ';
-      camera.rotation.set(...initialConfig.rotation);
-      hasInitialized.current = true;
-      console.log('Camera initialized:', {
-        position: initialConfig.position,
-        rotation: initialConfig.rotation,
-      });
-    }
-  }, [camera, initialConfig]);
-
-  return null;
-}
 
 // FPSスタイルカメラコントロール
 function FPSCameraControls() {
