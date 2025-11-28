@@ -220,8 +220,9 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           />
 
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
+          {/* 地形の中心点（3D座標: [-7760.5, 1845.8, 7760.5]）を[0, 0, 0]に配置するため、positionを調整 */}
           <LakeModel 
-            position={[1552/2, 0, -1552/2]}
+            position={[7760.5, 0, -7760.5]}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
             visible={true}
