@@ -57,7 +57,7 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
         lineHeight: 1.5,
         textAlign: 'center',
         backdropFilter: 'blur(12px)',
-        border: `1px solid rgba(148, 163, 184, 0.35)`,
+        border: '1px solid rgba(148, 163, 184, 0.35)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
