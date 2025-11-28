@@ -33,6 +33,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const { sensorData, startSensors, sensorManager } = useSensors();
   // エリア外トースト表示フラグ
   const [showOutsideToast, setShowOutsideToast] = useState(false);
+  // 起動時の自動センタリング・トースト制御が完了したかどうか
+  const [hasInitialCenterSet, setHasInitialCenterSet] = useState(false);
   
   // 画面中心位置（初期値は小河内神社）
   const [center, setCenter] = useState<LatLngExpression>([
@@ -132,7 +134,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   // GPS位置が更新されたときにエリア判定と中心位置を更新
   useEffect(() => {
     const gpsPosition = sensorData.gps;
-    if (!gpsPosition) return;
+    // 起動時の最初のGPS取得時のみ、自動センタリングとトースト制御を行う
+    if (!gpsPosition || hasInitialCenterSet) return;
 
     const isInArea = sensorManager.locationService.isInOkutamaArea(gpsPosition);
     
@@ -155,7 +158,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       // エリア外トーストを表示
       setShowOutsideToast(true);
     }
-  }, [sensorData.gps, sensorManager.locationService]);
+    setHasInitialCenterSet(true);
+  }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;

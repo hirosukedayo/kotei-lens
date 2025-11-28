@@ -52,8 +52,9 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
         minWidth: 'min(360px, 96vw)',
         background: colors.background,
         color: colors.text,
-        padding: '12px 20px',
-        borderRadius: 9999,
+        padding: '14px 20px',
+        // 矩形 + やや丸み
+        borderRadius: 12,
         boxShadow: '0 18px 45px rgba(15,23,42,0.45)',
         fontSize: '14px',
         lineHeight: 1.6,
