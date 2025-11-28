@@ -12,7 +12,8 @@
         "useTemplate": "error"
       },
       "suspicious": {
-        "noExplicitAny": "warn"
+        // any を完全禁止すると現状のセンサー・ブラウザAPIラップコードと相性が悪いため、一旦無効化
+        "noExplicitAny": "off"
       },
       "correctness": {
         "useExhaustiveDependencies": "warn"
