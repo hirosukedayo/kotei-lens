@@ -23,7 +23,7 @@ type OkutamaMap2DProps = {
 
 export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   // ローカル歴史タイルの不透明度（UIで調整可能）
-  const [overlayOpacity] = useState<number>(0.6);
+  const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
@@ -175,11 +175,19 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     [35.84, 139.11], // 北東（少し広めに）
   ];
 
-  // ピンクリック時の処理
+  // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
-    setSelectedPin(pin);
-    setSheetMode('pin-detail');
-    setSheetOpen(true);
+    if (selectedPin?.id === pin.id) {
+      // 同じピンを再度クリックした場合は選択解除
+      setSelectedPin(null);
+      setSheetOpen(false);
+      setSheetMode('pin-list');
+    } else {
+      // 新しいピンを選択
+      setSelectedPin(pin);
+      setSheetMode('pin-detail');
+      setSheetOpen(true);
+    }
   };
 
   return (
@@ -286,11 +294,68 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           top: '16px',
           right: '16px',
           display: 'flex',
+          flexDirection: 'column',
           gap: '12px',
-          alignItems: 'center',
+          alignItems: 'flex-end',
           zIndex: 10000,
         }}
       >
+        {/* 古地図透明度調整スライダー */}
+        <div
+          style={{
+            background: '#ffffff',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+            border: '1px solid #e5e7eb',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            minWidth: '200px',
+          }}
+        >
+          <label
+            htmlFor="opacity-slider"
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#374151',
+              userSelect: 'none',
+            }}
+          >
+            古地図の透明度
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <input
+              id="opacity-slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={overlayOpacity}
+              onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
+              style={{
+                flex: 1,
+                height: '6px',
+                borderRadius: '3px',
+                background: '#e5e7eb',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            />
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#6b7280',
+                minWidth: '40px',
+                textAlign: 'right',
+              }}
+            >
+              {Math.round(overlayOpacity * 100)}%
+            </span>
+          </div>
+        </div>
         <button
           type="button"
           onClick={handleRequest3DWithPermission}
