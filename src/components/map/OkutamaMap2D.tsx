@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt, FaLayerGroup } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
@@ -287,75 +287,15 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         message="現在、体験エリアの外にいます。小河内神社付近（奥多摩湖周辺）に近づくと、かつての村の姿を重ねて見ることができます。"
       />
 
-      {/* UI（透過スライダー / 3D切替）。mapより前面 */}
+      {/* UI（3D切替）。mapより前面 */}
       <div
         style={{
           position: 'absolute',
           top: '16px',
           right: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          alignItems: 'flex-end',
           zIndex: 10000,
         }}
       >
-        {/* 古地図透明度調整スライダー */}
-        <div
-          style={{
-            background: '#ffffff',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            border: '1px solid #e5e7eb',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            minWidth: '200px',
-          }}
-        >
-          <label
-            htmlFor="opacity-slider"
-            style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#374151',
-              userSelect: 'none',
-            }}
-          >
-            古地図の透明度
-          </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <input
-              id="opacity-slider"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={overlayOpacity}
-              onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
-              style={{
-                flex: 1,
-                height: '6px',
-                borderRadius: '3px',
-                background: '#e5e7eb',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            />
-            <span
-              style={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#6b7280',
-                minWidth: '40px',
-                textAlign: 'right',
-              }}
-            >
-              {Math.round(overlayOpacity * 100)}%
-            </span>
-          </div>
-        </div>
         <button
           type="button"
           onClick={handleRequest3DWithPermission}
@@ -376,6 +316,53 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         >
           <PiCubeFocusFill size={64} />
         </button>
+      </div>
+
+      {/* 古地図透明度調整スライダー（右下、アイコンベース） */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '80px',
+          right: '16px',
+          zIndex: 10000,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: '8px',
+        }}
+      >
+        <div
+          style={{
+            background: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+            border: '1px solid #e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            minWidth: '160px',
+          }}
+        >
+          <FaLayerGroup size={18} color="#6b7280" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={overlayOpacity}
+            onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
+            style={{
+              flex: 1,
+              height: '6px',
+              borderRadius: '3px',
+              background: '#e5e7eb',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+            aria-label="古地図の透明度"
+          />
+        </div>
       </div>
 
       {/* 画面中央：十字マーク */}
