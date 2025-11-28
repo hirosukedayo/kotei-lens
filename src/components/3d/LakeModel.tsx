@@ -290,11 +290,11 @@ export default function LakeModel({
       {showTerrain && isLoaded && (() => {
         const terrain = getTerrainObject();
         return terrain ? (
-          <primitive
-            ref={terrainRef}
+        <primitive
+          ref={terrainRef}
             object={terrain}
-            scale={terrainScale}
-          />
+          scale={terrainScale}
+        />
         ) : null;
       })()}
       
@@ -302,15 +302,15 @@ export default function LakeModel({
       {showWater && isLoaded && (() => {
         const water = getWaterObject();
         return water ? (
-          <primitive
-            ref={waterRef}
+        <primitive
+          ref={waterRef}
             object={water}
-            position={waterPosition}
-            scale={waterScale}
-            onUpdate={(self: THREE.Object3D) => {
-              // 水面のマテリアルを動的に調整
+          position={waterPosition}
+          scale={waterScale}
+          onUpdate={(self: THREE.Object3D) => {
+            // 水面のマテリアルを動的に調整
               if (self?.traverse) {
-                self.traverse((child: THREE.Object3D) => {
+              self.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh && child.material) {
                   const material = child.material as THREE.MeshStandardMaterial;
                   
