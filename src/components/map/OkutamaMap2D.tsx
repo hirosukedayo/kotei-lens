@@ -7,6 +7,7 @@ import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
 import { OGOUCHI_SHRINE } from '../../utils/coordinate-converter';
+import { Toast } from '../ui/Toast';
 import 'leaflet/dist/leaflet.css';
 import { Drawer } from 'vaul';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +31,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   
   // GPS位置取得とセンサー管理
   const { sensorData, startSensors, sensorManager } = useSensors();
+  // エリア外トースト表示フラグ
+  const [showOutsideToast, setShowOutsideToast] = useState(false);
   
   // 画面中心位置（初期値は小河内神社）
   const [center, setCenter] = useState<LatLngExpression>([
@@ -139,6 +142,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       setCenter(newCenter);
       // マップの中心位置を更新
       mapRef.current?.flyTo(newCenter, 14, { duration: 0.6 });
+      // エリア内なのでトーストは非表示
+      setShowOutsideToast(false);
     } else {
       // エリア外の場合：小河内神社を中心に設定
       const shrineCenter: LatLngExpression = [
@@ -147,55 +152,20 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       ];
       setCenter(shrineCenter);
       mapRef.current?.flyTo(shrineCenter, 14, { duration: 0.6 });
+      // エリア外トーストを表示
+      setShowOutsideToast(true);
     }
   }, [sensorData.gps, sensorManager.locationService]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
 
-  // タイルインデックス範囲 → 緯度経度境界
-  // - tms: ディレクトリのYがTMSならXYZに反転
-  // - paddingTiles: 見切れ回避やUIのための余白（タイル単位）
-  const tileIndexToBounds = (
-    z: number,
-    xMin: number,
-    xMax: number,
-    yMin: number,
-    yMax: number,
-    options?: { tms?: boolean; paddingTiles?: { north?: number; south?: number; west?: number; east?: number } }
-  ): LatLngBoundsExpression => {
-    const n = 2 ** z;
-    const toXyzY = (y: number) => (options?.tms ? (n - 1) - y : y);
-    const xyzYMin = toXyzY(yMin);
-    const xyzYMax = toXyzY(yMax);
-
-    const tile2lon = (x: number) => (x / n) * 360 - 180;
-    const tile2lat = (y: number) => {
-      const nY = Math.PI - (2 * Math.PI * y) / n;
-      return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(nY) - Math.exp(-nY)));
-    };
-
-    // 余白（必要に応じて微調整）
-    const padW = options?.paddingTiles?.west ?? 0;
-    const padE = options?.paddingTiles?.east ?? 0;
-    const padN = options?.paddingTiles?.north ?? 0;
-    const padS = options?.paddingTiles?.south ?? 0;
-
-    const west = tile2lon(xMin - padW);
-    const east = tile2lon(xMax + 1 + padE);
-    const north = tile2lat(xyzYMin - padN);
-    const south = tile2lat(xyzYMax + 1 + padS);
-    return [
-      [south, west],
-      [north, east],
-    ];
-  };
-
-  // 固定の表示範囲（z=14のタイルインデックス）。南へ余白を1.0タイル
-  const okutamaBounds = tileIndexToBounds(14, 14516, 14522, 9936, 9940, {
-    tms: true,
-    paddingTiles: { south: 1.0 },
-  });
+  // 固定の表示範囲（緯度経度）。体験エリアと小河内神社を十分に含むように広めに設定
+  // south, west / north, east の順
+  const okutamaBounds: LatLngBoundsExpression = [
+    [35.76, 139.00], // 南西
+    [35.81, 139.08], // 北東
+  ];
 
   // ピンクリック時の処理
   const handlePinClick = (pin: PinData) => {
@@ -291,6 +261,14 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           );
         })}
       </MapContainer>
+
+      {/* エリア外トースト */}
+      <Toast
+        open={showOutsideToast}
+        onClose={() => setShowOutsideToast(false)}
+        variant="warning"
+        message="現在、体験エリアの外にいます。小河内神社付近（奥多摩湖周辺）に近づくと、かつての村の姿を重ねて見ることができます。"
+      />
 
       {/* UI（透過スライダー / 3D切替）。mapより前面 */}
       <div
