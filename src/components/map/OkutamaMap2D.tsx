@@ -8,6 +8,7 @@ import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
 import { OGOUCHI_SHRINE } from '../../utils/coordinate-converter';
 import { Toast } from '../ui/Toast';
+import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
 import { Drawer } from 'vaul';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +32,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   
   // GPS位置取得とセンサー管理
   const { sensorData, startSensors, sensorManager } = useSensors();
+  // Devモード状態
+  const { isDevMode } = useDevModeStore();
   // エリア外トースト表示フラグ
   const [showOutsideToast, setShowOutsideToast] = useState(false);
   // 起動時の自動センタリング・トースト制御が完了したかどうか
@@ -216,9 +219,9 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           zIndex={700}
         />
 
-        {/* GPS位置マーカー（エリア内の場合のみ表示） */}
+        {/* GPS位置マーカー（エリア内の場合、またはdevモードの場合に表示） */}
         {sensorData.gps &&
-          sensorManager.locationService.isInOkutamaArea(sensorData.gps) && (
+          (sensorManager.locationService.isInOkutamaArea(sensorData.gps) || isDevMode) && (
             <Marker
               position={[sensorData.gps.latitude, sensorData.gps.longitude]}
               icon={L.divIcon({
