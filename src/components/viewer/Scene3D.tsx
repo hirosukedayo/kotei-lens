@@ -9,9 +9,10 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import { gpsToWorldCoordinate, worldToGpsCoordinate } from '../../utils/coordinate-converter';
+import { gpsToWorldCoordinate, worldToGpsCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
+import { okutamaPins } from '../../data/okutama-pins';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -232,6 +233,9 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
             waterScale={[10, 10, 10]} // 水面のスケール
             waterPosition={[0, 0, 0]} // 水面の位置
           />
+          
+          {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
+          {isDevMode && <PinMarkers3D />}
           
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
@@ -504,6 +508,44 @@ function PCKeyboardControls() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [camera]);
   return null;
+}
+
+// devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
+function PinMarkers3D() {
+  const pinPositions = useMemo(() => {
+    return okutamaPins.map((pin) => {
+      const [latitude, longitude] = pin.coordinates;
+      const worldPos = gpsToWorldCoordinate(
+        { latitude, longitude, altitude: 0 },
+        SCENE_CENTER
+      );
+      // 地形の高さを考慮して、マーカーを少し上に配置
+      return {
+        id: pin.id,
+        title: pin.title,
+        position: [worldPos.x, worldPos.y + 2000, worldPos.z] as [number, number, number],
+      };
+    });
+  }, []);
+
+  return (
+    <>
+      {pinPositions.map((pin) => (
+        <group key={pin.id} position={pin.position}>
+          {/* マーカー（赤い球体） */}
+          <mesh>
+            <sphereGeometry args={[50, 16, 16]} />
+            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+          </mesh>
+          {/* ラベル（テキスト） */}
+          <mesh position={[0, 100, 0]}>
+            <planeGeometry args={[500, 100]} />
+            <meshBasicMaterial color="rgba(0, 0, 0, 0.7)" side={THREE.DoubleSide} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  );
 }
 
 
