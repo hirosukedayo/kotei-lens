@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 
@@ -19,13 +19,23 @@ const variantColors: Record<ToastVariant, { background: string; text: string }> 
 
 export function Toast({ message, open, onClose, duration = 4000, variant = 'info' }: ToastProps) {
   const [visible, setVisible] = useState(open);
+  const prevOpenRef = useRef(open);
 
+  // openがfalseからtrueに変わった時だけvisibleをtrueにする
   useEffect(() => {
-    setVisible(open);
+    if (open && !prevOpenRef.current) {
+      // false → true に変わった時だけ表示
+      setVisible(true);
+    } else if (!open) {
+      // openがfalseになった時は即座に非表示
+      setVisible(false);
+    }
+    prevOpenRef.current = open;
   }, [open]);
 
+  // 自動クローズのタイマー（visibleがtrueでdurationがある場合のみ）
   useEffect(() => {
-    if (!open || !duration) return;
+    if (!visible || !duration) return;
 
     const timer = setTimeout(() => {
       setVisible(false);
@@ -33,7 +43,7 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [open, duration, onClose]);
+  }, [visible, duration, onClose]);
 
   if (!visible) return null;
 
