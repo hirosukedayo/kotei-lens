@@ -198,22 +198,28 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   ];
 
   // devモード時: 3Dモデルの範囲を2Dマップ上に描画
-  // モデルの配置: position=[776, 0, -776], terrainScale=[10, 10, 10]
-  // モデルの元のサイズ: 1552m x 1552m → スケール後: 15520m x 15520m
+  // 実際の地形のバウンディングボックス（terrainScale=[10,10,10]適用後）:
+  // 中心点: [-7760.5, 1845.8, 7760.5]
+  // サイズ: 15521m × 15521m
+  // 最小値: x: -15521.0, z: -0.00008
+  // 最大値: x: 0.00008, z: 15521.0
   const modelBounds = useMemo(() => {
     if (!isDevMode) return null;
 
-    // モデルの中心位置（3D座標）
-    const modelCenterX = 776;
-    const modelCenterZ = -776;
-    const modelHalfSize = 15520 / 2; // 7760m
-
-    // 四隅の3D座標
+    // 実際の地形のバウンディングボックスから計算
+    // 地形は position=[776, 0, -776] に配置され、terrainScale=[10,10,10] が適用される
+    // 実際のバウンディングボックス:
+    const terrainMinX = -15521.001571798653;
+    const terrainMaxX = 0.00007871077104937285;
+    const terrainMinZ = -0.00007871077104937285;
+    const terrainMaxZ = 15521.001571798653;
+    
+    // 四隅の3D座標（Y=0の平面で計算）
     const corners3D = [
-      { x: modelCenterX - modelHalfSize, y: 0, z: modelCenterZ - modelHalfSize }, // 北西
-      { x: modelCenterX + modelHalfSize, y: 0, z: modelCenterZ - modelHalfSize }, // 北東
-      { x: modelCenterX + modelHalfSize, y: 0, z: modelCenterZ + modelHalfSize }, // 南東
-      { x: modelCenterX - modelHalfSize, y: 0, z: modelCenterZ + modelHalfSize }, // 南西
+      { x: terrainMinX, y: 0, z: terrainMinZ }, // 北西（X最小、Z最小）
+      { x: terrainMaxX, y: 0, z: terrainMinZ }, // 北東（X最大、Z最小）
+      { x: terrainMaxX, y: 0, z: terrainMaxZ }, // 南東（X最大、Z最大）
+      { x: terrainMinX, y: 0, z: terrainMaxZ }, // 南西（X最小、Z最大）
     ];
 
     // 3D座標をGPS座標に変換
