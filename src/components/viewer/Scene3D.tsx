@@ -221,7 +221,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           />
 
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
-          {/* 地形の中心点（terrainScale適用後の実際の中心: [-7760.500746543941, 1845.8, 7760.500746543941]）を[0, 0, 0]に配置するため、positionを調整 */}
+          {/* 地形の中心点（terrainScale適用後の実際の中心: [-7760.500746543941, 1845.8277086543676, 7760.500746543941]）を[0, 0, 0]に配置するため、positionを調整 */}
           <LakeModel 
             position={[7760.500746543941, 0, -7760.500746543941]}
             scale={[1, 1, 1]} // 全体のスケール
@@ -513,7 +513,7 @@ function PCKeyboardControls() {
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
 function PinMarkers3D() {
   const pinPositions = useMemo(() => {
-    return okutamaPins.map((pin) => {
+    const positions = okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
       const worldPos = gpsToWorldCoordinate(
         { latitude, longitude, altitude: 0 },
@@ -524,8 +524,24 @@ function PinMarkers3D() {
         id: pin.id,
         title: pin.title,
         position: [worldPos.x, worldPos.y + 2000, worldPos.z] as [number, number, number],
+        gps: { latitude, longitude },
+        worldPos,
       };
     });
+    
+    // devモード時: ピンの位置をログに出力
+    console.log('=== ピンの3D座標 ===');
+    for (const pin of positions) {
+      console.log(`${pin.title} (${pin.id}):`, {
+        GPS: pin.gps,
+        '3D座標': pin.worldPos,
+        'マーカー位置': pin.position,
+      });
+    }
+    console.log('SCENE_CENTER（小河内神社）:', SCENE_CENTER);
+    console.log('=====================================');
+    
+    return positions;
   }, []);
 
   return (
