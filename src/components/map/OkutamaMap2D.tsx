@@ -250,9 +250,8 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       <MapContainer
         center={center}
         zoom={14}
-        bounds={okutamaBounds}
         maxBounds={okutamaBounds}
-        maxBoundsViscosity={1.0}
+        maxBoundsViscosity={0.5}
         // もう少し引きで見られるように、最小ズームを 13 まで許可
         minZoom={13}
         maxZoom={20}
