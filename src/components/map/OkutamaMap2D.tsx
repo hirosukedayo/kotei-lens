@@ -199,30 +199,25 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
 
   // devモード時: 3Dモデルの範囲を2Dマップ上に描画
   // 実際の地形のバウンディングボックス（terrainScale=[10,10,10]適用後）:
-  // 地形の配置位置がposition=[7760.5, 0, -7760.5]に変更されたため、
-  // 地形の中心点（元の3D座標: [-7760.5, 1845.8, 7760.5]）が[0, 0, 0]に対応する
-  // 実際のバウンディングボックス（元の値）:
-  // 最小値: x: -15521.0, z: -0.00008
-  // 最大値: x: 0.00008, z: 15521.0
-  // 地形の配置位置が[7760.5, 0, -7760.5]に変更されたため、バウンディングボックスもオフセットされる
+  // 地形の中心点（元の3D座標: [-7760.5, 1845.8, 7760.5]）を[0, 0, 0]に配置するように
+  // LakeModel 側で position={[7760.5, 0, -7760.5]} を指定している。
+  // したがって、現在の3D空間では地形の中心が原点(0,0,0)に一致しており、
+  // バウンディングボックスは原点を中心とした対称な範囲として扱える。
+  // （サイズはログより x,z 方向ともに約 15521 ユニット）
   const modelBounds = useMemo(() => {
     if (!isDevMode) return null;
 
-    // 地形の配置位置のオフセット
-    const terrainPositionOffset = { x: 7760.5, y: 0, z: -7760.5 };
-    
-    // 実際の地形のバウンディングボックス（元の値、地形の配置位置を考慮する前）
-    const terrainMinX = -15521.001571798653;
-    const terrainMaxX = 0.00007871077104937285;
-    const terrainMinZ = -0.00007871077104937285;
-    const terrainMaxZ = 15521.001571798653;
-    
-    // 四隅の3D座標（地形の配置位置のオフセットを加算）
+    // 地形のバウンディングボックスの半サイズ（x,z方向）
+    // 元のログ値: size.x ≒ size.z ≒ 15521.0016
+    const halfSize = 15521.001571798653 / 2;
+
+    // 現在の3D空間では地形中心が原点にあるため、
+    // バウンディングボックスの四隅は原点からの相対座標で表現できる。
     const corners3D = [
-      { x: terrainMinX + terrainPositionOffset.x, y: 0, z: terrainMinZ + terrainPositionOffset.z }, // 北西
-      { x: terrainMaxX + terrainPositionOffset.x, y: 0, z: terrainMinZ + terrainPositionOffset.z }, // 北東
-      { x: terrainMaxX + terrainPositionOffset.x, y: 0, z: terrainMaxZ + terrainPositionOffset.z }, // 南東
-      { x: terrainMinX + terrainPositionOffset.x, y: 0, z: terrainMaxZ + terrainPositionOffset.z }, // 南西
+      { x: -halfSize, y: 0, z: -halfSize }, // 北西
+      { x: halfSize, y: 0, z: -halfSize }, // 北東
+      { x: halfSize, y: 0, z: halfSize }, // 南東
+      { x: -halfSize, y: 0, z: halfSize }, // 南西
     ];
 
     // 3D座標をGPS座標に変換
