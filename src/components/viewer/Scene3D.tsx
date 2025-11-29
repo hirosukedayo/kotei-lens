@@ -288,20 +288,34 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
 // カメラ位置を監視してstateに保存するコンポーネント
 function CameraPositionTracker() {
   const { camera } = useThree();
-  const [cameraPos, setCameraPos] = useState({ x: 0, y: 0, z: 0 });
+  const loggedRef = React.useRef(false);
 
   useFrame(() => {
-    setCameraPos({
+    const pos = {
       x: camera.position.x,
       y: camera.position.y,
       z: camera.position.z,
-    });
+    };
+    
+    // グローバル変数に保存
+    (window as any).__cameraPosition3D = pos;
+    
+    // 初回のみログに出力
+    if (!loggedRef.current) {
+      console.log('=== カメラの初期位置 ===');
+      console.log('3D座標:', pos);
+      console.log('期待値（小河内神社、高さ105.73m）: { x: 0, y: 105.73, z: 0 }');
+      console.log('差:', {
+        x: pos.x,
+        y: pos.y - 105.73,
+        z: pos.z,
+      });
+      const distance = Math.sqrt(pos.x ** 2 + pos.y ** 2 + pos.z ** 2);
+      console.log('原点からの距離:', distance.toFixed(2), 'm');
+      console.log('=====================================');
+      loggedRef.current = true;
+    }
   });
-
-  // グローバルstateに保存（簡易的な方法として、windowオブジェクトに保存）
-  React.useEffect(() => {
-    (window as any).__cameraPosition3D = cameraPos;
-  }, [cameraPos]);
 
   return null;
 }
