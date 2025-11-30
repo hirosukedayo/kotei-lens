@@ -114,7 +114,6 @@ export default function LakeModel({
       (progress) => {
         const percentage = (progress.loaded / progress.total) * 100;
         setLoadingProgress(percentage);
-        console.log('glTF読み込み進捗:', percentage.toFixed(1), '%');
         
         // モバイルでの読み込みが遅い場合の警告
         if (isMobile && percentage < 10 && progress.total > 0) {
