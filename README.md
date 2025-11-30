@@ -49,6 +49,7 @@
 - [開発ロードマップ](docs/roadmap.md)
 - [コンポーネント仕様](docs/components/)
   - [Toast コンポーネント](docs/components/toast.md)
+  - [地形モデルの座標系](docs/components/lake-model-coordinates.md)
 
 ## 貢献
 
