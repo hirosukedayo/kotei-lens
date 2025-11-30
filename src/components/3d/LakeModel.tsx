@@ -300,6 +300,21 @@ export default function LakeModel({
       {/* 地形の表示 */}
       {showTerrain && isLoaded && (() => {
         const terrain = getTerrainObject();
+        if (terrain) {
+          // terrainScale適用後の実際のバウンディングボックスを取得
+          const terrainScaled = terrain.clone();
+          terrainScaled.scale.set(terrainScale[0], terrainScale[1], terrainScale[2]);
+          const terrainBoxScaled = new THREE.Box3().setFromObject(terrainScaled);
+          const terrainCenterScaled = terrainBoxScaled.getCenter(new THREE.Vector3());
+          const terrainSizeScaled = terrainBoxScaled.getSize(new THREE.Vector3());
+          
+          console.log('=== 地形のバウンディングボックス（terrainScale適用後、実際の値） ===');
+          console.log('最小値:', { x: terrainBoxScaled.min.x, y: terrainBoxScaled.min.y, z: terrainBoxScaled.min.z });
+          console.log('最大値:', { x: terrainBoxScaled.max.x, y: terrainBoxScaled.max.y, z: terrainBoxScaled.max.z });
+          console.log('中心点:', { x: terrainCenterScaled.x, y: terrainCenterScaled.y, z: terrainCenterScaled.z });
+          console.log('サイズ:', { x: terrainSizeScaled.x, y: terrainSizeScaled.y, z: terrainSizeScaled.z });
+          console.log('=====================================');
+        }
         return terrain ? (
         <primitive
           ref={terrainRef}
