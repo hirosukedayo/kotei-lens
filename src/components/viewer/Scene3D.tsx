@@ -196,9 +196,9 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           {isMobile && permissionGranted && <DeviceOrientationControls ref={deviceOrientationControlsRef} />}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
-          {/* React Three Fiber標準のSkyコンポーネント - 適切なサイズ */}
+          {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
           <Sky 
-            distance={1000} // 適切な距離に調整
+            distance={50000} // 広範囲のスカイボックス（50km）
             sunPosition={[100, 50, 100]} // 太陽位置を調整
             inclination={0.49} // 太陽の高さを調整
             azimuth={0.25} // 太陽の方位角
