@@ -256,10 +256,14 @@ export default function LakeModel({
 
       waterRef.current.rotation.y += delta * 0.02 * waveIntensity;
 
-      // 水面の位置（波 + 干上がり）
+      // 水面の位置（waterPositionを基準に波 + 干上がりを適用）
       const waveY =
         Math.sin(time * 0.8) * 0.5 * waveIntensity + Math.sin(time * 1.2) * 0.3 * waveIntensity;
-      waterRef.current.position.y = waveY + waterY;
+      // waterPositionのY座標を基準にアニメーションを適用
+      waterRef.current.position.y = waterPosition[1] + waveY + waterY;
+      // X, Z座標もwaterPositionを基準に設定（アニメーションで変更されないように）
+      waterRef.current.position.x = waterPosition[0];
+      waterRef.current.position.z = waterPosition[2];
 
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
@@ -295,13 +299,13 @@ export default function LakeModel({
     }
   });
 
-  // 地形モデルの実際の位置を確認するためのデバッグログ
+  // 地形モデルと水面の実際の位置を確認するためのデバッグログ
   // 注意: useEffectは早期リターンの前に配置する必要がある（React Hooksのルール）
   useEffect(() => {
-    if (terrainRef.current && isLoaded) {
-      // 少し遅延させて、地形が完全に配置されるのを待つ
+    if (terrainRef.current && waterRef.current && isLoaded) {
+      // 少し遅延させて、地形と水面が完全に配置されるのを待つ
       const timer = setTimeout(() => {
-        if (terrainRef.current) {
+        if (terrainRef.current && waterRef.current) {
           // 地形モデルの実際の位置を取得
           const terrainWorldPosition = new THREE.Vector3();
           terrainRef.current.getWorldPosition(terrainWorldPosition);
@@ -310,6 +314,15 @@ export default function LakeModel({
           const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
           const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
           const terrainSize = terrainBox.getSize(new THREE.Vector3());
+
+          // 水面の実際の位置を取得
+          const waterWorldPosition = new THREE.Vector3();
+          waterRef.current.getWorldPosition(waterWorldPosition);
+
+          // 水面のバウンディングボックスを取得（waterScale適用後）
+          const waterBox = new THREE.Box3().setFromObject(waterRef.current);
+          const waterCenter = waterBox.getCenter(new THREE.Vector3());
+          const waterSize = waterBox.getSize(new THREE.Vector3());
 
           console.log('=== 地形モデルの実際の位置（terrainScale適用後） ===');
           console.log('groupのpositionプロパティ:', position);
@@ -329,12 +342,41 @@ export default function LakeModel({
             z: terrainSize.z,
           });
           console.log('=====================================');
+
+          console.log('=== 水面の実際の位置（waterScale適用後） ===');
+          console.log('waterPositionプロパティ:', waterPosition);
+          console.log('水面のローカル位置:', {
+            x: waterRef.current.position.x,
+            y: waterRef.current.position.y,
+            z: waterRef.current.position.z,
+          });
+          console.log('水面のワールド位置:', {
+            x: waterWorldPosition.x,
+            y: waterWorldPosition.y,
+            z: waterWorldPosition.z,
+          });
+          console.log('水面のバウンディングボックス中心:', {
+            x: waterCenter.x,
+            y: waterCenter.y,
+            z: waterCenter.z,
+          });
+          console.log('水面のサイズ:', {
+            x: waterSize.x,
+            y: waterSize.y,
+            z: waterSize.z,
+          });
+          console.log('地形と水面の中心の差（X, Z方向）:', {
+            x: waterCenter.x - terrainCenter.x,
+            y: waterCenter.y - terrainCenter.y,
+            z: waterCenter.z - terrainCenter.z,
+          });
+          console.log('=====================================');
         }
       }, 100);
 
       return () => clearTimeout(timer);
     }
-  }, [isLoaded, position]);
+  }, [isLoaded, position, waterPosition]);
 
   if (error) {
     return (
