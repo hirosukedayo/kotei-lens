@@ -378,18 +378,27 @@ function CameraPositionSetter({
     });
 
     if (terrainMesh) {
+      // 地形オブジェクトの情報を取得
+      const mesh = terrainMesh as THREE.Mesh;
+      const terrainBox = new THREE.Box3().setFromObject(mesh);
+      const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+      const terrainSize = terrainBox.getSize(new THREE.Vector3());
+      const terrainWorldPosition = new THREE.Vector3();
+      mesh.getWorldPosition(terrainWorldPosition);
+      const terrainName = mesh.name || '(無名)';
+
       // 高い位置から下方向にレイを飛ばして地形との交差を計算
       const rayStartY = 1000;
-      raycaster.set(
-        new THREE.Vector3(cameraX, rayStartY, cameraZ),
-        new THREE.Vector3(0, -1, 0) // 下方向
-      );
+      const rayStart = new THREE.Vector3(cameraX, rayStartY, cameraZ);
+      const rayDirection = new THREE.Vector3(0, -1, 0);
+      
+      raycaster.set(rayStart, rayDirection);
 
-      const intersects = raycaster.intersectObject(terrainMesh, true);
-      const terrainName = (terrainMesh as THREE.Mesh).name || '(無名)';
+      const intersects = raycaster.intersectObject(mesh, true);
       
       if (intersects.length > 0) {
-        const terrainHeight = intersects[0].point.y;
+        const firstIntersect = intersects[0];
+        const terrainHeight = firstIntersect.point.y;
         finalCameraY = terrainHeight + 10;
         
         camera.position.set(cameraX, finalCameraY, cameraZ);
@@ -399,8 +408,46 @@ function CameraPositionSetter({
         console.log('フレーム数:', frameCount.current);
         console.log('カメラ位置（X, Z）:', cameraX.toFixed(2), cameraZ.toFixed(2));
         console.log('地形オブジェクト:', terrainName);
+        console.log('地形のローカル位置:', {
+          x: mesh.position.x.toFixed(2),
+          y: mesh.position.y.toFixed(2),
+          z: mesh.position.z.toFixed(2),
+        });
+        console.log('地形のワールド位置:', {
+          x: terrainWorldPosition.x.toFixed(2),
+          y: terrainWorldPosition.y.toFixed(2),
+          z: terrainWorldPosition.z.toFixed(2),
+        });
+        console.log('地形のバウンディングボックス中心:', {
+          x: terrainCenter.x.toFixed(2),
+          y: terrainCenter.y.toFixed(2),
+          z: terrainCenter.z.toFixed(2),
+        });
+        console.log('地形のサイズ:', {
+          x: terrainSize.x.toFixed(2),
+          y: terrainSize.y.toFixed(2),
+          z: terrainSize.z.toFixed(2),
+        });
+        console.log('レイの開始位置:', {
+          x: rayStart.x.toFixed(2),
+          y: rayStart.y.toFixed(2),
+          z: rayStart.z.toFixed(2),
+        });
+        console.log('レイの方向:', {
+          x: rayDirection.x.toFixed(2),
+          y: rayDirection.y.toFixed(2),
+          z: rayDirection.z.toFixed(2),
+        });
         console.log('交差点の数:', intersects.length);
-        console.log('地形の高さ:', terrainHeight.toFixed(2), 'm');
+        console.log('最初の交差点:', {
+          point: {
+            x: firstIntersect.point.x.toFixed(2),
+            y: firstIntersect.point.y.toFixed(2),
+            z: firstIntersect.point.z.toFixed(2),
+          },
+          distance: firstIntersect.distance.toFixed(2),
+        });
+        console.log('地形の高さ（交差点のY座標）:', terrainHeight.toFixed(2), 'm');
         console.log('調整後のカメラ高さ:', finalCameraY.toFixed(2), 'm');
         console.log('デフォルトの高さ:', initialCameraConfig.position[1].toFixed(2), 'm');
         console.log('=====================================');
@@ -411,8 +458,36 @@ function CameraPositionSetter({
       if (frameCount.current === 1) {
         console.log('=== カメラ高さ調整（交差なし） ===');
         console.log('地形オブジェクト:', terrainName);
-        console.log('レイの開始位置:', `(${cameraX.toFixed(2)}, ${rayStartY}, ${cameraZ.toFixed(2)})`);
-        console.log('レイの方向:', '(0, -1, 0)');
+        console.log('地形のローカル位置:', {
+          x: mesh.position.x.toFixed(2),
+          y: mesh.position.y.toFixed(2),
+          z: mesh.position.z.toFixed(2),
+        });
+        console.log('地形のワールド位置:', {
+          x: terrainWorldPosition.x.toFixed(2),
+          y: terrainWorldPosition.y.toFixed(2),
+          z: terrainWorldPosition.z.toFixed(2),
+        });
+        console.log('地形のバウンディングボックス中心:', {
+          x: terrainCenter.x.toFixed(2),
+          y: terrainCenter.y.toFixed(2),
+          z: terrainCenter.z.toFixed(2),
+        });
+        console.log('地形のサイズ:', {
+          x: terrainSize.x.toFixed(2),
+          y: terrainSize.y.toFixed(2),
+          z: terrainSize.z.toFixed(2),
+        });
+        console.log('レイの開始位置:', {
+          x: rayStart.x.toFixed(2),
+          y: rayStart.y.toFixed(2),
+          z: rayStart.z.toFixed(2),
+        });
+        console.log('レイの方向:', {
+          x: rayDirection.x.toFixed(2),
+          y: rayDirection.y.toFixed(2),
+          z: rayDirection.z.toFixed(2),
+        });
         console.log('交差点の数:', 0);
       }
     } else {
@@ -585,22 +660,6 @@ function FPSCameraControls() {
         camera.rotation.y = yawRef.current;
         camera.rotation.x = pitchRef.current;
         camera.rotation.z = 0;
-
-        // カメラ位置と回転をコンソールに出力
-        console.log('FPS Camera:', {
-          position: [
-            camera.position.x.toFixed(2),
-            camera.position.y.toFixed(2),
-            camera.position.z.toFixed(2),
-          ],
-          rotation: [
-            camera.rotation.x.toFixed(2),
-            camera.rotation.y.toFixed(2),
-            camera.rotation.z.toFixed(2),
-          ],
-          yaw: yawRef.current.toFixed(2),
-          pitch: pitchRef.current.toFixed(2),
-        });
       }
     };
 
