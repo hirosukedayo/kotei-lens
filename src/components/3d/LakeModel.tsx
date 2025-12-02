@@ -358,7 +358,13 @@ export default function LakeModel({
   }
 
   return (
-    <group ref={groupRef} position={calculatedPosition} scale={scale} rotation={rotation} visible={visible}>
+    <group
+      ref={groupRef}
+      position={calculatedPosition}
+      scale={scale}
+      rotation={rotation}
+      visible={visible}
+    >
       {/* 地形の表示 */}
       {showTerrain &&
         isLoaded &&
