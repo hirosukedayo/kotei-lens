@@ -18,8 +18,6 @@ interface LakeModelProps {
   waterPosition?: [number, number, number];
   /** GPS座標で地形モデルの中心位置を指定（オプション） */
   centerGps?: GPSCoordinate;
-  /** 地形モデルの目標サイズ（メートル単位、オプション） */
-  targetSizeMeters?: [number, number, number];
 }
 
 // ベースパスを動的に取得
@@ -39,7 +37,6 @@ export default function LakeModel({
   waterScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
   centerGps,
-  targetSizeMeters,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);

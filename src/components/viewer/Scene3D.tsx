@@ -281,7 +281,6 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
             waterScale={WATER_SCALE}
             waterPosition={[0, 0, 0]}
             centerGps={TERRAIN_CENTER_GPS}
-            targetSizeMeters={TERRAIN_SIZE_METERS}
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
