@@ -6,7 +6,11 @@ import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt, FaLayerGroup } from 'rea
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
-import { OGOUCHI_SHRINE, worldToGpsCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
+import {
+  OGOUCHI_SHRINE,
+  worldToGpsCoordinate,
+  SCENE_CENTER,
+} from '../../utils/coordinate-converter';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -34,7 +38,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
   const sheetContentRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
-  
+
   // GPS位置取得とセンサー管理
   const { sensorData, startSensors, sensorManager } = useSensors();
   // Devモード状態
@@ -43,7 +47,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const [showOutsideToast, setShowOutsideToast] = useState(false);
   // 起動時の自動センタリング・トースト制御が完了したかどうか
   const [hasInitialCenterSet, setHasInitialCenterSet] = useState(false);
-  
+
   // 画面中心位置（初期値は小河内神社）
   const [center, setCenter] = useState<LatLngExpression>([
     OGOUCHI_SHRINE.latitude,
@@ -163,7 +167,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     if (!gpsPosition || hasInitialCenterSet) return;
 
     const isInArea = sensorManager.locationService.isInOkutamaArea(gpsPosition);
-    
+
     if (isInArea) {
       // エリア内の場合：GPS位置を中心に設定
       const newCenter: LatLngExpression = [gpsPosition.latitude, gpsPosition.longitude];
@@ -174,10 +178,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       setShowOutsideToast(false);
     } else {
       // エリア外の場合：小河内神社を中心に設定
-      const shrineCenter: LatLngExpression = [
-        OGOUCHI_SHRINE.latitude,
-        OGOUCHI_SHRINE.longitude,
-      ];
+      const shrineCenter: LatLngExpression = [OGOUCHI_SHRINE.latitude, OGOUCHI_SHRINE.longitude];
       setCenter(shrineCenter);
       mapRef.current?.flyTo(shrineCenter, 14, { duration: 0.6 });
       // エリア外トーストを表示
@@ -342,8 +343,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               eventHandlers={{
                 click: () => handlePinClick(pin),
               }}
-            >
-            </Marker>
+            />
           );
         })}
       </MapContainer>
@@ -379,7 +379,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           aria-label="3Dビューへ"
         >
@@ -481,7 +481,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
           position: 'absolute',
           left: '16px',
           bottom: '80px',
-          zIndex: 10000
+          zIndex: 10000,
         }}
       >
         <button
@@ -499,7 +499,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           <FaMapSigns size={22} />
@@ -507,7 +507,17 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
       </div>
 
       {/* Vaul Bottom Sheet: ピン情報表示 */}
-      <VDrawer.Root open={sheetOpen} onOpenChange={(open: boolean) => { setSheetOpen(open); if (!open) { setSelectedPin(null); setSheetMode('pin-list'); mapRef.current?.closePopup(); } }}>
+      <VDrawer.Root
+        open={sheetOpen}
+        onOpenChange={(open: boolean) => {
+          setSheetOpen(open);
+          if (!open) {
+            setSelectedPin(null);
+            setSheetMode('pin-list');
+            mapRef.current?.closePopup();
+          }
+        }}
+      >
         <VDrawer.Portal>
           <VDrawer.Overlay style={{ background: 'rgba(0,0,0,.15)' }} />
           <VDrawer.Content
@@ -520,7 +530,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               background: '#ffffff',
               borderTopLeftRadius: 14,
               borderTopRightRadius: 14,
-              boxShadow: '0 -8px 24px rgba(0,0,0,.2)'
+              boxShadow: '0 -8px 24px rgba(0,0,0,.2)',
             }}
             onOpenAutoFocus={(e: Event) => e.preventDefault()}
             onCloseAutoFocus={(e: Event) => e.preventDefault()}
@@ -529,14 +539,16 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#e5e7eb' }} />
             </div>
             {/* 固定ヘッダー */}
-            <div style={{
-              position: 'sticky',
-              top: 0,
-              background: '#ffffff',
-              borderBottom: '1px solid #e5e7eb',
-              padding: '0 16px 16px 16px',
-              zIndex: 1
-            }}>
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                background: '#ffffff',
+                borderBottom: '1px solid #e5e7eb',
+                padding: '0 16px 16px 16px',
+                zIndex: 1,
+              }}
+            >
               {sheetMode === 'pin-detail' && selectedPin ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <button
@@ -555,7 +567,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                       color: '#6b7280',
                       fontSize: '18px',
                       fontWeight: '400',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = '#f9fafb';
@@ -570,7 +582,15 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                   </button>
                   <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
                   <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 800, color: '#111827', lineHeight: '1.35' }}>
+                    <h3
+                      style={{
+                        margin: '0 0 4px 0',
+                        fontSize: '20px',
+                        fontWeight: 800,
+                        color: '#111827',
+                        lineHeight: '1.35',
+                      }}
+                    >
                       {selectedPin.title}
                     </h3>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>
@@ -581,11 +601,13 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <FaMapSigns size={24} color="#3c4043" />
-                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>一覧</h3>
+                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>
+                    一覧
+                  </h3>
                 </div>
               )}
             </div>
-            
+
             {/* スクロール可能なコンテンツ */}
             <div
               ref={sheetContentRef}
@@ -596,7 +618,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                 padding: '0 16px 16px 16px',
                 WebkitOverflowScrolling: 'touch',
                 overscrollBehavior: 'contain',
-                touchAction: 'pan-y'
+                touchAction: 'pan-y',
               }}
             >
               {sheetMode === 'pin-detail' && selectedPin ? (
@@ -610,21 +632,37 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                           width: '100%',
                           height: '120px',
                           objectFit: 'cover',
-                          borderRadius: '8px'
+                          borderRadius: '8px',
                         }}
                       />
                     </div>
                   )}
-                  
-                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', lineHeight: '1.5', color: '#374151', whiteSpace: 'pre-wrap' }}>
+
+                  <p
+                    style={{
+                      margin: '0 0 8px 0',
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      color: '#374151',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
                     {selectedPin.description}
                   </p>
-                  
+
                   <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
-                    座標: {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
+                    座標: {selectedPin.coordinates[0].toFixed(6)},{' '}
+                    {selectedPin.coordinates[1].toFixed(6)}
                   </div>
-                  
-                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
                     {selectedPin.mapUrl && (
                       <button
                         type="button"
@@ -643,7 +681,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '8px',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#f9fafb';
@@ -658,7 +696,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                         現在の場所
                       </button>
                     )}
-                    
+
                     {selectedPin.externalUrl && (
                       <button
                         type="button"
@@ -677,7 +715,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '8px',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#f9fafb';
@@ -697,7 +735,14 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               ) : null}
               {sheetMode === 'pin-list' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', margin: '0 0 8px 0' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      margin: '0 0 8px 0',
+                    }}
+                  >
                     <div style={{ fontSize: 12, color: '#6b7280' }}>{okutamaPins.length} 件</div>
                   </div>
                   <div>
@@ -719,12 +764,21 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
                             alignItems: 'center',
                             gap: 12,
                             marginBottom: 8,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                           }}
                         >
                           <div style={{ fontSize: 20 }}>{style.icon}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div
+                              style={{
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: '#111827',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
                               {pin.title}
                             </div>
                             <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
@@ -743,5 +797,3 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     </div>
   );
 }
-
-

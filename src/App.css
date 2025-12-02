@@ -1,5 +1,6 @@
 /* 全体的な余白を削除 */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
