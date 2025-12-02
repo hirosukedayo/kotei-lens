@@ -357,30 +357,88 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
 }
 
 // カメラの初期位置を明示的に設定するコンポーネント
+// 地形の高さに合わせてカメラの高さを調整
 function CameraPositionSetter({
   initialCameraConfig,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
 }) {
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
+  const frameCount = React.useRef(0);
+  const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
 
-  React.useEffect(() => {
-    // カメラの位置を明示的に設定
-    if (!hasSetPosition.current) {
-      camera.position.set(
-        initialCameraConfig.position[0],
-        initialCameraConfig.position[1],
-        initialCameraConfig.position[2]
-      );
-      hasSetPosition.current = true;
+  // 地形が読み込まれるまで待機してからカメラ位置を設定
+  useFrame(() => {
+    if (hasSetPosition.current) return;
 
-      console.log('=== カメラ位置を明示的に設定 ===');
-      console.log('設定した位置:', initialCameraConfig.position);
-      console.log('実際のカメラ位置:', camera.position);
-      console.log('=====================================');
+    // 地形の高さを取得するためにRaycastingを実行
+    const cameraX = initialCameraConfig.position[0];
+    const cameraZ = initialCameraConfig.position[2];
+    
+    // カメラのX, Z座標から上方向にレイを飛ばす
+    // 高い位置から下方向にレイを飛ばして地形との交差を計算
+    const rayStartY = 1000; // 十分高い位置から開始
+    
+    raycaster.set(
+      new THREE.Vector3(cameraX, rayStartY, cameraZ),
+      new THREE.Vector3(0, -1, 0) // 下方向
+    );
+
+    // シーン内の地形オブジェクトを検索
+    // 地形はgroup内のprimitiveとして配置されているため、シーン全体を検索
+    let terrainMesh: THREE.Mesh | null = null;
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        // 地形のMeshを探す（名前で判定、または最初の大きなMesh）
+        if (child.name === 'Displacement.001' || child.name === 'Displacement') {
+          terrainMesh = child;
+        } else if (!terrainMesh && child.geometry) {
+          // 名前で見つからない場合は、大きなMeshを地形として扱う
+          const box = new THREE.Box3().setFromObject(child);
+          const size = box.getSize(new THREE.Vector3());
+          if (size.x > 100 && size.z > 100) {
+            // 100m以上のサイズのMeshを地形として扱う
+            terrainMesh = child;
+          }
+        }
+      }
+    });
+
+    let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
+
+    if (terrainMesh) {
+      const intersects = raycaster.intersectObject(terrainMesh, true);
+      if (intersects.length > 0) {
+        // 最初の交差点のY座標を取得
+        const terrainHeight = intersects[0].point.y;
+        // 地形の高さから10m上にカメラを配置
+        finalCameraY = terrainHeight + 10;
+        
+        camera.position.set(cameraX, finalCameraY, cameraZ);
+        hasSetPosition.current = true;
+
+        console.log('=== カメラ高さを地形に合わせて調整 ===');
+        console.log('カメラ位置（X, Z）:', cameraX, cameraZ);
+        console.log('地形の高さ:', terrainHeight);
+        console.log('調整後のカメラ高さ:', finalCameraY);
+        console.log('=====================================');
+        return;
+      }
     }
-  }, [camera, initialCameraConfig]);
+
+    // 地形が見つからない、または交差がない場合はデフォルトの高さを使用
+    // ただし、地形が読み込まれるまで待機するため、数フレーム待つ
+    frameCount.current += 1;
+    const maxFrames = 100;
+    
+    if (frameCount.current >= maxFrames) {
+      // タイムアウトした場合はデフォルトの高さを使用
+      camera.position.set(cameraX, finalCameraY, cameraZ);
+      hasSetPosition.current = true;
+      console.warn('地形との交差が見つかりませんでした。デフォルトの高さを使用します。');
+    }
+  });
 
   return null;
 }
