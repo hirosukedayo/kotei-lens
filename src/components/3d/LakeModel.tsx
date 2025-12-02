@@ -294,6 +294,46 @@ export default function LakeModel({
     );
   }
 
+  // 地形モデルの実際の位置を確認するためのデバッグログ
+  useEffect(() => {
+    if (terrainRef.current && isLoaded) {
+      // 少し遅延させて、地形が完全に配置されるのを待つ
+      const timer = setTimeout(() => {
+        if (terrainRef.current) {
+          // 地形モデルの実際の位置を取得
+          const terrainWorldPosition = new THREE.Vector3();
+          terrainRef.current.getWorldPosition(terrainWorldPosition);
+          
+          // 地形のバウンディングボックスを取得（terrainScale適用後）
+          const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
+          const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+          const terrainSize = terrainBox.getSize(new THREE.Vector3());
+          
+          console.log('=== 地形モデルの実際の位置（terrainScale適用後） ===');
+          console.log('groupのpositionプロパティ:', position);
+          console.log('地形のワールド位置:', {
+            x: terrainWorldPosition.x,
+            y: terrainWorldPosition.y,
+            z: terrainWorldPosition.z,
+          });
+          console.log('地形のバウンディングボックス中心:', {
+            x: terrainCenter.x,
+            y: terrainCenter.y,
+            z: terrainCenter.z,
+          });
+          console.log('地形のサイズ:', {
+            x: terrainSize.x,
+            y: terrainSize.y,
+            z: terrainSize.z,
+          });
+          console.log('=====================================');
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded, position]);
+
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}

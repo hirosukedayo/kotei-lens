@@ -119,6 +119,23 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
       // 以前の位置: [-63.43, 105.73, 1.65] を基準に、GPS座標から計算した位置に移動
       const cameraHeight = worldPos.y + 105.73;
       
+      // デバッグログ: カメラ位置の計算過程を出力
+      console.log('=== カメラ初期位置の計算 ===');
+      console.log('2Dマップの中心位置（GPS）:', {
+        latitude: initialPosition.latitude,
+        longitude: initialPosition.longitude,
+      });
+      console.log('SCENE_CENTER（小河内神社）:', SCENE_CENTER);
+      console.log('GPS座標から3D座標への変換結果:', worldPos);
+      console.log('カメラの高さ（worldPos.y + 105.73）:', cameraHeight);
+      console.log('最終的なカメラ位置:', [worldPos.x, cameraHeight, worldPos.z]);
+      console.log('地形モデルの位置:', [744.9999975831743, -177.19751206980436, -744.9999975831743]);
+      console.log('カメラと地形の中心の距離:', Math.sqrt(
+        Math.pow(worldPos.x - 0, 2) + 
+        Math.pow(worldPos.z - 0, 2)
+      ).toFixed(2), 'm');
+      console.log('=====================================');
+      
       // 回転はDeviceOrientationControlsが自動的に制御するため、初期回転は設定しない
       // 以前の位置では回転が[0, 0, 0]だった
       return {
@@ -188,6 +205,8 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         gl={getRendererConfig(renderer)}
       >
         <Suspense fallback={null}>
+          {/* カメラの初期位置を明示的に設定 */}
+          <CameraPositionSetter initialCameraConfig={initialCameraConfig} />
           {/* devモード時: カメラ位置を監視 */}
           {isDevMode && <CameraPositionTracker />}
           {/* PC用キーボード移動コントロール */}
@@ -284,6 +303,35 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
       {isDevMode && <CoordinateDebugInfo initialPosition={initialPosition} />}
     </div>
   );
+}
+
+// カメラの初期位置を明示的に設定するコンポーネント
+function CameraPositionSetter({ 
+  initialCameraConfig 
+}: { 
+  initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] }
+}) {
+  const { camera } = useThree();
+  const hasSetPosition = React.useRef(false);
+
+  React.useEffect(() => {
+    // カメラの位置を明示的に設定
+    if (!hasSetPosition.current) {
+      camera.position.set(
+        initialCameraConfig.position[0],
+        initialCameraConfig.position[1],
+        initialCameraConfig.position[2]
+      );
+      hasSetPosition.current = true;
+      
+      console.log('=== カメラ位置を明示的に設定 ===');
+      console.log('設定した位置:', initialCameraConfig.position);
+      console.log('実際のカメラ位置:', camera.position);
+      console.log('=====================================');
+    }
+  }, [camera, initialCameraConfig]);
+
+  return null;
 }
 
 // カメラ位置を監視してstateに保存するコンポーネント
