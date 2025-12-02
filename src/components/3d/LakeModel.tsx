@@ -231,11 +231,9 @@ export default function LakeModel({
     return water;
   };
 
-  // アニメーション（水面の波効果と干上がり）
-  useFrame((state: { clock: { elapsedTime: number } }, delta: number) => {
+  // アニメーション（水面の干上がり）
+  useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-      const time = state.clock.elapsedTime;
-
       // 干上がりアニメーション（50%で停止）
       let waterY = 0;
       if (waterDrainStartTime) {
@@ -249,21 +247,12 @@ export default function LakeModel({
         waterY = -25 * easedProgress;
       }
 
-      // 水面の波アニメーション（干上がり中は波を小さく、50%で停止）
-      const waveIntensity = waterDrainStartTime
-        ? Math.max(0.5, 1 - (Date.now() - waterDrainStartTime) / 1000 / 15.0)
-        : 1;
-
-      waterRef.current.rotation.y += delta * 0.02 * waveIntensity;
-
-      // 水面の位置（waterPositionを基準に波 + 干上がりを適用）
-      const waveY =
-        Math.sin(time * 0.8) * 0.5 * waveIntensity + Math.sin(time * 1.2) * 0.3 * waveIntensity;
-      // waterPositionのY座標を基準にアニメーションを適用
-      waterRef.current.position.y = waterPosition[1] + waveY + waterY;
-      // X, Z座標もwaterPositionを基準に設定（アニメーションで変更されないように）
-      waterRef.current.position.x = waterPosition[0];
-      waterRef.current.position.z = waterPosition[2];
+      // 水面の位置（waterPositionを基準に干上がりを適用）
+      waterRef.current.position.set(
+        waterPosition[0],
+        waterPosition[1] + waterY,
+        waterPosition[2]
+      );
 
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
