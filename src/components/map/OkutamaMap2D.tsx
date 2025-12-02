@@ -11,7 +11,7 @@ import {
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
-import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../viewer/Scene3D';
+import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../../config/terrain-config';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';

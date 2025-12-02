@@ -17,34 +17,17 @@ import {
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
+import {
+  TERRAIN_SCALE_FACTOR,
+  TERRAIN_CENTER_OFFSET,
+  WATER_CENTER_OFFSET,
+  TERRAIN_BASE_SCALE,
+  TERRAIN_ORIGINAL_CENTER,
+} from '../../config/terrain-config';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
 }
-
-// 地形のスケール設定
-// 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
-// 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
-export const TERRAIN_SCALE_FACTOR = 4.0;
-
-// 地形と水面の中心位置オフセット（メートル単位）
-// 地形と水面の中心位置をずらしたい場合は、この値を変更してください
-// 例: [10, 0, 5] = X方向（東）に10m、Z方向（南）に5mずらす
-// 現在は[0, 0, 0]で、小河内神社（SCENE_CENTER）が地形の中心に対応しています
-export const TERRAIN_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
-export const WATER_CENTER_OFFSET: [number, number, number] = TERRAIN_CENTER_OFFSET
-
-// 地形のベーススケール（モデルファイルの元のスケール）
-const TERRAIN_BASE_SCALE = 10;
-
-// 地形の元の中心位置（スケール適用前、ローカル座標系）
-// terrainScale=[10,10,10]適用後の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]
-// したがって、元の中心 = スケール適用後の中心 / 10
-const TERRAIN_ORIGINAL_CENTER = {
-  x: -744.9999975831743 / TERRAIN_BASE_SCALE,
-  y: 177.19751206980436 / TERRAIN_BASE_SCALE,
-  z: 744.9999975831743 / TERRAIN_BASE_SCALE,
-};
 
 
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
