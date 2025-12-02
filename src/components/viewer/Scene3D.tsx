@@ -153,33 +153,10 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         altitude: 0, // 標高は後で地形に合わせて調整
       });
 
-      // カメラの高さを調整（以前の位置と同じ105.73m）
-      // 以前の位置: [-63.43, 105.73, 1.65] を基準に、GPS座標から計算した位置に移動
+      // カメラの高さを調整（デフォルト値、地形の高さに合わせて後で調整される）
       const cameraHeight = worldPos.y + 105.73;
 
-      // デバッグログ: カメラ位置の計算過程を出力
-      console.log('=== カメラ初期位置の計算 ===');
-      console.log('2Dマップの中心位置（GPS）:', {
-        latitude: initialPosition.latitude,
-        longitude: initialPosition.longitude,
-      });
-      console.log('SCENE_CENTER（小河内神社）:', SCENE_CENTER);
-      console.log('GPS座標から3D座標への変換結果:', worldPos);
-      console.log('カメラの高さ（worldPos.y + 105.73）:', cameraHeight);
-      console.log('最終的なカメラ位置:', [worldPos.x, cameraHeight, worldPos.z]);
-      console.log(
-        '地形モデルの位置:',
-        [744.9999975831743, -177.19751206980436, -744.9999975831743]
-      );
-      console.log(
-        'カメラと地形の中心の距離:',
-        Math.sqrt((worldPos.x - 0) ** 2 + (worldPos.z - 0) ** 2).toFixed(2),
-        'm'
-      );
-      console.log('=====================================');
-
       // 回転はDeviceOrientationControlsが自動的に制御するため、初期回転は設定しない
-      // 以前の位置では回転が[0, 0, 0]だった
       return {
         position: [worldPos.x, cameraHeight, worldPos.z] as [number, number, number],
         rotation: [0, 0, 0] as [number, number, number],
@@ -357,30 +334,110 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
 }
 
 // カメラの初期位置を明示的に設定するコンポーネント
+// 地形の高さに合わせてカメラの高さを調整
 function CameraPositionSetter({
   initialCameraConfig,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
 }) {
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
+  const frameCount = React.useRef(0);
+  const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
 
-  React.useEffect(() => {
-    // カメラの位置を明示的に設定
-    if (!hasSetPosition.current) {
-      camera.position.set(
-        initialCameraConfig.position[0],
-        initialCameraConfig.position[1],
-        initialCameraConfig.position[2]
+  // 地形が読み込まれるまで待機してからカメラ位置を設定
+  useFrame(() => {
+    if (hasSetPosition.current) return;
+
+    frameCount.current += 1;
+    const cameraX = initialCameraConfig.position[0];
+    const cameraZ = initialCameraConfig.position[2];
+    let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
+    
+    // シーン内の地形オブジェクトを検索
+    let terrainMesh: THREE.Mesh | null = null;
+    const foundMeshes: Array<{ name: string; size: { x: number; y: number; z: number } }> = [];
+    
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const box = new THREE.Box3().setFromObject(child);
+        const size = box.getSize(new THREE.Vector3());
+        const meshName = child.name || '(無名)';
+        foundMeshes.push({ name: meshName, size: { x: size.x, y: size.y, z: size.z } });
+        
+        // 地形のMeshを探す（名前で判定、または大きなMesh）
+        if (!terrainMesh) {
+          if (meshName === 'Displacement.001' || meshName === 'Displacement') {
+            terrainMesh = child;
+          } else if (size.x > 100 && size.z > 100) {
+            // 100m以上のサイズのMeshを地形として扱う
+            terrainMesh = child;
+          }
+        }
+      }
+    });
+
+    if (terrainMesh) {
+      // 高い位置から下方向にレイを飛ばして地形との交差を計算
+      const rayStartY = 1000;
+      raycaster.set(
+        new THREE.Vector3(cameraX, rayStartY, cameraZ),
+        new THREE.Vector3(0, -1, 0) // 下方向
       );
-      hasSetPosition.current = true;
 
-      console.log('=== カメラ位置を明示的に設定 ===');
-      console.log('設定した位置:', initialCameraConfig.position);
-      console.log('実際のカメラ位置:', camera.position);
-      console.log('=====================================');
+      const intersects = raycaster.intersectObject(terrainMesh, true);
+      const terrainName = (terrainMesh as THREE.Mesh).name || '(無名)';
+      
+      if (intersects.length > 0) {
+        const terrainHeight = intersects[0].point.y;
+        finalCameraY = terrainHeight + 10;
+        
+        camera.position.set(cameraX, finalCameraY, cameraZ);
+        hasSetPosition.current = true;
+
+        console.log('=== カメラ高さを地形に合わせて調整（成功） ===');
+        console.log('フレーム数:', frameCount.current);
+        console.log('カメラ位置（X, Z）:', cameraX.toFixed(2), cameraZ.toFixed(2));
+        console.log('地形オブジェクト:', terrainName);
+        console.log('交差点の数:', intersects.length);
+        console.log('地形の高さ:', terrainHeight.toFixed(2), 'm');
+        console.log('調整後のカメラ高さ:', finalCameraY.toFixed(2), 'm');
+        console.log('デフォルトの高さ:', initialCameraConfig.position[1].toFixed(2), 'm');
+        console.log('=====================================');
+        return;
+      }
+      
+      // 交差が見つからない場合のログ（初回のみ）
+      if (frameCount.current === 1) {
+        console.log('=== カメラ高さ調整（交差なし） ===');
+        console.log('地形オブジェクト:', terrainName);
+        console.log('レイの開始位置:', `(${cameraX.toFixed(2)}, ${rayStartY}, ${cameraZ.toFixed(2)})`);
+        console.log('レイの方向:', '(0, -1, 0)');
+        console.log('交差点の数:', 0);
+      }
+    } else {
+      // 地形が見つからない場合のログ（10フレームごと）
+      if (frameCount.current === 1 || frameCount.current % 10 === 0) {
+        console.log('=== カメラ高さ調整（地形検索中） ===');
+        console.log('フレーム数:', frameCount.current);
+        console.log('見つかったMeshの数:', foundMeshes.length);
+        if (foundMeshes.length > 0) {
+          console.log('見つかったMesh:', foundMeshes);
+        }
+      }
     }
-  }, [camera, initialCameraConfig]);
+
+    // タイムアウト処理
+    const maxFrames = 100;
+    if (frameCount.current >= maxFrames) {
+      camera.position.set(cameraX, finalCameraY, cameraZ);
+      hasSetPosition.current = true;
+      console.warn('=== カメラ高さ調整（タイムアウト） ===');
+      console.warn('地形との交差が見つかりませんでした。デフォルトの高さを使用します。');
+      console.warn('見つかったMesh:', foundMeshes);
+      console.warn('最終的なカメラ位置:', [cameraX.toFixed(2), finalCameraY.toFixed(2), cameraZ.toFixed(2)]);
+    }
+  });
 
   return null;
 }
