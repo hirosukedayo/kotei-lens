@@ -283,18 +283,8 @@ export default function LakeModel({
     }
   });
 
-  if (error) {
-    return (
-      <group position={position}>
-        <mesh>
-          <boxGeometry args={[10, 1, 10]} />
-          <meshStandardMaterial color="red" />
-        </mesh>
-      </group>
-    );
-  }
-
   // 地形モデルの実際の位置を確認するためのデバッグログ
+  // 注意: useEffectは早期リターンの前に配置する必要がある（React Hooksのルール）
   useEffect(() => {
     if (terrainRef.current && isLoaded) {
       // 少し遅延させて、地形が完全に配置されるのを待つ
@@ -333,6 +323,17 @@ export default function LakeModel({
       return () => clearTimeout(timer);
     }
   }, [isLoaded, position]);
+
+  if (error) {
+    return (
+      <group position={position}>
+        <mesh>
+          <boxGeometry args={[10, 1, 10]} />
+          <meshStandardMaterial color="red" />
+        </mesh>
+      </group>
+    );
+  }
 
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
