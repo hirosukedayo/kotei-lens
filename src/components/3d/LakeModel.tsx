@@ -243,8 +243,12 @@ export default function LakeModel({
         // イージング関数（easeOutCubic）
         const easedProgress = 1 - (1 - drainProgress) ** 3;
 
-        // 水面を下に移動（-25まで下げる、-50の50%）
-        waterY = -25 * easedProgress;
+        // 水面を下に移動（地形スケールに応じて調整）
+        // ベースの降下量は-25（スケール1.0の場合）
+        // waterScale[1]（Y成分）を使用してスケールに応じて調整
+        const baseDrainHeight = -25;
+        const scaledDrainHeight = baseDrainHeight * waterScale[1];
+        waterY = scaledDrainHeight * easedProgress;
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
