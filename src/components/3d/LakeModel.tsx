@@ -3,8 +3,6 @@ import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
-import { gpsToWorldCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
-import type { GPSCoordinate } from '../../utils/coordinate-converter';
 
 interface LakeModelProps {
   position?: [number, number, number];
@@ -16,8 +14,6 @@ interface LakeModelProps {
   terrainScale?: [number, number, number];
   waterScale?: [number, number, number];
   waterPosition?: [number, number, number];
-  /** GPS座標で地形モデルの中心位置を指定（オプション） */
-  centerGps?: GPSCoordinate;
 }
 
 // ベースパスを動的に取得
@@ -36,17 +32,14 @@ export default function LakeModel({
   terrainScale = [1, 1, 1],
   waterScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
-  centerGps,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
-  const groupRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [calculatedPosition, setCalculatedPosition] = useState<[number, number, number]>(position);
 
   const basePath = getBasePath();
 
@@ -302,57 +295,8 @@ export default function LakeModel({
     }
   });
 
-  // GPS座標とサイズから位置を自動計算
-  useEffect(() => {
-    if (terrainRef.current && isLoaded && centerGps && groupRef.current) {
-      // 少し遅延させて、地形が完全に配置されるのを待つ
-      const timer = setTimeout(() => {
-        if (terrainRef.current && groupRef.current) {
-          // 地形のバウンディングボックスを取得（terrainScale適用後）
-          const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
-          const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-
-          // GPS座標を3D座標に変換（SCENE_CENTERを基準）
-          const centerWorldPos = gpsToWorldCoordinate(centerGps, SCENE_CENTER);
-
-          // モデルの中心点をGPS座標の3D座標に合わせるように位置を計算
-          // モデルの中心点を原点に移動するため、中心点の符号を反転
-          const offset: [number, number, number] = [
-            centerWorldPos.x - terrainCenter.x,
-            centerWorldPos.y - terrainCenter.y,
-            centerWorldPos.z - terrainCenter.z,
-          ];
-
-          setCalculatedPosition(offset);
-          
-          // groupのpositionを更新
-          groupRef.current.position.set(offset[0], offset[1], offset[2]);
-
-          console.log('=== 地形モデルの位置自動計算 ===');
-          console.log('GPS座標（中心）:', centerGps);
-          console.log('GPS座標の3D座標:', centerWorldPos);
-          console.log('地形のバウンディングボックス中心:', {
-            x: terrainCenter.x,
-            y: terrainCenter.y,
-            z: terrainCenter.z,
-          });
-          console.log('計算された位置オフセット:', offset);
-          console.log('=====================================');
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-    if (!centerGps) {
-      // centerGpsが指定されていない場合は、元のpositionを使用
-      setCalculatedPosition(position);
-      if (groupRef.current) {
-        groupRef.current.position.set(position[0], position[1], position[2]);
-      }
-    }
-  }, [isLoaded, centerGps, position]);
-
   // 地形モデルの実際の位置を確認するためのデバッグログ
+  // 注意: useEffectは早期リターンの前に配置する必要がある（React Hooksのルール）
   useEffect(() => {
     if (terrainRef.current && isLoaded) {
       // 少し遅延させて、地形が完全に配置されるのを待つ
@@ -368,7 +312,7 @@ export default function LakeModel({
           const terrainSize = terrainBox.getSize(new THREE.Vector3());
 
           console.log('=== 地形モデルの実際の位置（terrainScale適用後） ===');
-          console.log('groupのpositionプロパティ:', calculatedPosition);
+          console.log('groupのpositionプロパティ:', position);
           console.log('地形のワールド位置:', {
             x: terrainWorldPosition.x,
             y: terrainWorldPosition.y,
@@ -390,7 +334,7 @@ export default function LakeModel({
 
       return () => clearTimeout(timer);
     }
-  }, [isLoaded, calculatedPosition]);
+  }, [isLoaded, position]);
 
   if (error) {
     return (
@@ -404,13 +348,7 @@ export default function LakeModel({
   }
 
   return (
-    <group
-      ref={groupRef}
-      position={calculatedPosition}
-      scale={scale}
-      rotation={rotation}
-      visible={visible}
-    >
+    <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
       {showTerrain &&
         isLoaded &&
