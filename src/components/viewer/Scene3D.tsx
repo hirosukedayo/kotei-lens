@@ -25,7 +25,7 @@ interface Scene3DProps {
 // 地形のスケール設定
 // 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
 // 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
-export const TERRAIN_SCALE_FACTOR = 2.0;
+export const TERRAIN_SCALE_FACTOR = 4.0;
 
 // 地形のベーススケール（モデルファイルの元のスケール）
 const TERRAIN_BASE_SCALE = 10;
@@ -39,8 +39,15 @@ const TERRAIN_ORIGINAL_CENTER = {
   z: 744.9999975831743 / TERRAIN_BASE_SCALE,
 };
 
+// 地形と水面の中心位置オフセット（メートル単位）
+// 地形と水面の中心位置をずらしたい場合は、この値を変更してください
+// 例: [10, 0, 5] = X方向（東）に10m、Z方向（南）に5mずらす
+// 現在は[0, 0, 0]で、小河内神社（SCENE_CENTER）が地形の中心に対応しています
+const TERRAIN_CENTER_OFFSET: [number, number, number] = [1000, 0, 0];
+const WATER_CENTER_OFFSET: [number, number, number] = [1000, 0, 0];
+
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
-// position = -terrainCenterScaled = -(terrainOriginalCenter * scale)
+// position = -terrainCenterScaled + offset = -(terrainOriginalCenter * scale) + offset
 const calculateTerrainPosition = (): [number, number, number] => {
   const scale = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR;
   const terrainCenterScaled = {
@@ -48,7 +55,11 @@ const calculateTerrainPosition = (): [number, number, number] => {
     y: TERRAIN_ORIGINAL_CENTER.y * scale,
     z: TERRAIN_ORIGINAL_CENTER.z * scale,
   };
-  return [-terrainCenterScaled.x, -terrainCenterScaled.y, -terrainCenterScaled.z];
+  return [
+    -terrainCenterScaled.x + TERRAIN_CENTER_OFFSET[0],
+    -terrainCenterScaled.y + TERRAIN_CENTER_OFFSET[1],
+    -terrainCenterScaled.z + TERRAIN_CENTER_OFFSET[2],
+  ];
 };
 
 // 3Dシーンコンポーネント
@@ -307,7 +318,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
             ]} // 水面のスケール（地形と同じスケール）
-            waterPosition={[0, 0, 0]} // 水面の位置
+            waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
