@@ -780,51 +780,137 @@ function PCKeyboardControls() {
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
 function PinMarkers3D() {
-  const pinPositions = useMemo(() => {
-    const positions = okutamaPins.map((pin) => {
+  const { scene } = useThree();
+  const pinBasePositions = useMemo(() => {
+    return okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
       const worldPos = gpsToWorldCoordinate({ latitude, longitude, altitude: 0 }, SCENE_CENTER);
-      // 地形の高さを考慮して、マーカーを少し上に配置
       return {
         id: pin.id,
         title: pin.title,
-        position: [worldPos.x, worldPos.y + 2000, worldPos.z] as [number, number, number],
+        basePosition: [worldPos.x, worldPos.y, worldPos.z] as [number, number, number],
         gps: { latitude, longitude },
         worldPos,
       };
     });
-
-    // devモード時: ピンの位置をログに出力
-    console.log('=== ピンの3D座標 ===');
-    for (const pin of positions) {
-      console.log(`${pin.title} (${pin.id}):`, {
-        GPS: pin.gps,
-        '3D座標': pin.worldPos,
-        マーカー位置: pin.position,
-      });
-    }
-    console.log('SCENE_CENTER（小河内神社）:', SCENE_CENTER);
-    console.log('=====================================');
-
-    return positions;
   }, []);
 
+  // 各ピンの地形高さを計算して配置
   return (
     <>
-      {pinPositions.map((pin) => (
-        <group key={pin.id} position={pin.position}>
-          {/* マーカー（赤い球体） */}
-          <mesh>
-            <sphereGeometry args={[50, 16, 16]} />
-            <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
-          </mesh>
-          {/* ラベル（テキスト） */}
-          <mesh position={[0, 100, 0]}>
-            <planeGeometry args={[500, 100]} />
-            <meshBasicMaterial color="rgba(0, 0, 0, 0.7)" side={THREE.DoubleSide} />
-          </mesh>
-        </group>
+      {pinBasePositions.map((pin) => (
+        <PinMarker
+          key={pin.id}
+          id={pin.id}
+          basePosition={pin.basePosition}
+          scene={scene}
+        />
       ))}
     </>
+  );
+}
+
+// 個別のピンマーカーコンポーネント（地形の高さを計算）
+function PinMarker({
+  id,
+  basePosition,
+  scene,
+}: {
+  id: string;
+  basePosition: [number, number, number];
+  scene: THREE.Scene;
+}) {
+  const [pinHeight, setPinHeight] = React.useState<number | null>(null);
+  const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
+  const frameCount = React.useRef(0);
+
+  useFrame(() => {
+    // 地形の高さを一度だけ計算
+    if (pinHeight !== null) return;
+
+    frameCount.current += 1;
+    const [pinX, , pinZ] = basePosition;
+
+    // シーン内の地形オブジェクトを検索
+    let terrainMesh: THREE.Mesh | null = null;
+
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry) {
+        const box = new THREE.Box3().setFromObject(child);
+        const size = box.getSize(new THREE.Vector3());
+        const meshName = child.name || '(無名)';
+
+        if (!terrainMesh) {
+          if (meshName === 'Displacement.001' || meshName === 'Displacement') {
+            terrainMesh = child;
+          } else if (size.x > 100 && size.z > 100 && size.x < 10000 && size.z < 10000 && size.y < 1000) {
+            terrainMesh = child;
+          }
+        }
+      }
+    });
+
+    if (terrainMesh) {
+      const mesh = terrainMesh as THREE.Mesh;
+
+      // 高い位置から下方向にレイを飛ばして地形との交差を計算
+      const rayStartY = 1000;
+      const rayStart = new THREE.Vector3(pinX, rayStartY, pinZ);
+      const rayDirection = new THREE.Vector3(0, -1, 0);
+
+      raycaster.set(rayStart, rayDirection);
+      let intersects = raycaster.intersectObject(mesh, false);
+
+      // 交差が見つからない場合、子要素を再帰的に検索
+      if (intersects.length === 0 && mesh.children.length > 0) {
+        const childMeshes: THREE.Mesh[] = [];
+        mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.geometry) {
+            childMeshes.push(child);
+          }
+        });
+
+        for (const childMesh of childMeshes) {
+          const childIntersects = raycaster.intersectObject(childMesh, false);
+          if (childIntersects.length > 0) {
+            intersects = childIntersects;
+            break;
+          }
+        }
+      }
+
+      if (intersects.length > 0) {
+        const firstIntersect = intersects[0];
+        const terrainHeight = firstIntersect.point.y;
+        const finalHeight = terrainHeight + 10; // 地形+10m
+        setPinHeight(finalHeight);
+      } else if (frameCount.current >= 100) {
+        // タイムアウト: デフォルトの高さを使用
+        setPinHeight(basePosition[1] + 10);
+      }
+    } else if (frameCount.current >= 100) {
+      // 地形が見つからない場合: デフォルトの高さを使用
+      setPinHeight(basePosition[1] + 10);
+    }
+  });
+
+  // 高さが計算されるまで表示しない
+  if (pinHeight === null) {
+    return null;
+  }
+
+  return (
+    <group key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
+      {/* マーカー（赤い球体） */}
+      <mesh>
+        <sphereGeometry args={[50, 16, 16]} />
+        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+      </mesh>
+      {/* ラベル（テキスト） */}
+      <mesh position={[0, 100, 0]}>
+        <planeGeometry args={[500, 100]} />
+        <meshBasicMaterial color="rgba(0, 0, 0, 0.7)" side={THREE.DoubleSide} />
+      </mesh>
+    </group>
   );
 }
