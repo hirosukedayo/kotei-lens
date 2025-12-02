@@ -18,7 +18,7 @@ export default function SensorPermissionRequest({
 
   const [isRequesting, setIsRequesting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  
+
   // SensorManagerのシングルトンインスタンスを使用
   const sensorManager = getSensorManager();
 
@@ -53,13 +53,13 @@ export default function SensorPermissionRequest({
 
   const requestGPSPermission = async () => {
     if (!sensorStatus.gps.available) return;
-    
+
     setIsRequesting(true);
     try {
       // GeolocationAPIの許可を実際に要求するため、getCurrentPositionを呼び出す
       // これによりブラウザの位置許可ダイアログが表示される
       await sensorManager.locationService.getCurrentPosition();
-      
+
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
@@ -67,7 +67,11 @@ export default function SensorPermissionRequest({
     } catch (error) {
       setSensorStatus((prev) => ({
         ...prev,
-        gps: { ...prev.gps, permission: 'denied', error: { code: 0, message: String(error), timestamp: Date.now() } },
+        gps: {
+          ...prev.gps,
+          permission: 'denied',
+          error: { code: 0, message: String(error), timestamp: Date.now() },
+        },
       }));
     } finally {
       setIsRequesting(false);
@@ -76,11 +80,11 @@ export default function SensorPermissionRequest({
 
   const requestOrientationPermission = async () => {
     if (!sensorStatus.orientation.available) return;
-    
+
     setIsRequesting(true);
     try {
       const permission = await sensorManager.orientationService.requestPermission();
-      
+
       // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
@@ -98,11 +102,11 @@ export default function SensorPermissionRequest({
 
   const requestMotionPermission = async () => {
     if (!sensorStatus.motion.available) return;
-    
+
     setIsRequesting(true);
     try {
       const permission = await sensorManager.motionService.requestPermission();
-      
+
       // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
@@ -121,8 +125,8 @@ export default function SensorPermissionRequest({
   const checkAllPermissions = () => {
     const grantedCount = [
       sensorStatus.gps.permission === 'granted',
-      sensorStatus.orientation.permission === 'granted', 
-      sensorStatus.motion.permission === 'granted'
+      sensorStatus.orientation.permission === 'granted',
+      sensorStatus.motion.permission === 'granted',
     ].filter(Boolean).length;
 
     if (grantedCount === 3) {
@@ -150,7 +154,6 @@ export default function SensorPermissionRequest({
         return '⏳';
     }
   };
-
 
   return (
     <div
@@ -243,7 +246,11 @@ export default function SensorPermissionRequest({
             <button
               type="button"
               onClick={requestGPSPermission}
-              disabled={!sensorStatus.gps.available || isRequesting || sensorStatus.gps.permission === 'granted'}
+              disabled={
+                !sensorStatus.gps.available ||
+                isRequesting ||
+                sensorStatus.gps.permission === 'granted'
+              }
               style={{
                 backgroundColor: sensorStatus.gps.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
                 color: 'white',
@@ -251,8 +258,13 @@ export default function SensorPermissionRequest({
                 borderRadius: '6px',
                 padding: '6px 12px',
                 fontSize: '12px',
-                cursor: (!sensorStatus.gps.available || isRequesting || sensorStatus.gps.permission === 'granted') ? 'not-allowed' : 'pointer',
-                opacity: (!sensorStatus.gps.available || isRequesting) ? 0.6 : 1,
+                cursor:
+                  !sensorStatus.gps.available ||
+                  isRequesting ||
+                  sensorStatus.gps.permission === 'granted'
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity: !sensorStatus.gps.available || isRequesting ? 0.6 : 1,
               }}
             >
               {sensorStatus.gps.permission === 'granted' ? '許可済み' : '許可する'}
@@ -283,16 +295,26 @@ export default function SensorPermissionRequest({
             <button
               type="button"
               onClick={requestOrientationPermission}
-              disabled={!sensorStatus.orientation.available || isRequesting || sensorStatus.orientation.permission === 'granted'}
+              disabled={
+                !sensorStatus.orientation.available ||
+                isRequesting ||
+                sensorStatus.orientation.permission === 'granted'
+              }
               style={{
-                backgroundColor: sensorStatus.orientation.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
+                backgroundColor:
+                  sensorStatus.orientation.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 padding: '6px 12px',
                 fontSize: '12px',
-                cursor: (!sensorStatus.orientation.available || isRequesting || sensorStatus.orientation.permission === 'granted') ? 'not-allowed' : 'pointer',
-                opacity: (!sensorStatus.orientation.available || isRequesting) ? 0.6 : 1,
+                cursor:
+                  !sensorStatus.orientation.available ||
+                  isRequesting ||
+                  sensorStatus.orientation.permission === 'granted'
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity: !sensorStatus.orientation.available || isRequesting ? 0.6 : 1,
               }}
             >
               {sensorStatus.orientation.permission === 'granted' ? '許可済み' : '許可する'}
@@ -320,16 +342,26 @@ export default function SensorPermissionRequest({
             <button
               type="button"
               onClick={requestMotionPermission}
-              disabled={!sensorStatus.motion.available || isRequesting || sensorStatus.motion.permission === 'granted'}
+              disabled={
+                !sensorStatus.motion.available ||
+                isRequesting ||
+                sensorStatus.motion.permission === 'granted'
+              }
               style={{
-                backgroundColor: sensorStatus.motion.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
+                backgroundColor:
+                  sensorStatus.motion.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
                 padding: '6px 12px',
                 fontSize: '12px',
-                cursor: (!sensorStatus.motion.available || isRequesting || sensorStatus.motion.permission === 'granted') ? 'not-allowed' : 'pointer',
-                opacity: (!sensorStatus.motion.available || isRequesting) ? 0.6 : 1,
+                cursor:
+                  !sensorStatus.motion.available ||
+                  isRequesting ||
+                  sensorStatus.motion.permission === 'granted'
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity: !sensorStatus.motion.available || isRequesting ? 0.6 : 1,
               }}
             >
               {sensorStatus.motion.permission === 'granted' ? '許可済み' : '許可する'}

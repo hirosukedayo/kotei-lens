@@ -144,7 +144,7 @@ function App() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <FaMapLocationDot size={64} />
@@ -208,10 +208,18 @@ function App() {
           <div
             style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}
           >
-            <button type="button" onClick={handleRetryPermissions} style={{ backgroundColor: '#2B6CB0' }}>
+            <button
+              type="button"
+              onClick={handleRetryPermissions}
+              style={{ backgroundColor: '#2B6CB0' }}
+            >
               再試行
             </button>
-            <button type="button" onClick={handleContinueWithoutPermissions} style={{ backgroundColor: '#666' }}>
+            <button
+              type="button"
+              onClick={handleContinueWithoutPermissions}
+              style={{ backgroundColor: '#666' }}
+            >
               制限モードで続行
             </button>
           </div>

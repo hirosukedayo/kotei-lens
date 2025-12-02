@@ -9,10 +9,10 @@ interface GPSCameraProps {
   smoothing?: number; // 0-1の範囲、位置の滑らかな移動
 }
 
-export default function GPSCamera({ 
-  gpsPosition, 
+export default function GPSCamera({
+  gpsPosition,
   enablePositioning = true,
-  smoothing = 0.1
+  smoothing = 0.1,
 }: GPSCameraProps) {
   const { camera } = useThree();
   const targetPosition = useRef({ x: 0, y: 50, z: 200 }); // デフォルト位置
@@ -26,14 +26,14 @@ export default function GPSCamera({
     const worldPosition = gpsToWorldCoordinate({
       latitude: gpsPosition.latitude,
       longitude: gpsPosition.longitude,
-      altitude: gpsPosition.altitude || 0
+      altitude: gpsPosition.altitude || 0,
     });
 
     // カメラの高さを調整（地面から少し上に）
     targetPosition.current = {
       x: worldPosition.x,
       y: Math.max(worldPosition.y + 10, 10), // 最低10m上に
-      z: worldPosition.z
+      z: worldPosition.z,
     };
 
     // GPS位置更新ログ（必要時のみ有効化）
@@ -51,12 +51,12 @@ export default function GPSCamera({
 
     const target = targetPosition.current;
     const current = currentPosition.current;
-    
+
     // 滑らかな補間（線形補間）
     current.x = lerp(current.x, target.x, smoothing);
     current.y = lerp(current.y, target.y, smoothing);
     current.z = lerp(current.z, target.z, smoothing);
-    
+
     // カメラの位置を適用
     camera.position.set(current.x, current.y, current.z);
   });

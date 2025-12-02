@@ -9,7 +9,11 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import { gpsToWorldCoordinate, worldToGpsCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
+import {
+  gpsToWorldCoordinate,
+  worldToGpsCoordinate,
+  SCENE_CENTER,
+} from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
@@ -44,17 +48,24 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
     // デバイス検出
     const checkDevice = () => {
       const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+        userAgent
+      );
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const mobile = isMobileDevice || isTouchDevice;
       setIsMobile(mobile);
       console.log('Device detection:', { isMobileDevice, isTouchDevice, isMobile: mobile });
       console.log('User Agent:', navigator.userAgent);
-      console.log('Touch support:', 'ontouchstart' in window, 'maxTouchPoints:', navigator.maxTouchPoints);
+      console.log(
+        'Touch support:',
+        'ontouchstart' in window,
+        'maxTouchPoints:',
+        navigator.maxTouchPoints
+      );
     };
-    
+
     checkDevice();
-    
+
     // デバイス向きイベントの状態を監視
     const checkOrientationPermission = () => {
       if (typeof DeviceOrientationEvent !== 'undefined') {
@@ -65,16 +76,16 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           localStorage.setItem('deviceOrientationPermission', 'granted');
           window.removeEventListener('deviceorientation', testHandler);
         };
-        
+
         window.addEventListener('deviceorientation', testHandler, { once: true });
-        
+
         // 3秒後にタイムアウト
         setTimeout(() => {
           window.removeEventListener('deviceorientation', testHandler);
         }, 3000);
       }
     };
-    
+
     // モバイルの場合のみチェック
     if (isMobile) {
       checkOrientationPermission();
@@ -85,7 +96,10 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
   const handleDeviceOrientationPermission = async () => {
     try {
       // デバイス向きイベントの許可をリクエスト
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      if (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof (DeviceOrientationEvent as any).requestPermission === 'function'
+      ) {
         const permission = await (DeviceOrientationEvent as any).requestPermission();
         if (permission === 'granted') {
           setPermissionGranted(true);
@@ -114,11 +128,11 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         longitude: initialPosition.longitude,
         altitude: 0, // 標高は後で地形に合わせて調整
       });
-      
+
       // カメラの高さを調整（以前の位置と同じ105.73m）
       // 以前の位置: [-63.43, 105.73, 1.65] を基準に、GPS座標から計算した位置に移動
       const cameraHeight = worldPos.y + 105.73;
-      
+
       // デバッグログ: カメラ位置の計算過程を出力
       console.log('=== カメラ初期位置の計算 ===');
       console.log('2Dマップの中心位置（GPS）:', {
@@ -129,13 +143,17 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
       console.log('GPS座標から3D座標への変換結果:', worldPos);
       console.log('カメラの高さ（worldPos.y + 105.73）:', cameraHeight);
       console.log('最終的なカメラ位置:', [worldPos.x, cameraHeight, worldPos.z]);
-      console.log('地形モデルの位置:', [744.9999975831743, -177.19751206980436, -744.9999975831743]);
-      console.log('カメラと地形の中心の距離:', Math.sqrt(
-        Math.pow(worldPos.x - 0, 2) + 
-        Math.pow(worldPos.z - 0, 2)
-      ).toFixed(2), 'm');
+      console.log(
+        '地形モデルの位置:',
+        [744.9999975831743, -177.19751206980436, -744.9999975831743]
+      );
+      console.log(
+        'カメラと地形の中心の距離:',
+        Math.sqrt(Math.pow(worldPos.x - 0, 2) + Math.pow(worldPos.z - 0, 2)).toFixed(2),
+        'm'
+      );
       console.log('=====================================');
-      
+
       // 回転はDeviceOrientationControlsが自動的に制御するため、初期回転は設定しない
       // 以前の位置では回転が[0, 0, 0]だった
       return {
@@ -143,7 +161,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
         rotation: [0, 0, 0] as [number, number, number],
       };
     }
-    
+
     // デフォルト位置
     return {
       position: [-63.43, 105.73, 1.65] as [number, number, number],
@@ -212,23 +230,25 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
-          {isMobile && permissionGranted && <DeviceOrientationControls ref={deviceOrientationControlsRef} />}
+          {isMobile && permissionGranted && (
+            <DeviceOrientationControls ref={deviceOrientationControlsRef} />
+          )}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
-          <Sky 
+          <Sky
             distance={50000} // 広範囲のスカイボックス（50km）
             sunPosition={[100, 50, 100]} // 太陽位置を調整
             inclination={0.49} // 太陽の高さを調整
             azimuth={0.25} // 太陽の方位角
           />
-          
+
           {/* 環境マップ（反射などに使用） */}
           <Environment preset="sunset" />
 
           {/* 環境光を強化 */}
           <ambientLight intensity={0.6} color="#ffffff" />
-          
+
           {/* 指向性ライト（太陽光）を追加 */}
           <directionalLight
             position={[1000, 100, 50]}
@@ -242,7 +262,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
           {/* 地形の中心点（terrainScale適用後の実際の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]）を[0, 0, 0]に配置するため、positionを調整 */}
           {/* ログから取得した実際の値を使用 */}
-          <LakeModel 
+          <LakeModel
             position={[744.9999975831743, -177.19751206980436, -744.9999975831743]}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
@@ -253,10 +273,10 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
             waterScale={[10, 10, 10]} // 水面のスケール
             waterPosition={[0, 0, 0]} // 水面の位置
           />
-          
+
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
           {isDevMode && <PinMarkers3D />}
-          
+
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
       </Canvas>
@@ -306,10 +326,10 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
 }
 
 // カメラの初期位置を明示的に設定するコンポーネント
-function CameraPositionSetter({ 
-  initialCameraConfig 
-}: { 
-  initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] }
+function CameraPositionSetter({
+  initialCameraConfig,
+}: {
+  initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
 }) {
   const { camera } = useThree();
   const hasSetPosition = React.useRef(false);
@@ -323,7 +343,7 @@ function CameraPositionSetter({
         initialCameraConfig.position[2]
       );
       hasSetPosition.current = true;
-      
+
       console.log('=== カメラ位置を明示的に設定 ===');
       console.log('設定した位置:', initialCameraConfig.position);
       console.log('実際のカメラ位置:', camera.position);
@@ -345,10 +365,10 @@ function CameraPositionTracker() {
       y: camera.position.y,
       z: camera.position.z,
     };
-    
+
     // グローバル変数に保存
     (window as any).__cameraPosition3D = pos;
-    
+
     // 初回のみログに出力
     if (!loggedRef.current) {
       console.log('=== カメラの初期位置 ===');
@@ -370,10 +390,10 @@ function CameraPositionTracker() {
 }
 
 // devモード時: 座標情報を表示するコンポーネント
-function CoordinateDebugInfo({ 
-  initialPosition 
-}: { 
-  initialPosition?: Initial3DPosition | null 
+function CoordinateDebugInfo({
+  initialPosition,
+}: {
+  initialPosition?: Initial3DPosition | null;
 }) {
   const [cameraPos3D, setCameraPos3D] = useState({ x: 0, y: 0, z: 0 });
   const [cameraPosGPS, setCameraPosGPS] = useState({ latitude: 0, longitude: 0, altitude: 0 });
@@ -416,7 +436,7 @@ function CoordinateDebugInfo({
       <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#10b981' }}>
         DEV MODE - 座標情報
       </div>
-      
+
       {initialPosition && (
         <div style={{ marginBottom: '12px' }}>
           <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>2Dマップの中心位置:</div>
@@ -445,67 +465,74 @@ function CoordinateDebugInfo({
   );
 }
 
-
 // FPSスタイルカメラコントロール
 function FPSCameraControls() {
   const { camera } = useThree();
   const [isPointerLocked, setIsPointerLocked] = React.useState(false);
   const pitchRef = React.useRef(0);
   const yawRef = React.useRef(0);
-  
+
   React.useEffect(() => {
     // カメラの初期設定
     camera.rotation.order = 'YXZ';
     camera.rotation.x = 0;
     camera.rotation.y = 0;
     camera.rotation.z = 0;
-    
+
     const handlePointerLockChange = () => {
       setIsPointerLocked(document.pointerLockElement !== null);
     };
-    
+
     const handleMouseMove = (event: MouseEvent) => {
       if (isPointerLocked) {
         const sensitivity = 0.002;
         const deltaX = event.movementX * sensitivity;
         const deltaY = event.movementY * sensitivity;
-        
+
         yawRef.current -= deltaX;
-        pitchRef.current = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitchRef.current - deltaY));
-        
+        pitchRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchRef.current - deltaY));
+
         // カメラの回転を更新（Z軸回転は0に固定）
         camera.rotation.order = 'YXZ';
         camera.rotation.y = yawRef.current;
         camera.rotation.x = pitchRef.current;
         camera.rotation.z = 0;
-        
+
         // カメラ位置と回転をコンソールに出力
         console.log('FPS Camera:', {
-          position: [camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2)],
-          rotation: [camera.rotation.x.toFixed(2), camera.rotation.y.toFixed(2), camera.rotation.z.toFixed(2)],
+          position: [
+            camera.position.x.toFixed(2),
+            camera.position.y.toFixed(2),
+            camera.position.z.toFixed(2),
+          ],
+          rotation: [
+            camera.rotation.x.toFixed(2),
+            camera.rotation.y.toFixed(2),
+            camera.rotation.z.toFixed(2),
+          ],
           yaw: yawRef.current.toFixed(2),
-          pitch: pitchRef.current.toFixed(2)
+          pitch: pitchRef.current.toFixed(2),
         });
       }
     };
-    
+
     const handleClick = () => {
       if (!isPointerLocked) {
         document.body.requestPointerLock();
       }
     };
-    
+
     document.addEventListener('pointerlockchange', handlePointerLockChange);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('click', handleClick);
-    
+
     return () => {
       document.removeEventListener('pointerlockchange', handlePointerLockChange);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('click', handleClick);
     };
   }, [camera, isPointerLocked]);
-  
+
   return null;
 }
 
@@ -516,7 +543,7 @@ function PCKeyboardControls() {
     const moveSpeed = 5;
     const dir = new THREE.Vector3();
     const right = new THREE.Vector3();
-    
+
     const handleKey = (e: KeyboardEvent) => {
       let moved = false;
       switch (e.key) {
@@ -566,7 +593,7 @@ function PCKeyboardControls() {
         camera.updateProjectionMatrix();
       }
     };
-    
+
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [camera]);
@@ -578,10 +605,7 @@ function PinMarkers3D() {
   const pinPositions = useMemo(() => {
     const positions = okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
-      const worldPos = gpsToWorldCoordinate(
-        { latitude, longitude, altitude: 0 },
-        SCENE_CENTER
-      );
+      const worldPos = gpsToWorldCoordinate({ latitude, longitude, altitude: 0 }, SCENE_CENTER);
       // 地形の高さを考慮して、マーカーを少し上に配置
       return {
         id: pin.id,
@@ -591,19 +615,19 @@ function PinMarkers3D() {
         worldPos,
       };
     });
-    
+
     // devモード時: ピンの位置をログに出力
     console.log('=== ピンの3D座標 ===');
     for (const pin of positions) {
       console.log(`${pin.title} (${pin.id}):`, {
         GPS: pin.gps,
         '3D座標': pin.worldPos,
-        'マーカー位置': pin.position,
+        マーカー位置: pin.position,
       });
     }
     console.log('SCENE_CENTER（小河内神社）:', SCENE_CENTER);
     console.log('=====================================');
-    
+
     return positions;
   }, []);
 
@@ -626,5 +650,3 @@ function PinMarkers3D() {
     </>
   );
 }
-
-

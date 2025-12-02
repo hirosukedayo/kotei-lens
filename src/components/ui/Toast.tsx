@@ -76,5 +76,3 @@ export function Toast({ message, open, onClose, duration = 4000, variant = 'info
     </div>
   );
 }
-
-
