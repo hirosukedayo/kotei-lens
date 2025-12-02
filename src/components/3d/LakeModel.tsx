@@ -248,11 +248,7 @@ export default function LakeModel({
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
-      waterRef.current.position.set(
-        waterPosition[0],
-        waterPosition[1] + waterY,
-        waterPosition[2]
-      );
+      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
 
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
@@ -268,20 +264,19 @@ export default function LakeModel({
             material.transparent = true;
           }
 
-          // 反射強度を時間に基づいて変化させる
+          // 反射強度を固定値に設定
           if (material.metalness !== undefined) {
-            material.metalness = 0.2 + Math.sin(time * 0.8) * 0.1 * waveIntensity;
+            material.metalness = 0.2;
           }
 
-          // 粗さを時間に基づいて変化させる
+          // 粗さを固定値に設定
           if (material.roughness !== undefined) {
-            material.roughness = 0.3 + Math.sin(time * 1.2) * 0.2 * waveIntensity;
+            material.roughness = 0.3;
           }
 
-          // 色を微細に変化させる
+          // 色を固定値に設定
           if (material.color) {
-            const hue = (time * 0.1) % 1;
-            material.color.setHSL(hue * 0.1 + 0.5, 0.8, 0.6); // 青系の色相変化
+            material.color.setHSL(0.5, 0.8, 0.6); // 青系の色
           }
         }
       });
