@@ -3,6 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
+import { gpsToWorldCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
+import type { GPSCoordinate } from '../../utils/coordinate-converter';
 
 interface LakeModelProps {
   position?: [number, number, number];
@@ -14,6 +16,10 @@ interface LakeModelProps {
   terrainScale?: [number, number, number];
   waterScale?: [number, number, number];
   waterPosition?: [number, number, number];
+  /** GPS座標で地形モデルの中心位置を指定（オプション） */
+  centerGps?: GPSCoordinate;
+  /** 地形モデルの目標サイズ（メートル単位、オプション） */
+  targetSizeMeters?: [number, number, number];
 }
 
 // ベースパスを動的に取得
@@ -32,14 +38,18 @@ export default function LakeModel({
   terrainScale = [1, 1, 1],
   waterScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
+  centerGps,
+  targetSizeMeters,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [calculatedPosition, setCalculatedPosition] = useState<[number, number, number]>(position);
 
   const basePath = getBasePath();
 
@@ -348,7 +358,7 @@ export default function LakeModel({
   }
 
   return (
-    <group position={position} scale={scale} rotation={rotation} visible={visible}>
+    <group ref={groupRef} position={calculatedPosition} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
       {showTerrain &&
         isLoaded &&

@@ -23,6 +23,8 @@ import {
   TERRAIN_POSITION_OFFSET,
   TERRAIN_OVERALL_SCALE,
   TERRAIN_ROTATION,
+  TERRAIN_CENTER_GPS,
+  TERRAIN_SIZE_METERS,
 } from '../../config/terrain-model';
 
 interface Scene3DProps {
@@ -278,6 +280,8 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
             terrainScale={TERRAIN_SCALE}
             waterScale={WATER_SCALE}
             waterPosition={[0, 0, 0]}
+            centerGps={TERRAIN_CENTER_GPS}
+            targetSizeMeters={TERRAIN_SIZE_METERS}
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
