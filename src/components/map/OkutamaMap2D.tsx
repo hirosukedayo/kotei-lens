@@ -11,7 +11,6 @@ import {
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
-import { TERRAIN_ACTUAL_SIZE } from '../../config/terrain-model';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -200,13 +199,20 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   ];
 
   // devモード時: 3Dモデルの範囲を2Dマップ上に描画
-  // 地形モデルのサイズは src/config/terrain-model.ts で管理
+  // 実際の地形のバウンディングボックス（terrainScale=[10,10,10]適用後）:
+  // ログから取得した実際のサイズ: {x: 1490.0001525878906, y: 204.09059524536133, z: 1490.0001525878906}
+  // 中心点: {x: -744.9999975831743, y: 177.19751206980436, z: 744.9999975831743}
+  // LakeModel 側で position={[744.9999975831743, -177.19751206980436, -744.9999975831743]} を指定している。
+  // したがって、現在の3D空間では地形の中心が原点(0,0,0)に一致しており、
+  // バウンディングボックスは原点を中心とした対称な範囲として扱える。
+  // terrainScale適用後の実際のサイズ: 1490.0001525878906 ユニット（約1.5km）
   const modelBounds = useMemo(() => {
     if (!isDevMode) return null;
 
     // 地形のバウンディングボックスの半サイズ（x,z方向）
-    // TERRAIN_ACTUAL_SIZE は terrainScale適用後の実際のサイズ（メートル）
-    const halfSize = TERRAIN_ACTUAL_SIZE / 2;
+    // terrainScale適用後の実際のサイズ: 1490.0001525878906
+    // ログから取得した実際の値を使用
+    const halfSize = 1490.0001525878906 / 2;
 
     // 現在の3D空間では地形中心が原点にあるため、
     // バウンディングボックスの四隅は原点からの相対座標で表現できる。
