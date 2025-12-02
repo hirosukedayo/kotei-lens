@@ -11,7 +11,7 @@ import {
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
-import { TERRAIN_SCALE_FACTOR } from '../viewer/Scene3D';
+import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../viewer/Scene3D';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -216,13 +216,18 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     const baseHalfSize = 1490.0001525878906 / 2;
     const halfSize = baseHalfSize * TERRAIN_SCALE_FACTOR;
 
-    // 現在の3D空間では地形中心が原点にあるため、
-    // バウンディングボックスの四隅は原点からの相対座標で表現できる。
+    // 地形の中心位置オフセットを考慮
+    // TERRAIN_CENTER_OFFSETで地形の中心がずれている場合、矩形もずらす必要がある
+    const centerOffsetX = TERRAIN_CENTER_OFFSET[0];
+    const centerOffsetZ = TERRAIN_CENTER_OFFSET[2];
+
+    // 現在の3D空間では地形中心がTERRAIN_CENTER_OFFSET分ずれているため、
+    // バウンディングボックスの四隅は中心オフセットを考慮して計算する。
     const corners3D = [
-      { x: -halfSize, y: 0, z: -halfSize }, // 北西
-      { x: halfSize, y: 0, z: -halfSize }, // 北東
-      { x: halfSize, y: 0, z: halfSize }, // 南東
-      { x: -halfSize, y: 0, z: halfSize }, // 南西
+      { x: centerOffsetX - halfSize, y: 0, z: centerOffsetZ - halfSize }, // 北西
+      { x: centerOffsetX + halfSize, y: 0, z: centerOffsetZ - halfSize }, // 北東
+      { x: centerOffsetX + halfSize, y: 0, z: centerOffsetZ + halfSize }, // 南東
+      { x: centerOffsetX - halfSize, y: 0, z: centerOffsetZ + halfSize }, // 南西
     ];
 
     // 3D座標をGPS座標に変換
