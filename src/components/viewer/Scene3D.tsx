@@ -25,7 +25,7 @@ interface Scene3DProps {
 // 地形のスケール設定
 // 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
 // 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
-export const TERRAIN_SCALE_FACTOR = 1.0;
+export const TERRAIN_SCALE_FACTOR = 2.0;
 
 // 地形のベーススケール（モデルファイルの元のスケール）
 const TERRAIN_BASE_SCALE = 10;
