@@ -17,6 +17,13 @@ import {
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
+import {
+  TERRAIN_SCALE,
+  WATER_SCALE,
+  TERRAIN_POSITION_OFFSET,
+  TERRAIN_OVERALL_SCALE,
+  TERRAIN_ROTATION,
+} from '../../config/terrain-model';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -260,18 +267,17 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           />
 
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
-          {/* 地形の中心点（terrainScale適用後の実際の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]）を[0, 0, 0]に配置するため、positionを調整 */}
-          {/* ログから取得した実際の値を使用 */}
+          {/* 地形モデルの設定は src/config/terrain-model.ts で管理 */}
           <LakeModel
-            position={[744.9999975831743, -177.19751206980436, -744.9999975831743]}
-            scale={[1, 1, 1]} // 全体のスケール
-            rotation={[0, 0, 0]}
+            position={TERRAIN_POSITION_OFFSET}
+            scale={TERRAIN_OVERALL_SCALE}
+            rotation={TERRAIN_ROTATION}
             visible={true}
-            showTerrain={true} // 地形を表示
-            showWater={true} // 水面を表示
-            terrainScale={[10, 10, 10]} // 地形のスケール
-            waterScale={[10, 10, 10]} // 水面のスケール
-            waterPosition={[0, 0, 0]} // 水面の位置
+            showTerrain={true}
+            showWater={true}
+            terrainScale={TERRAIN_SCALE}
+            waterScale={WATER_SCALE}
+            waterPosition={[0, 0, 0]}
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
