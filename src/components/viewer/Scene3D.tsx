@@ -24,7 +24,6 @@ import {
   TERRAIN_OVERALL_SCALE,
   TERRAIN_ROTATION,
   TERRAIN_CENTER_GPS,
-  TERRAIN_SIZE_METERS,
 } from '../../config/terrain-model';
 
 interface Scene3DProps {
