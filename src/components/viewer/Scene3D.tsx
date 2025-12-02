@@ -1,4 +1,4 @@
-import { Environment, Sky, DeviceOrientationControls } from '@react-three/drei';
+import { Environment, Sky, DeviceOrientationControls, Text, Billboard } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
@@ -23,6 +23,8 @@ import {
   WATER_CENTER_OFFSET,
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
+  CAMERA_HEIGHT_OFFSET,
+  PIN_HEIGHT_OFFSET,
 } from '../../config/terrain-config';
 
 interface Scene3DProps {
@@ -430,7 +432,7 @@ function CameraPositionSetter({
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
-        finalCameraY = terrainHeight + 10;
+        finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET;
         
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
@@ -802,6 +804,7 @@ function PinMarkers3D() {
         <PinMarker
           key={pin.id}
           id={pin.id}
+          title={pin.title}
           basePosition={pin.basePosition}
           scene={scene}
         />
@@ -813,10 +816,12 @@ function PinMarkers3D() {
 // 個別のピンマーカーコンポーネント（地形の高さを計算）
 function PinMarker({
   id,
+  title,
   basePosition,
   scene,
 }: {
   id: string;
+  title: string;
   basePosition: [number, number, number];
   scene: THREE.Scene;
 }) {
@@ -882,15 +887,15 @@ function PinMarker({
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
-        const finalHeight = terrainHeight + 10; // 地形+10m
+        const finalHeight = terrainHeight + PIN_HEIGHT_OFFSET;
         setPinHeight(finalHeight);
       } else if (frameCount.current >= 100) {
         // タイムアウト: デフォルトの高さを使用
-        setPinHeight(basePosition[1] + 10);
+        setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
       }
     } else if (frameCount.current >= 100) {
       // 地形が見つからない場合: デフォルトの高さを使用
-      setPinHeight(basePosition[1] + 10);
+      setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
     }
   });
 
@@ -906,11 +911,20 @@ function PinMarker({
         <sphereGeometry args={[50, 16, 16]} />
         <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
       </mesh>
-      {/* ラベル（テキスト） */}
-      <mesh position={[0, 100, 0]}>
-        <planeGeometry args={[500, 100]} />
-        <meshBasicMaterial color="rgba(0, 0, 0, 0.7)" side={THREE.DoubleSide} />
-      </mesh>
+      {/* ラベル（テキスト） - 常にカメラを向く */}
+      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+        <Text
+          position={[0, 100, 0]}
+          fontSize={40}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={2}
+          outlineColor="black"
+        >
+          {title}
+        </Text>
+      </Billboard>
     </group>
   );
 }
