@@ -342,7 +342,8 @@ export default function LakeModel({
       }, 100);
 
       return () => clearTimeout(timer);
-    } else if (!centerGps) {
+    }
+    if (!centerGps) {
       // centerGpsが指定されていない場合は、元のpositionを使用
       setCalculatedPosition(position);
       if (groupRef.current) {
