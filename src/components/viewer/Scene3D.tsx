@@ -355,22 +355,31 @@ function CameraPositionSetter({
     let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
     
     // シーン内の地形オブジェクトを検索
+    // 地形はGroup内のprimitiveとして配置されているため、実際のMeshを再帰的に検索
     let terrainMesh: THREE.Mesh | null = null;
-    const foundMeshes: Array<{ name: string; size: { x: number; y: number; z: number } }> = [];
+    const foundMeshes: Array<{ name: string; size: { x: number; y: number; z: number }; type: string; hasGeometry: boolean }> = [];
     
     scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
+      // GroupやObject3Dではなく、実際のMeshを探す
+      if (child instanceof THREE.Mesh && child.geometry) {
         const box = new THREE.Box3().setFromObject(child);
         const size = box.getSize(new THREE.Vector3());
         const meshName = child.name || '(無名)';
-        foundMeshes.push({ name: meshName, size: { x: size.x, y: size.y, z: size.z } });
+        foundMeshes.push({ 
+          name: meshName, 
+          size: { x: size.x, y: size.y, z: size.z },
+          type: child.type,
+          hasGeometry: child.geometry !== null
+        });
         
-        // 地形のMeshを探す（名前で判定、または大きなMesh）
+        // 地形のMeshを探す（名前で判定、または適切なサイズのMesh）
+        // バウンディングボックスを除外するため、サイズ制限を追加
         if (!terrainMesh) {
           if (meshName === 'Displacement.001' || meshName === 'Displacement') {
             terrainMesh = child;
-          } else if (size.x > 100 && size.z > 100) {
-            // 100m以上のサイズのMeshを地形として扱う
+          } else if (size.x > 100 && size.z > 100 && size.x < 10000 && size.z < 10000 && size.y < 1000) {
+            // 100m以上10000m未満のサイズで、高さが1000m未満のMeshを地形として扱う
+            // これにより、異常に大きなバウンディングボックスを除外
             terrainMesh = child;
           }
         }
@@ -394,7 +403,29 @@ function CameraPositionSetter({
       
       raycaster.set(rayStart, rayDirection);
 
-      const intersects = raycaster.intersectObject(mesh, true);
+      // 地形のMeshの実際のジオメトリと交差するように、再帰的検索を無効化
+      // 第2引数をfalseにして、このMesh自体のみを対象とする
+      let intersects = raycaster.intersectObject(mesh, false);
+      
+      // 交差が見つからない場合、子要素を再帰的に検索
+      if (intersects.length === 0 && mesh.children.length > 0) {
+        // 子要素の中から実際のMeshを探す
+        const childMeshes: THREE.Mesh[] = [];
+        mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.geometry) {
+            childMeshes.push(child);
+          }
+        });
+        
+        // 子要素のMeshに対してRaycastingを実行
+        for (const childMesh of childMeshes) {
+          const childIntersects = raycaster.intersectObject(childMesh, false);
+          if (childIntersects.length > 0) {
+            intersects = childIntersects;
+            break; // 最初に見つかった交差点を使用
+          }
+        }
+      }
       
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
