@@ -22,6 +22,35 @@ interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
 }
 
+// 地形のスケール設定
+// 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
+// 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
+export const TERRAIN_SCALE_FACTOR = 1.0;
+
+// 地形のベーススケール（モデルファイルの元のスケール）
+const TERRAIN_BASE_SCALE = 10;
+
+// 地形の元の中心位置（スケール適用前、ローカル座標系）
+// terrainScale=[10,10,10]適用後の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]
+// したがって、元の中心 = スケール適用後の中心 / 10
+const TERRAIN_ORIGINAL_CENTER = {
+  x: -744.9999975831743 / TERRAIN_BASE_SCALE,
+  y: 177.19751206980436 / TERRAIN_BASE_SCALE,
+  z: 744.9999975831743 / TERRAIN_BASE_SCALE,
+};
+
+// 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
+// position = -terrainCenterScaled = -(terrainOriginalCenter * scale)
+const calculateTerrainPosition = (): [number, number, number] => {
+  const scale = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR;
+  const terrainCenterScaled = {
+    x: TERRAIN_ORIGINAL_CENTER.x * scale,
+    y: TERRAIN_ORIGINAL_CENTER.y * scale,
+    z: TERRAIN_ORIGINAL_CENTER.z * scale,
+  };
+  return [-terrainCenterScaled.x, -terrainCenterScaled.y, -terrainCenterScaled.z];
+};
+
 // 3Dシーンコンポーネント
 export default function Scene3D({ initialPosition }: Scene3DProps) {
   const { isDevMode } = useDevModeStore();
@@ -260,17 +289,24 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           />
 
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
-          {/* 地形の中心点（terrainScale適用後の実際の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]）を[0, 0, 0]に配置するため、positionを調整 */}
-          {/* ログから取得した実際の値を使用 */}
+          {/* 地形の中心点を[0, 0, 0]に配置するため、positionをTERRAIN_SCALE_FACTORに応じて動的に計算 */}
           <LakeModel
-            position={[744.9999975831743, -177.19751206980436, -744.9999975831743]}
+            position={calculateTerrainPosition()}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
             visible={true}
             showTerrain={true} // 地形を表示
             showWater={true} // 水面を表示
-            terrainScale={[10, 10, 10]} // 地形のスケール
-            waterScale={[10, 10, 10]} // 水面のスケール
+            terrainScale={[
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+            ]} // 地形のスケール（TERRAIN_SCALE_FACTORで調整可能）
+            waterScale={[
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
+            ]} // 水面のスケール（地形と同じスケール）
             waterPosition={[0, 0, 0]} // 水面の位置
           />
 

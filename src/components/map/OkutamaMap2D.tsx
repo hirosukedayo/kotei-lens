@@ -11,6 +11,7 @@ import {
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
+import { TERRAIN_SCALE_FACTOR } from '../viewer/Scene3D';
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -210,9 +211,10 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
     if (!isDevMode) return null;
 
     // 地形のバウンディングボックスの半サイズ（x,z方向）
-    // terrainScale適用後の実際のサイズ: 1490.0001525878906
-    // ログから取得した実際の値を使用
-    const halfSize = 1490.0001525878906 / 2;
+    // terrainScale適用後の実際のサイズ: 1490.0001525878906（TERRAIN_SCALE_FACTOR=1.0の場合）
+    // ログから取得した実際の値を使用し、TERRAIN_SCALE_FACTORでスケール調整
+    const baseHalfSize = 1490.0001525878906 / 2;
+    const halfSize = baseHalfSize * TERRAIN_SCALE_FACTOR;
 
     // 現在の3D空間では地形中心が原点にあるため、
     // バウンディングボックスの四隅は原点からの相対座標で表現できる。
