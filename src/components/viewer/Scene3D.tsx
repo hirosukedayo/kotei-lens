@@ -43,8 +43,8 @@ const TERRAIN_ORIGINAL_CENTER = {
 // 地形と水面の中心位置をずらしたい場合は、この値を変更してください
 // 例: [10, 0, 5] = X方向（東）に10m、Z方向（南）に5mずらす
 // 現在は[0, 0, 0]で、小河内神社（SCENE_CENTER）が地形の中心に対応しています
-export const TERRAIN_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
-export const WATER_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
+export const TERRAIN_CENTER_OFFSET: [number, number, number] = [10000, 0, 0];
+export const WATER_CENTER_OFFSET: [number, number, number] = TERRAIN_CENTER_OFFSET
 
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
 // position = -terrainCenterScaled + offset = -(terrainOriginalCenter * scale) + offset
