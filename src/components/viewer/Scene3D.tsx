@@ -149,7 +149,7 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
       );
       console.log(
         'カメラと地形の中心の距離:',
-        Math.sqrt(Math.pow(worldPos.x - 0, 2) + Math.pow(worldPos.z - 0, 2)).toFixed(2),
+        Math.sqrt((worldPos.x - 0) ** 2 + (worldPos.z - 0) ** 2).toFixed(2),
         'm'
       );
       console.log('=====================================');

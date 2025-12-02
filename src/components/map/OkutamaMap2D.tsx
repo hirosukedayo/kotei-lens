@@ -343,7 +343,7 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
               eventHandlers={{
                 click: () => handlePinClick(pin),
               }}
-            ></Marker>
+            />
           );
         })}
       </MapContainer>
