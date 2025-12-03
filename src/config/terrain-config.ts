@@ -30,4 +30,3 @@ export const TERRAIN_ORIGINAL_CENTER = {
 // 例: 10 = 地形の高さ+10m、5 = 地形の高さ+5m
 export const CAMERA_HEIGHT_OFFSET = 10; // カメラの地表からの高さ
 export const PIN_HEIGHT_OFFSET = 10; // ピンの地表からの高さ
-

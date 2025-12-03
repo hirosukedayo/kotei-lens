@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaMapMarkerAlt, FaExternalLinkAlt, FaLayerGroup } from 'react-icons/fa';
+import { FaMapSigns, FaLayerGroup } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
@@ -15,11 +15,10 @@ import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../../config/terrai
 import { Toast } from '../ui/Toast';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
-import { Drawer } from 'vaul';
-const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
+import PinListDrawer from '../ui/PinListDrawer';
 
 export interface Initial3DPosition {
   latitude: number;
@@ -29,15 +28,25 @@ export interface Initial3DPosition {
 
 type OkutamaMap2DProps = {
   onRequest3D?: (initialPosition: Initial3DPosition) => void;
+  selectedPin?: PinData | null;
+  onSelectPin?: (pin: PinData) => void;
+  onDeselectPin?: () => void;
 };
 
-export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
+export default function OkutamaMap2D({
+  onRequest3D,
+  selectedPin: propSelectedPin,
+  onSelectPin: propOnSelectPin,
+  onDeselectPin: propOnDeselectPin,
+}: OkutamaMap2DProps) {
   // ローカル歴史タイルの不透明度（UIで調整可能）
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
-  const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
-  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
-  const sheetContentRef = useRef<HTMLDivElement | null>(null);
+  // propsから選択ピンを取得、なければローカルstateを使用
+  const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
+  const selectedPin = propSelectedPin ?? localSelectedPin;
+  const setSelectedPin = propOnSelectPin ?? setLocalSelectedPin;
+  const onDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
   const mapRef = useRef<LeafletMap | null>(null);
 
   // GPS位置取得とセンサー管理
@@ -95,23 +104,15 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   };
   // 一覧を開く
   const openPinList = () => {
-    setSheetMode('pin-list');
     setSheetOpen(true);
   };
   // 一覧から選択 → 詳細 + 地図パン
-  const handleSelectPinFromList = (pin: PinData) => {
+  const handleSelectPin = (pin: PinData) => {
     setSelectedPin(pin);
-    setSheetMode('pin-detail');
-    setSheetOpen(true);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
     if (Array.isArray(coords) && coords.length === 2) {
       mapRef.current?.flyTo(coords as any, 14, { duration: 0.6 });
     }
-  };
-  // 詳細→一覧に戻る
-  const backToList = () => {
-    setSheetMode('pin-list');
-    setSelectedPin(null);
   };
   // 3D切替: クリック時に方位センサーの許可を要求し、許可時のみ遷移
   const handleRequest3DWithPermission = async () => {
@@ -243,13 +244,11 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
   const handlePinClick = (pin: PinData) => {
     if (selectedPin?.id === pin.id) {
       // 同じピンを再度クリックした場合は選択解除
-      setSelectedPin(null);
+      onDeselectPin();
       setSheetOpen(false);
-      setSheetMode('pin-list');
     } else {
       // 新しいピンを選択
-      setSelectedPin(pin);
-      setSheetMode('pin-detail');
+      handleSelectPin(pin);
       setSheetOpen(true);
     }
   };
@@ -513,294 +512,19 @@ export default function OkutamaMap2D({ onRequest3D }: OkutamaMap2DProps) {
         </button>
       </div>
 
-      {/* Vaul Bottom Sheet: ピン情報表示 */}
-      <VDrawer.Root
+      {/* ピンリストDrawer */}
+      <PinListDrawer
         open={sheetOpen}
-        onOpenChange={(open: boolean) => {
+        onOpenChange={(open) => {
           setSheetOpen(open);
           if (!open) {
-            setSelectedPin(null);
-            setSheetMode('pin-list');
             mapRef.current?.closePopup();
           }
         }}
-      >
-        <VDrawer.Portal>
-          <VDrawer.Overlay style={{ background: 'rgba(0,0,0,.15)' }} />
-          <VDrawer.Content
-            style={{
-              position: 'fixed',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 11000,
-              background: '#ffffff',
-              borderTopLeftRadius: 14,
-              borderTopRightRadius: 14,
-              boxShadow: '0 -8px 24px rgba(0,0,0,.2)',
-            }}
-            onOpenAutoFocus={(e: Event) => e.preventDefault()}
-            onCloseAutoFocus={(e: Event) => e.preventDefault()}
-          >
-            <div style={{ padding: 12, display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#e5e7eb' }} />
-            </div>
-            {/* 固定ヘッダー */}
-            <div
-              style={{
-                position: 'sticky',
-                top: 0,
-                background: '#ffffff',
-                borderBottom: '1px solid #e5e7eb',
-                padding: '0 16px 16px 16px',
-                zIndex: 1,
-              }}
-            >
-              {sheetMode === 'pin-detail' && selectedPin ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button
-                    type="button"
-                    onClick={backToList}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '4px',
-                      border: 'none',
-                      background: 'transparent',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      color: '#6b7280',
-                      fontSize: '18px',
-                      fontWeight: '400',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f9fafb';
-                      e.currentTarget.style.color = '#4b5563';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#6b7280';
-                    }}
-                  >
-                    ←
-                  </button>
-                  <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <h3
-                      style={{
-                        margin: '0 0 4px 0',
-                        fontSize: '20px',
-                        fontWeight: 800,
-                        color: '#111827',
-                        lineHeight: '1.35',
-                      }}
-                    >
-                      {selectedPin.title}
-                    </h3>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                      {pinTypeStyles[selectedPin.type].label}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <FaMapSigns size={24} color="#3c4043" />
-                  <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>
-                    一覧
-                  </h3>
-                </div>
-              )}
-            </div>
-
-            {/* スクロール可能なコンテンツ */}
-            <div
-              ref={sheetContentRef}
-              style={{
-                maxHeight: '50vh',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                padding: '0 16px 16px 16px',
-                WebkitOverflowScrolling: 'touch',
-                overscrollBehavior: 'contain',
-                touchAction: 'pan-y',
-              }}
-            >
-              {sheetMode === 'pin-detail' && selectedPin ? (
-                <div>
-                  {selectedPin.image && (
-                    <div style={{ marginBottom: '12px' }}>
-                      <img
-                        src={selectedPin.image}
-                        alt={selectedPin.title}
-                        style={{
-                          width: '100%',
-                          height: '120px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <p
-                    style={{
-                      margin: '0 0 8px 0',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      color: '#374151',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    {selectedPin.description}
-                  </p>
-
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
-                    座標: {selectedPin.coordinates[0].toFixed(6)},{' '}
-                    {selectedPin.coordinates[1].toFixed(6)}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    {selectedPin.mapUrl && (
-                      <button
-                        type="button"
-                        onClick={() => window.open(selectedPin.mapUrl, '_blank')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          backgroundColor: 'transparent',
-                          color: '#374151',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f9fafb';
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                        }}
-                      >
-                        <FaMapMarkerAlt size={16} />
-                        現在の場所
-                      </button>
-                    )}
-
-                    {selectedPin.externalUrl && (
-                      <button
-                        type="button"
-                        onClick={() => window.open(selectedPin.externalUrl, '_blank')}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          backgroundColor: 'transparent',
-                          color: '#374151',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f9fafb';
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.borderColor = '#e5e7eb';
-                        }}
-                      >
-                        <FaExternalLinkAlt size={16} />
-                        詳細情報
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-              {sheetMode === 'pin-list' && (
-                <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      margin: '0 0 8px 0',
-                    }}
-                  >
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>{okutamaPins.length} 件</div>
-                  </div>
-                  <div>
-                    {okutamaPins.map((pin) => {
-                      const style = pinTypeStyles[pin.type];
-                      return (
-                        <button
-                          key={pin.id}
-                          type="button"
-                          onClick={() => handleSelectPinFromList(pin)}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            background: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: 8,
-                            padding: '10px 12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            marginBottom: 8,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <div style={{ fontSize: 20 }}>{style.icon}</div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontWeight: 700,
-                                fontSize: 14,
-                                color: '#111827',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              {pin.title}
-                            </div>
-                            <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
-                          </div>
-                          <div style={{ color: '#9ca3af' }}>›</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </VDrawer.Content>
-        </VDrawer.Portal>
-      </VDrawer.Root>
+        selectedPin={selectedPin}
+        onSelectPin={handleSelectPin}
+        onDeselectPin={onDeselectPin}
+      />
     </div>
   );
 }
