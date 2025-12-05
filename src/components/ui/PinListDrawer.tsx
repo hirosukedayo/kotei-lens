@@ -49,7 +49,7 @@ export default function PinListDrawer({
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
     if (!isOpen) {
-      onDeselectPin();
+      // ドロワーを閉じても選択状態は保持する（onDeselectPinを呼ばない）
       setSheetMode('pin-list');
     }
   };
