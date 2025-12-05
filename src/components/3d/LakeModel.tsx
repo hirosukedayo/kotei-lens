@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -45,6 +45,16 @@ export default function LakeModel({
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   const basePath = getBasePath();
+
+  // terrainScaleの参照を安定化（配列の参照が変わるのを防ぐ）
+  // 配列の各要素を個別に取得して依存配列に含める
+  const terrainScaleX = terrainScale[0];
+  const terrainScaleY = terrainScale[1];
+  const terrainScaleZ = terrainScale[2];
+  const stableTerrainScale = useMemo(
+    () => [terrainScaleX, terrainScaleY, terrainScaleZ] as [number, number, number],
+    [terrainScaleX, terrainScaleY, terrainScaleZ]
+  );
 
   // レンダリング回数を追跡
   renderCountRef.current += 1;
@@ -434,27 +444,47 @@ export default function LakeModel({
     );
   }
 
+  // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
+  const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrainRef.current;
+  console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
+    shouldRenderTerrain,
+    showTerrain,
+    isLoaded,
+    hasClonedTerrain: !!clonedTerrainRef.current,
+    terrainObject: clonedTerrainRef.current
+      ? {
+          name: clonedTerrainRef.current.name,
+          type: clonedTerrainRef.current.type,
+          uuid: clonedTerrainRef.current.uuid,
+        }
+      : null,
+    renderCount: renderCountRef.current,
+  });
+
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
-      {(() => {
-        const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrainRef.current;
-        console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
-          shouldRenderTerrain,
-          showTerrain,
-          isLoaded,
-          hasClonedTerrain: !!clonedTerrainRef.current,
-          terrainObject: clonedTerrainRef.current
-            ? {
-                name: clonedTerrainRef.current.name,
-                type: clonedTerrainRef.current.type,
-                uuid: clonedTerrainRef.current.uuid,
-              }
-            : null,
-          renderCount: renderCountRef.current,
-        });
-
-        if (!shouldRenderTerrain || !clonedTerrainRef.current) {
+      {shouldRenderTerrain && clonedTerrainRef.current && (
+        <primitive
+          ref={(ref: THREE.Group | null) => {
+            console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
+              previousRef: !!terrainRef.current,
+              newRef: !!ref,
+              timestamp: Date.now(),
+            });
+            if (ref) {
+              (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
+              console.log(`[LakeModel] ✅ terrainRefが設定されました #${renderCountRef.current}`);
+            } else {
+              console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
+            }
+          }}
+          object={clonedTerrainRef.current}
+          scale={stableTerrainScale}
+        />
+      )}
+      {!shouldRenderTerrain &&
+        (() => {
           console.log(`[LakeModel] ❌ 地形はレンダリングされません #${renderCountRef.current}`, {
             shouldRenderTerrain,
             hasClonedTerrain: !!clonedTerrainRef.current,
@@ -469,40 +499,7 @@ export default function LakeModel({
                   : 'unknown',
           });
           return null;
-        }
-
-        const terrainObject = clonedTerrainRef.current;
-        console.log(`[LakeModel] ✅ 地形をレンダリングします #${renderCountRef.current}`, {
-          terrainRefCurrent: !!terrainRef.current,
-          scale: terrainScale,
-          terrainObject: {
-            name: terrainObject.name,
-            type: terrainObject.type,
-            uuid: terrainObject.uuid,
-          },
-        });
-
-        return (
-          <primitive
-            key="terrain"
-            ref={(ref: THREE.Group | null) => {
-              console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
-                previousRef: !!terrainRef.current,
-                newRef: !!ref,
-                timestamp: Date.now(),
-              });
-              if (ref) {
-                (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
-                console.log(`[LakeModel] ✅ terrainRefが設定されました #${renderCountRef.current}`);
-              } else {
-                console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
-              }
-            }}
-            object={terrainObject}
-            scale={terrainScale}
-          />
-        );
-      })()}
+        })()}
 
       {/* 水面の表示 */}
       {showWater &&
