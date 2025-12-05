@@ -9,13 +9,14 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import { gpsToWorldCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
+import { gpsToWorldCoordinate, SCENE_CENTER, calculateDistance } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
 import { FaMapSigns } from 'react-icons/fa';
+import { useSensors } from '../../hooks/useSensors';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -63,6 +64,25 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
   });
   const [isMobile, setIsMobile] = useState(false);
   const deviceOrientationControlsRef = React.useRef<any>(null);
+  
+  // GPS位置を取得
+  const { sensorData, startSensors, stopSensors } = useSensors();
+  const userGPSPosition = sensorData.gps;
+  
+  // 画面外の矢印の状態
+  const [offScreenArrow, setOffScreenArrow] = useState<{
+    direction: 'left' | 'right' | 'top' | 'bottom';
+    x: number;
+    y: number;
+  } | null>(null);
+
+  useEffect(() => {
+    // センサーを開始
+    startSensors();
+    return () => {
+      stopSensors();
+    };
+  }, [startSensors, stopSensors]);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -285,7 +305,13 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
-          {isDevMode && <PinMarkers3D selectedPin={selectedPin} />}
+          {isDevMode && (
+            <PinMarkers3D 
+              selectedPin={selectedPin} 
+              userGPSPosition={userGPSPosition}
+              onOffScreenArrowChange={setOffScreenArrow}
+            />
+          )}
 
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
@@ -330,6 +356,11 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
         onSelectPin={setLocalSelectedPin}
         onDeselectPin={() => setLocalSelectedPin(null)}
       />
+      
+      {/* 画面外の矢印（選択ピンが画面外にある場合） */}
+      {offScreenArrow && (
+        <OffScreenArrow direction={offScreenArrow.direction} x={offScreenArrow.x} y={offScreenArrow.y} />
+      )}
 
       {/* デバイス向き許可ボタン（モバイルのみ） */}
       {isMobile && !permissionGranted && (
@@ -734,36 +765,223 @@ function PCKeyboardControls() {
 }
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
-function PinMarkers3D({ selectedPin }: { selectedPin?: PinData | null }) {
-  const { scene } = useThree();
+function PinMarkers3D({ 
+  selectedPin, 
+  userGPSPosition,
+  onOffScreenArrowChange,
+}: { 
+  selectedPin?: PinData | null;
+  userGPSPosition?: { latitude: number; longitude: number; altitude: number | null } | null;
+  onOffScreenArrowChange?: (arrow: {
+    direction: 'left' | 'right' | 'top' | 'bottom';
+    x: number;
+    y: number;
+  } | null) => void;
+}) {
+  const { scene, camera, size } = useThree();
   const pinBasePositions = useMemo(() => {
     return okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
       const worldPos = gpsToWorldCoordinate({ latitude, longitude, altitude: 0 }, SCENE_CENTER);
+      
+      // GPS位置から距離を計算（メートル）
+      let distanceInMeters: number | null = null;
+      if (userGPSPosition) {
+        distanceInMeters = calculateDistance(
+          { latitude: userGPSPosition.latitude, longitude: userGPSPosition.longitude },
+          { latitude, longitude }
+        );
+      }
+      
       return {
         id: pin.id,
         title: pin.title,
         basePosition: [worldPos.x, worldPos.y, worldPos.z] as [number, number, number],
         gps: { latitude, longitude },
         worldPos,
+        distanceInMeters,
       };
     });
-  }, []);
+  }, [userGPSPosition]);
+
+  // 画面中心に一番近いピンを計算（一定距離内のもののみ）
+  const MAX_DISTANCE_FOR_LABEL = 500; // 500m以内
+  const nearestPin = useMemo(() => {
+    if (!userGPSPosition) return null;
+    
+    const visiblePins = pinBasePositions.filter((pin) => {
+      if (pin.distanceInMeters === null) return false;
+      return pin.distanceInMeters <= MAX_DISTANCE_FOR_LABEL;
+    });
+    
+    if (visiblePins.length === 0) return null;
+    
+    // カメラの位置と方向を取得
+    const cameraPosition = new THREE.Vector3();
+    camera.getWorldPosition(cameraPosition);
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    
+    // 画面中心に一番近いピンを計算
+    let nearestPin = visiblePins[0];
+    let minScreenDistance = Number.POSITIVE_INFINITY;
+    
+    for (const pin of visiblePins) {
+      const pinWorldPos = new THREE.Vector3(...pin.basePosition);
+      const toPin = pinWorldPos.clone().sub(cameraPosition);
+      
+      // カメラからピンへの方向ベクトル
+      const direction = toPin.normalize();
+      
+      // カメラの視線方向との角度を計算
+      const dot = cameraDirection.dot(direction);
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      
+      // 画面中心からの距離（角度ベース）
+      const screenDistance = angle;
+      
+      if (screenDistance < minScreenDistance) {
+        minScreenDistance = screenDistance;
+        nearestPin = pin;
+      }
+    }
+    
+    return nearestPin;
+  }, [pinBasePositions, camera, userGPSPosition]);
+
+  // 選択ピンの高さを追跡
+  const selectedPinHeightRef = React.useRef<number | null>(null);
+  
+  // 選択ピンが画面外にあるかどうかを判定（useFrameで更新）
+  React.useEffect(() => {
+    if (!selectedPin || !camera) return;
+    
+    const selectedPinData = pinBasePositions.find((p) => p.id === selectedPin.id);
+    if (!selectedPinData) return;
+    
+    const checkOffScreen = () => {
+      // ピンの3D位置を取得
+      // 注意: pinHeightはPinMarkerコンポーネント内で計算されるため、
+      // ここではbasePositionのY座標を使用（地形の高さは概算）
+      const pinWorldPos = new THREE.Vector3(...selectedPinData.basePosition);
+      const screenPos = pinWorldPos.clone().project(camera);
+      
+      // スクリーン座標を正規化座標（-1 to 1）からピクセル座標に変換
+      const x = (screenPos.x * 0.5 + 0.5) * size.width;
+      const y = (screenPos.y * -0.5 + 0.5) * size.height;
+      
+      // 画面外かどうかを判定（マージンを追加）
+      const margin = 50;
+      const isOutside = 
+        x < -margin || x > size.width + margin ||
+        y < -margin || y > size.height + margin ||
+        screenPos.z > 1; // カメラの後ろにある場合
+      
+      if (isOutside) {
+        // 画面の端に矢印を配置
+        let arrowX = x;
+        let arrowY = y;
+        let direction: 'left' | 'right' | 'top' | 'bottom' = 'right';
+        
+        if (x < 0) {
+          arrowX = margin;
+          direction = 'left';
+        } else if (x > size.width) {
+          arrowX = size.width - margin;
+          direction = 'right';
+        }
+        
+        if (y < 0) {
+          arrowY = margin;
+          direction = 'top';
+        } else if (y > size.height) {
+          arrowY = size.height - margin;
+          direction = 'bottom';
+        }
+        
+        // コーナーの場合は、より近い辺に配置
+        if (x < 0 && y < 0) {
+          direction = Math.abs(x) < Math.abs(y) ? 'left' : 'top';
+          arrowX = x < 0 ? margin : arrowX;
+          arrowY = y < 0 ? margin : arrowY;
+        } else if (x > size.width && y < 0) {
+          direction = Math.abs(x - size.width) < Math.abs(y) ? 'right' : 'top';
+          arrowX = x > size.width ? size.width - margin : arrowX;
+          arrowY = y < 0 ? margin : arrowY;
+        } else if (x < 0 && y > size.height) {
+          direction = Math.abs(x) < Math.abs(y - size.height) ? 'left' : 'bottom';
+          arrowX = x < 0 ? margin : arrowX;
+          arrowY = y > size.height ? size.height - margin : arrowY;
+        } else if (x > size.width && y > size.height) {
+          direction = Math.abs(x - size.width) < Math.abs(y - size.height) ? 'right' : 'bottom';
+          arrowX = x > size.width ? size.width - margin : arrowX;
+          arrowY = y > size.height ? size.height - margin : arrowY;
+        }
+        
+        onOffScreenArrowChange?.({ direction, x: arrowX, y: arrowY });
+      } else {
+        onOffScreenArrowChange?.(null);
+      }
+    };
+    
+    // フレームごとにチェック
+    const interval = setInterval(checkOffScreen, 100);
+    return () => clearInterval(interval);
+  }, [selectedPin, pinBasePositions, camera, size, onOffScreenArrowChange]);
 
   // 各ピンの地形高さを計算して配置
   return (
     <>
-      {pinBasePositions.map((pin) => (
-        <PinMarker
-          key={pin.id}
-          id={pin.id}
-          title={pin.title}
-          basePosition={pin.basePosition}
-          scene={scene}
-          isSelected={selectedPin?.id === pin.id}
-        />
-      ))}
+      {pinBasePositions.map((pin) => {
+        const isNearest = nearestPin?.id === pin.id;
+        const shouldShowLabel = isNearest || selectedPin?.id === pin.id;
+        
+        return (
+          <PinMarker
+            key={pin.id}
+            id={pin.id}
+            title={pin.title}
+            basePosition={pin.basePosition}
+            scene={scene}
+            isSelected={selectedPin?.id === pin.id}
+            distanceInMeters={pin.distanceInMeters}
+            shouldShowLabel={shouldShowLabel}
+            camera={camera}
+            onHeightCalculated={selectedPin?.id === pin.id ? (height) => {
+              selectedPinHeightRef.current = height;
+            } : undefined}
+          />
+        );
+      })}
     </>
+  );
+}
+
+// 画面外の矢印コンポーネント（2Dオーバーレイ）
+function OffScreenArrow({ direction, x, y }: { direction: 'left' | 'right' | 'top' | 'bottom'; x: number; y: number }) {
+  const arrowSymbols = {
+    left: '←',
+    right: '→',
+    top: '↑',
+    bottom: '↓',
+  };
+  
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: `${x}px`,
+        top: `${y}px`,
+        transform: 'translate(-50%, -50%)',
+        fontSize: '48px',
+        color: '#dc2626',
+        pointerEvents: 'none',
+        zIndex: 10000,
+        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+      }}
+    >
+      {arrowSymbols[direction]}
+    </div>
   );
 }
 
@@ -774,12 +992,21 @@ function PinMarker({
   basePosition,
   scene,
   isSelected = false,
+  distanceInMeters = null,
+  shouldShowLabel = true,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  camera, // 画面外の矢印表示で使用（PinMarkers3Dで処理）
+  onHeightCalculated,
 }: {
   id: string;
   title: string;
   basePosition: [number, number, number];
   scene: THREE.Scene;
   isSelected?: boolean;
+  distanceInMeters?: number | null;
+  shouldShowLabel?: boolean;
+  camera: THREE.Camera; // 画面外の矢印表示で使用（PinMarkers3Dで処理）
+  onHeightCalculated?: (height: number) => void;
 }) {
   const [pinHeight, setPinHeight] = React.useState<number | null>(null);
   const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
@@ -851,13 +1078,18 @@ function PinMarker({
         const terrainHeight = firstIntersect.point.y;
         const finalHeight = terrainHeight + PIN_HEIGHT_OFFSET;
         setPinHeight(finalHeight);
+        onHeightCalculated?.(finalHeight);
       } else if (frameCount.current >= 100) {
         // タイムアウト: デフォルトの高さを使用
-        setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
+        const defaultHeight = basePosition[1] + PIN_HEIGHT_OFFSET;
+        setPinHeight(defaultHeight);
+        onHeightCalculated?.(defaultHeight);
       }
     } else if (frameCount.current >= 100) {
       // 地形が見つからない場合: デフォルトの高さを使用
-      setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
+      const defaultHeight = basePosition[1] + PIN_HEIGHT_OFFSET;
+      setPinHeight(defaultHeight);
+      onHeightCalculated?.(defaultHeight);
     }
   });
 
@@ -878,19 +1110,27 @@ function PinMarker({
         />
       </mesh>
       {/* ラベル（テキスト） - 常にカメラを向く */}
-      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-        <Text
-          position={[0, 100, 0]}
-          fontSize={40}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-          outlineWidth={2}
-          outlineColor="black"
-        >
-          {title}
-        </Text>
-      </Billboard>
+      {shouldShowLabel && (
+        <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+          <Text
+            position={[0, 100, 0]}
+            fontSize={40}
+            color="white"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={2}
+            outlineColor="black"
+          >
+            {title}
+            {distanceInMeters !== null && (
+              <>
+                {'\n'}
+                {(distanceInMeters / 1000).toFixed(2)}km
+              </>
+            )}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 }
