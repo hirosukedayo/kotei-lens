@@ -9,11 +9,7 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import {
-  gpsToWorldCoordinate,
-  worldToGpsCoordinate,
-  SCENE_CENTER,
-} from '../../utils/coordinate-converter';
+import { gpsToWorldCoordinate, SCENE_CENTER } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
@@ -234,8 +230,6 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
         <Suspense fallback={null}>
           {/* カメラの初期位置を明示的に設定 */}
           <CameraPositionSetter initialCameraConfig={initialCameraConfig} />
-          {/* devモード時: カメラ位置を監視 */}
-          {isDevMode && <CameraPositionTracker />}
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ） */}
@@ -374,9 +368,6 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
           </button>
         </div>
       )}
-
-      {/* devモード時: 座標情報を表示 */}
-      {isDevMode && <CoordinateDebugInfo initialPosition={initialPosition} />}
     </div>
   );
 }
@@ -609,117 +600,6 @@ function CameraPositionSetter({
   });
 
   return null;
-}
-
-// カメラ位置を監視してstateに保存するコンポーネント
-function CameraPositionTracker() {
-  const { camera } = useThree();
-  const loggedRef = React.useRef(false);
-
-  useFrame(() => {
-    const pos = {
-      x: camera.position.x,
-      y: camera.position.y,
-      z: camera.position.z,
-    };
-
-    // グローバル変数に保存
-    (window as any).__cameraPosition3D = pos;
-
-    // 初回のみログに出力
-    if (!loggedRef.current) {
-      console.log('=== カメラの初期位置 ===');
-      console.log('3D座標:', pos);
-      console.log('期待値（小河内神社、高さ105.73m）: { x: 0, y: 105.73, z: 0 }');
-      console.log('差:', {
-        x: pos.x,
-        y: pos.y - 105.73,
-        z: pos.z,
-      });
-      const distance = Math.sqrt(pos.x ** 2 + pos.y ** 2 + pos.z ** 2);
-      console.log('原点からの距離:', distance.toFixed(2), 'm');
-      console.log('=====================================');
-      loggedRef.current = true;
-    }
-  });
-
-  return null;
-}
-
-// devモード時: 座標情報を表示するコンポーネント
-function CoordinateDebugInfo({
-  initialPosition,
-}: {
-  initialPosition?: Initial3DPosition | null;
-}) {
-  const [cameraPos3D, setCameraPos3D] = useState({ x: 0, y: 0, z: 0 });
-  const [cameraPosGPS, setCameraPosGPS] = useState({ latitude: 0, longitude: 0, altitude: 0 });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const pos = (window as any).__cameraPosition3D;
-      if (pos) {
-        setCameraPos3D(pos);
-        // 3D座標をGPS座標に変換
-        const gps = worldToGpsCoordinate({ x: pos.x, y: pos.y, z: pos.z });
-        setCameraPosGPS({
-          latitude: gps.latitude,
-          longitude: gps.longitude,
-          altitude: gps.altitude ?? 0,
-        });
-      }
-    }, 100); // 100msごとに更新
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '16px',
-        background: 'rgba(0, 0, 0, 0.8)',
-        color: '#ffffff',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        zIndex: 10000,
-        maxWidth: '90vw',
-        lineHeight: 1.6,
-      }}
-    >
-      <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#10b981' }}>
-        DEV MODE - 座標情報
-      </div>
-
-      {initialPosition && (
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>2Dマップの中心位置:</div>
-          <div>緯度: {initialPosition.latitude.toFixed(6)}</div>
-          <div>経度: {initialPosition.longitude.toFixed(6)}</div>
-          {initialPosition.heading !== undefined && (
-            <div>方位角: {initialPosition.heading.toFixed(1)}°</div>
-          )}
-        </div>
-      )}
-
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3Dカメラ位置:</div>
-        <div>X: {cameraPos3D.x.toFixed(2)}m</div>
-        <div>Y: {cameraPos3D.y.toFixed(2)}m</div>
-        <div>Z: {cameraPos3D.z.toFixed(2)}m</div>
-      </div>
-
-      <div>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>3D位置をGPS座標に変換:</div>
-        <div>緯度: {cameraPosGPS.latitude.toFixed(6)}</div>
-        <div>経度: {cameraPosGPS.longitude.toFixed(6)}</div>
-        <div>標高: {cameraPosGPS.altitude.toFixed(2)}m</div>
-      </div>
-    </div>
-  );
 }
 
 // FPSスタイルカメラコントロール
