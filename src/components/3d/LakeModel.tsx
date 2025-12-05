@@ -156,6 +156,8 @@ export default function LakeModel({
     console.log('[LakeModel] useEffect: 地形クローン処理開始', {
       hasGltf: !!gltf,
       hasClonedTerrain: !!clonedTerrainRef.current,
+      gltfSceneChildren: gltf?.scene?.children?.length || 0,
+      renderCount: renderCountRef.current,
     });
 
     if (!gltf) {
@@ -164,11 +166,20 @@ export default function LakeModel({
     }
 
     if (clonedTerrainRef.current) {
-      console.log('[LakeModel] 既にクローン済みのためスキップ');
+      console.log('[LakeModel] 既にクローン済みのためスキップ', {
+        existingClone: {
+          name: clonedTerrainRef.current.name,
+          type: clonedTerrainRef.current.type,
+          uuid: clonedTerrainRef.current.uuid,
+        },
+      });
       return;
     }
 
-    console.log('[LakeModel] 地形オブジェクトを検索中...');
+    console.log('[LakeModel] 地形オブジェクトを検索中...', {
+      sceneChildren: gltf.scene.children.length,
+      sceneChildrenNames: gltf.scene.children.map((c) => c.name),
+    });
     let terrain = gltf.scene.getObjectByName('Displacement.001');
 
     // 名前で見つからない場合は、メッシュを直接検索
@@ -185,20 +196,27 @@ export default function LakeModel({
     // それでも見つからない場合は、シーンの最初のオブジェクトを使用
     if (!terrain && gltf.scene.children.length > 0) {
       terrain = gltf.scene.children[0];
-      console.log('[LakeModel] 地形オブジェクト（フォールバック）:', terrain);
+      console.log('[LakeModel] 地形オブジェクト（フォールバック）:', {
+        terrain,
+        name: terrain.name,
+        type: terrain.type,
+      });
     }
 
     if (terrain) {
       // 地形オブジェクトをクローンして独立したオブジェクトとして保持
       clonedTerrainRef.current = terrain.clone();
-      console.log('[LakeModel] 地形オブジェクトをクローンしました:', {
+      console.log('[LakeModel] ✅ 地形オブジェクトをクローンしました:', {
         clonedObject: clonedTerrainRef.current,
         name: clonedTerrainRef.current.name,
         type: clonedTerrainRef.current.type,
         uuid: clonedTerrainRef.current.uuid,
+        renderCount: renderCountRef.current,
       });
     } else {
-      console.warn('[LakeModel] 地形オブジェクトが見つかりませんでした');
+      console.warn('[LakeModel] ❌ 地形オブジェクトが見つかりませんでした', {
+        sceneChildren: gltf.scene.children.length,
+      });
     }
   }, [gltf]); // gltfが変わったときだけ実行
 
@@ -421,7 +439,7 @@ export default function LakeModel({
       {/* 地形の表示 */}
       {(() => {
         const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrainRef.current;
-        console.log('[LakeModel] 地形レンダリング判定', {
+        console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
           shouldRenderTerrain,
           showTerrain,
           isLoaded,
@@ -433,18 +451,28 @@ export default function LakeModel({
                 uuid: clonedTerrainRef.current.uuid,
               }
             : null,
+          renderCount: renderCountRef.current,
         });
 
         if (!shouldRenderTerrain || !clonedTerrainRef.current) {
-          console.log('[LakeModel] 地形はレンダリングされません', {
+          console.log(`[LakeModel] ❌ 地形はレンダリングされません #${renderCountRef.current}`, {
             shouldRenderTerrain,
             hasClonedTerrain: !!clonedTerrainRef.current,
+            showTerrain,
+            isLoaded,
+            reason: !showTerrain
+              ? 'showTerrain=false'
+              : !isLoaded
+                ? 'isLoaded=false'
+                : !clonedTerrainRef.current
+                  ? 'clonedTerrainRef.current=null'
+                  : 'unknown',
           });
           return null;
         }
 
         const terrainObject = clonedTerrainRef.current;
-        console.log('[LakeModel] 地形をレンダリングします', {
+        console.log(`[LakeModel] ✅ 地形をレンダリングします #${renderCountRef.current}`, {
           terrainRefCurrent: !!terrainRef.current,
           scale: terrainScale,
           terrainObject: {
@@ -458,12 +486,16 @@ export default function LakeModel({
           <primitive
             key="terrain"
             ref={(ref: THREE.Group | null) => {
-              console.log('[LakeModel] primitive refコールバック', {
+              console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
                 previousRef: !!terrainRef.current,
                 newRef: !!ref,
+                timestamp: Date.now(),
               });
               if (ref) {
                 (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
+                console.log(`[LakeModel] ✅ terrainRefが設定されました #${renderCountRef.current}`);
+              } else {
+                console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
               }
             }}
             object={terrainObject}
