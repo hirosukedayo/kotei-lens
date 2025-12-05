@@ -161,34 +161,35 @@ export default function LakeModel({
     }
 
     console.log('地形オブジェクト:', terrain);
-
-    // 地形のバウンディングボックスを出力（terrainScale適用前）
-    if (terrain) {
-      const terrainBox = new THREE.Box3().setFromObject(terrain);
-      const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-      const terrainSize = terrainBox.getSize(new THREE.Vector3());
-
-      console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
-      console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
-      console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
-      console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
-      console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
-
-      // terrainScale適用後の中心を計算
-      // スケールは原点を中心に適用されるため、中心点もスケール倍される
-      const scale = terrainScale[0]; // x, y, z は同じ値と仮定
-      const terrainCenterScaled = {
-        x: terrainCenter.x * scale,
-        y: terrainCenter.y * scale,
-        z: terrainCenter.z * scale,
-      };
-      console.log('terrainScale:', terrainScale);
-      console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
-      console.log('=====================================');
-    }
-
     return terrain;
-  }, [gltf, terrainScale]);
+  }, [gltf]); // terrainScaleは依存配列から外す（地形オブジェクト自体はgltfが変わったときだけ再計算）
+
+  // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
+  useEffect(() => {
+    if (!terrainObject) return;
+
+    const terrainBox = new THREE.Box3().setFromObject(terrainObject);
+    const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+    const terrainSize = terrainBox.getSize(new THREE.Vector3());
+
+    console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
+    console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
+    console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
+    console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
+    console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
+
+    // terrainScale適用後の中心を計算
+    // スケールは原点を中心に適用されるため、中心点もスケール倍される
+    const scale = terrainScale[0]; // x, y, z は同じ値と仮定
+    const terrainCenterScaled = {
+      x: terrainCenter.x * scale,
+      y: terrainCenter.y * scale,
+      z: terrainCenter.z * scale,
+    };
+    console.log('terrainScale:', terrainScale);
+    console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
+    console.log('=====================================');
+  }, [terrainObject, terrainScale]);
 
   const getWaterObject = () => {
     if (!gltf) return null;
@@ -380,46 +381,9 @@ export default function LakeModel({
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
-      {showTerrain &&
-        isLoaded &&
-        terrainObject &&
-        (() => {
-          const terrain = terrainObject;
-          if (terrain) {
-            // terrainScale適用後の実際のバウンディングボックスを取得
-            const terrainScaled = terrain.clone();
-            terrainScaled.scale.set(terrainScale[0], terrainScale[1], terrainScale[2]);
-            const terrainBoxScaled = new THREE.Box3().setFromObject(terrainScaled);
-            const terrainCenterScaled = terrainBoxScaled.getCenter(new THREE.Vector3());
-            const terrainSizeScaled = terrainBoxScaled.getSize(new THREE.Vector3());
-
-            console.log('=== 地形のバウンディングボックス（terrainScale適用後、実際の値） ===');
-            console.log('最小値:', {
-              x: terrainBoxScaled.min.x,
-              y: terrainBoxScaled.min.y,
-              z: terrainBoxScaled.min.z,
-            });
-            console.log('最大値:', {
-              x: terrainBoxScaled.max.x,
-              y: terrainBoxScaled.max.y,
-              z: terrainBoxScaled.max.z,
-            });
-            console.log('中心点:', {
-              x: terrainCenterScaled.x,
-              y: terrainCenterScaled.y,
-              z: terrainCenterScaled.z,
-            });
-            console.log('サイズ:', {
-              x: terrainSizeScaled.x,
-              y: terrainSizeScaled.y,
-              z: terrainSizeScaled.z,
-            });
-            console.log('=====================================');
-          }
-          return terrain ? (
-            <primitive ref={terrainRef} object={terrain} scale={terrainScale} />
-          ) : null;
-        })()}
+      {showTerrain && isLoaded && terrainObject && (
+        <primitive key="terrain" ref={terrainRef} object={terrainObject} scale={terrainScale} />
+      )}
 
       {/* 水面の表示 */}
       {showWater &&
