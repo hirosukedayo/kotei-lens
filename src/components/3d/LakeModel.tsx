@@ -379,19 +379,19 @@ export default function LakeModel({
       if (waterDrainStartTime) {
         const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
-        const animationDuration = 60.0; // アニメーション時間を60秒に延長（よりゆっくり）
+        const animationDuration = 120.0; // アニメーション時間を120秒に延長（よりゆっくり）
         
         // 1秒待機してからアニメーション開始
         if (elapsed >= delay) {
           const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
-          const drainProgress = Math.min(animationElapsed / animationDuration, 1.0); // 60秒で100%まで（完全に下がる）
+          const drainProgress = Math.min(animationElapsed / animationDuration, 1.0); // 120秒で100%まで（完全に下がる）
           
           // イージング関数（easeOutCubic）
           const easedProgress = 1 - (1 - drainProgress) ** 3;
           
-          // 地形の一番下が計算済みの場合は、そこから10m下を最終位置とする
+          // 地形の一番下が計算済みの場合は、そこから5m下を最終位置とする
           if (terrainBottomYRef.current !== null) {
-            const targetWaterY = terrainBottomYRef.current - 10; // 地形の一番下から10m下（ワールド座標）
+            const targetWaterY = terrainBottomYRef.current - 5; // 地形の一番下から5m下（ワールド座標）
             const initialWaterY = waterPosition[1] + initialWaterOffset; // 初期位置（waterPosition + 2m上）
             // 初期位置から最終位置まで補間
             waterY = initialWaterY + (targetWaterY - initialWaterY) * easedProgress - waterPosition[1];
@@ -468,7 +468,7 @@ export default function LakeModel({
           if (waterDrainStartTime) {
             const elapsed = (Date.now() - waterDrainStartTime) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
-            const animationDuration = 60.0; // アニメーション時間を60秒に延長
+            const animationDuration = 120.0; // アニメーション時間を120秒に延長
             
             if (elapsed >= delay) {
               const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
