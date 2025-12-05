@@ -371,12 +371,12 @@ export default function LakeModel({
       if (waterDrainStartTime) {
         const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
-        const animationDuration = 30.0; // アニメーション時間を30秒に延長（よりゆっくり）
+        const animationDuration = 60.0; // アニメーション時間を60秒に延長（よりゆっくり）
         
         // 1秒待機してからアニメーション開始
         if (elapsed >= delay) {
           const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
-          const drainProgress = Math.min(animationElapsed / animationDuration, 0.5); // 30秒で50%まで
+          const drainProgress = Math.min(animationElapsed / animationDuration, 0.5); // 60秒で50%まで
           
           // イージング関数（easeOutCubic）
           const easedProgress = 1 - (1 - drainProgress) ** 3;
@@ -409,7 +409,7 @@ export default function LakeModel({
           if (waterDrainStartTime) {
             const elapsed = (Date.now() - waterDrainStartTime) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
-            const animationDuration = 30.0; // アニメーション時間を30秒に延長
+            const animationDuration = 60.0; // アニメーション時間を60秒に延長
             
             if (elapsed >= delay) {
               const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
