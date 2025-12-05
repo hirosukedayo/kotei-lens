@@ -47,6 +47,7 @@ export default function LakeModel({
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isAnimationEnabled, setIsAnimationEnabled] = useState(false); // アニメーションを無効化（デフォルト）
 
   const basePath = getBasePath();
 
@@ -338,15 +339,35 @@ export default function LakeModel({
     return water;
   };
 
+  // スペースキーでアニメーションをリセット
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && isLoaded && showWater) {
+        event.preventDefault();
+        setIsAnimationEnabled(true);
+        setWaterDrainStartTime(Date.now());
+        console.log('[LakeModel] スペースキーでアニメーションをリセット');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isLoaded, showWater]);
+
   // アニメーション（水面の干上がり）
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-      // 干上がりアニメーション（50%で停止）
-      // 初期位置を上に設定して、そこから下がるようにする
-      const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
-      let waterY = initialWaterOffset; // 初期位置は上から
+      // アニメーションが無効化されている場合は、初期位置を維持
+      let waterY = 0;
       
-      if (waterDrainStartTime) {
+      if (isAnimationEnabled && waterDrainStartTime) {
+        // 干上がりアニメーション（50%で停止）
+        // 初期位置を上に設定して、そこから下がるようにする
+        const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
+        waterY = initialWaterOffset; // 初期位置は上から
+        
         const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
         const animationDuration = 30.0; // アニメーション時間を30秒に延長（よりゆっくり）
@@ -371,8 +392,8 @@ export default function LakeModel({
           waterY = initialWaterOffset;
         }
       } else {
-        // waterDrainStartTimeが設定される前は初期位置を維持
-        waterY = initialWaterOffset;
+        // アニメーションが無効化されている場合は、waterPositionの位置を維持
+        waterY = 0;
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
@@ -384,7 +405,7 @@ export default function LakeModel({
           const material = child.material as THREE.MeshStandardMaterial;
           
           // 干上がりに伴う透明度の変化（50%で停止）
-          if (waterDrainStartTime) {
+          if (isAnimationEnabled && waterDrainStartTime) {
             const elapsed = (Date.now() - waterDrainStartTime) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
             const animationDuration = 30.0; // アニメーション時間を30秒に延長
@@ -400,6 +421,10 @@ export default function LakeModel({
               material.opacity = 0.8;
               material.transparent = true;
             }
+          } else {
+            // アニメーションが無効化されている場合は、透明度を80%に設定
+            material.opacity = 0.8;
+            material.transparent = true;
           }
           
           // 反射強度を固定値に設定
