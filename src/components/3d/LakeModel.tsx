@@ -341,21 +341,29 @@ export default function LakeModel({
   // アニメーション（水面の干上がり）
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-            // 干上がりアニメーション（50%で停止）
-            let waterY = 0;
-            if (waterDrainStartTime) {
-              const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
-              const drainProgress = Math.min(elapsed / 15.0, 0.5); // 15秒で50%まで（30秒の50%）
+      // 干上がりアニメーション（50%で停止）
+      let waterY = 0;
+      if (waterDrainStartTime) {
+        const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
+        const delay = 1.0; // レンダリング後1秒待機
+        const animationDuration = 30.0; // アニメーション時間を30秒に延長（よりゆっくり）
         
-        // イージング関数（easeOutCubic）
-        const easedProgress = 1 - (1 - drainProgress) ** 3;
-        
-        // 水面を下に移動（地形スケールに応じて調整）
-        // ベースの降下量は-25（スケール1.0の場合）
-        // waterScale[1]（Y成分）を使用してスケールに応じて調整
-        const baseDrainHeight = -25;
-        const scaledDrainHeight = baseDrainHeight * waterScale[1];
-        waterY = scaledDrainHeight * easedProgress;
+        // 1秒待機してからアニメーション開始
+        if (elapsed >= delay) {
+          const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
+          const drainProgress = Math.min(animationElapsed / animationDuration, 0.5); // 30秒で50%まで
+          
+          // イージング関数（easeOutCubic）
+          const easedProgress = 1 - (1 - drainProgress) ** 3;
+          
+          // 水面を下に移動（地形スケールに応じて調整）
+          // ベースの降下量は-25（スケール1.0の場合）
+          // waterScale[1]（Y成分）を使用してスケールに応じて調整
+          const baseDrainHeight = -25;
+          const scaledDrainHeight = baseDrainHeight * waterScale[1];
+          waterY = scaledDrainHeight * easedProgress;
+        }
+        // elapsed < delay の場合は waterY = 0 のまま（待機中）
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
@@ -366,13 +374,23 @@ export default function LakeModel({
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
           
-                // 干上がりに伴う透明度の変化（50%で停止）
-                if (waterDrainStartTime) {
-                  const elapsed = (Date.now() - waterDrainStartTime) / 1000;
-                  const drainProgress = Math.min(elapsed / 15.0, 0.5);
-                  const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
-            material.opacity = opacity;
-            material.transparent = true;
+          // 干上がりに伴う透明度の変化（50%で停止）
+          if (waterDrainStartTime) {
+            const elapsed = (Date.now() - waterDrainStartTime) / 1000;
+            const delay = 1.0; // レンダリング後1秒待機
+            const animationDuration = 30.0; // アニメーション時間を30秒に延長
+            
+            if (elapsed >= delay) {
+              const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
+              const drainProgress = Math.min(animationElapsed / animationDuration, 0.5);
+              const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
+              material.opacity = opacity;
+              material.transparent = true;
+            } else {
+              // 待機中は透明度を80%に設定
+              material.opacity = 0.8;
+              material.transparent = true;
+            }
           }
           
           // 反射強度を固定値に設定
