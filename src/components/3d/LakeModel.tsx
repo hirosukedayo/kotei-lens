@@ -39,7 +39,8 @@ export default function LakeModel({
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
-  const clonedTerrainRef = useRef<THREE.Object3D | null>(null); // クローンした地形オブジェクトを保持
+  const clonedTerrainRef = useRef<THREE.Object3D | null>(null); // クローンした地形オブジェクトを保持（内部参照用）
+  const [clonedTerrain, setClonedTerrain] = useState<THREE.Object3D | null>(null); // Reactの状態として管理
   const renderCountRef = useRef(0); // レンダリング回数を追跡
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export default function LakeModel({
     visible,
     showTerrain,
     isLoaded,
-    hasClonedTerrain: !!clonedTerrainRef.current,
+    hasClonedTerrain: !!clonedTerrain,
     terrainRefCurrent: !!terrainRef.current,
     terrainScale,
   });
@@ -204,10 +205,11 @@ export default function LakeModel({
   }, [basePath]);
 
   // 地形オブジェクトを一度だけクローンして保持（useEffectで実行）
+  // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
   useEffect(() => {
     console.log('[LakeModel] useEffect: 地形クローン処理開始', {
       hasGltf: !!gltf,
-      hasClonedTerrain: !!clonedTerrainRef.current,
+      hasClonedTerrain: !!clonedTerrain,
       gltfSceneChildren: gltf?.scene?.children?.length || 0,
       renderCount: renderCountRef.current,
     });
@@ -217,12 +219,12 @@ export default function LakeModel({
       return;
     }
 
-    if (clonedTerrainRef.current) {
+    if (clonedTerrain) {
       console.log('[LakeModel] 既にクローン済みのためスキップ', {
         existingClone: {
-          name: clonedTerrainRef.current.name,
-          type: clonedTerrainRef.current.type,
-          uuid: clonedTerrainRef.current.uuid,
+          name: clonedTerrain.name,
+          type: clonedTerrain.type,
+          uuid: clonedTerrain.uuid,
         },
       });
       return;
@@ -233,17 +235,6 @@ export default function LakeModel({
       sceneChildrenNames: gltf.scene.children.map((c) => c.name),
     });
     let terrain = gltf.scene.getObjectByName('Displacement.001');
-    
-    // 名前で見つからない場合は、メッシュを直接検索
-    // if (!terrain) {
-    //   console.log('名前で見つからないため、メッシュを直接検索...');
-    //   gltf.scene.traverse((child) => {
-    //     if (child.name && child.name.includes("Displacement")) {
-    //       terrain = child;
-    //       console.log('地形オブジェクト（代替）:', child);
-    //     }
-    //   });
-    // }
     
     // それでも見つからない場合は、シーンの最初のオブジェクトを使用
     if (!terrain && gltf.scene.children.length > 0) {
@@ -257,12 +248,14 @@ export default function LakeModel({
 
     if (terrain) {
       // 地形オブジェクトをクローンして独立したオブジェクトとして保持
-      clonedTerrainRef.current = terrain.clone();
+      const cloned = terrain.clone();
+      clonedTerrainRef.current = cloned; // refにも保持（後方互換性のため）
+      setClonedTerrain(cloned); // Reactの状態として設定
       console.log('[LakeModel] ✅ 地形オブジェクトをクローンしました:', {
-        clonedObject: clonedTerrainRef.current,
-        name: clonedTerrainRef.current.name,
-        type: clonedTerrainRef.current.type,
-        uuid: clonedTerrainRef.current.uuid,
+        clonedObject: cloned,
+        name: cloned.name,
+        type: cloned.type,
+        uuid: cloned.uuid,
         renderCount: renderCountRef.current,
       });
     } else {
@@ -270,13 +263,16 @@ export default function LakeModel({
         sceneChildren: gltf.scene.children.length,
       });
     }
-  }, [gltf]); // gltfが変わったときだけ実行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gltf]); // gltfが変わったときだけ実行（clonedTerrainは一度設定されたら変わらないため、依存配列に含めない）
 
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
+  // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!clonedTerrainRef.current) return;
+    if (!clonedTerrain) return;
 
-    const terrainBox = new THREE.Box3().setFromObject(clonedTerrainRef.current);
+    const terrainBox = new THREE.Box3().setFromObject(clonedTerrain);
       const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
       const terrainSize = terrainBox.getSize(new THREE.Vector3());
       
@@ -297,7 +293,7 @@ export default function LakeModel({
     console.log('terrainScale:', terrainScale);
     console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
     console.log('=====================================');
-  }, [terrainScale]); // clonedTerrainRef.currentはrefなので依存配列に含めない
+  }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
   const getWaterObject = () => {
     if (!gltf) return null;
@@ -487,17 +483,17 @@ export default function LakeModel({
   }
 
   // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
-  const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrainRef.current;
+  const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrain;
   console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
     shouldRenderTerrain,
     showTerrain,
     isLoaded,
-    hasClonedTerrain: !!clonedTerrainRef.current,
-    terrainObject: clonedTerrainRef.current
+    hasClonedTerrain: !!clonedTerrain,
+    terrainObject: clonedTerrain
       ? {
-          name: clonedTerrainRef.current.name,
-          type: clonedTerrainRef.current.type,
-          uuid: clonedTerrainRef.current.uuid,
+          name: clonedTerrain.name,
+          type: clonedTerrain.type,
+          uuid: clonedTerrain.uuid,
         }
       : null,
     renderCount: renderCountRef.current,
@@ -506,7 +502,7 @@ export default function LakeModel({
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
-      {shouldRenderTerrain && clonedTerrainRef.current && (
+      {shouldRenderTerrain && clonedTerrain && (
         <primitive
           ref={(ref: THREE.Group | null) => {
             console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
@@ -521,7 +517,7 @@ export default function LakeModel({
               console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
             }
           }}
-          object={clonedTerrainRef.current}
+          object={clonedTerrain}
           scale={stableTerrainScale}
         />
       )}
@@ -529,15 +525,15 @@ export default function LakeModel({
         (() => {
           console.log(`[LakeModel] ❌ 地形はレンダリングされません #${renderCountRef.current}`, {
             shouldRenderTerrain,
-            hasClonedTerrain: !!clonedTerrainRef.current,
+            hasClonedTerrain: !!clonedTerrain,
             showTerrain,
             isLoaded,
             reason: !showTerrain
               ? 'showTerrain=false'
               : !isLoaded
                 ? 'isLoaded=false'
-                : !clonedTerrainRef.current
-                  ? 'clonedTerrainRef.current=null'
+                : !clonedTerrain
+                  ? 'clonedTerrain=null'
                   : 'unknown',
           });
           return null;
