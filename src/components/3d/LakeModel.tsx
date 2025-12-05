@@ -294,6 +294,7 @@ export default function LakeModel({
     console.log('terrainScale:', terrainScale);
     console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
     console.log('=====================================');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
   const getWaterObject = () => {
