@@ -45,9 +45,7 @@ export default function LakeModel({
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
-  const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [isAnimationEnabled, setIsAnimationEnabled] = useState(false); // アニメーションを無効化（デフォルト）
 
   const basePath = getBasePath();
 
@@ -86,7 +84,6 @@ export default function LakeModel({
       console.log('[LakeModel] ✅ キャッシュからglTFを取得');
       setGltf(cached.gltf);
       setIsLoaded(true);
-      setWaterDrainStartTime(Date.now());
       return;
     }
     
@@ -97,7 +94,6 @@ export default function LakeModel({
         .then((loadedGltf) => {
           setGltf(loadedGltf);
           setIsLoaded(true);
-          setWaterDrainStartTime(Date.now());
         })
         .catch((error) => {
           console.error('glTFファイルの読み込みに失敗:', error);
@@ -196,7 +192,6 @@ export default function LakeModel({
         gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
         setGltf(loadedGltf);
         setIsLoaded(true);
-        setWaterDrainStartTime(Date.now());
       })
       .catch((error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
@@ -339,93 +334,20 @@ export default function LakeModel({
     return water;
   };
 
-  // スペースキーでアニメーションをリセット
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && isLoaded && showWater) {
-        event.preventDefault();
-        setIsAnimationEnabled(true);
-        setWaterDrainStartTime(Date.now());
-        console.log('[LakeModel] スペースキーでアニメーションをリセット');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-    };
-  }, [isLoaded, showWater]);
-
-  // アニメーション（水面の干上がり）
+  // 水面の位置とマテリアルを設定（アニメーションは一時的に無効化）
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-      // アニメーションが無効化されている場合は、初期位置を維持
-      let waterY = 0;
-      
-      if (isAnimationEnabled && waterDrainStartTime) {
-        // 干上がりアニメーション（50%で停止）
-        // 初期位置を上に設定して、そこから下がるようにする
-        const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
-        waterY = initialWaterOffset; // 初期位置は上から
-        
-        const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
-        const delay = 1.0; // レンダリング後1秒待機
-        const animationDuration = 30.0; // アニメーション時間を30秒に延長（よりゆっくり）
-        
-        // 1秒待機してからアニメーション開始
-        if (elapsed >= delay) {
-          const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
-          const drainProgress = Math.min(animationElapsed / animationDuration, 0.5); // 30秒で50%まで
-          
-          // イージング関数（easeOutCubic）
-          const easedProgress = 1 - (1 - drainProgress) ** 3;
-          
-          // 水面を下に移動（地形スケールに応じて調整）
-          // ベースの降下量は-25（スケール1.0の場合）
-          // waterScale[1]（Y成分）を使用してスケールに応じて調整
-          const baseDrainHeight = -25;
-          const scaledDrainHeight = baseDrainHeight * waterScale[1];
-          // 初期位置から下がる量を計算
-          waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
-        } else {
-          // elapsed < delay の場合は初期位置を維持（待機中）
-          waterY = initialWaterOffset;
-        }
-      } else {
-        // アニメーションが無効化されている場合は、waterPositionの位置を維持
-        waterY = 0;
-      }
-
-      // 水面の位置（waterPositionを基準に干上がりを適用）
-      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
+      // 水面の位置を設定（waterPositionを使用）
+      waterRef.current.position.set(waterPosition[0], waterPosition[1], waterPosition[2]);
       
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
           
-          // 干上がりに伴う透明度の変化（50%で停止）
-          if (isAnimationEnabled && waterDrainStartTime) {
-            const elapsed = (Date.now() - waterDrainStartTime) / 1000;
-            const delay = 1.0; // レンダリング後1秒待機
-            const animationDuration = 30.0; // アニメーション時間を30秒に延長
-            
-            if (elapsed >= delay) {
-              const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
-              const drainProgress = Math.min(animationElapsed / animationDuration, 0.5);
-              const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
-              material.opacity = opacity;
-              material.transparent = true;
-            } else {
-              // 待機中は透明度を80%に設定
-              material.opacity = 0.8;
-              material.transparent = true;
-            }
-          } else {
-            // アニメーションが無効化されている場合は、透明度を80%に設定
-            material.opacity = 0.8;
-            material.transparent = true;
-          }
+          // 透明度を設定
+          material.opacity = 0.8;
+          material.transparent = true;
           
           // 反射強度を固定値に設定
           if (material.metalness !== undefined) {
@@ -598,9 +520,33 @@ export default function LakeModel({
         isLoaded &&
         (() => {
           const water = getWaterObject();
-          return water ? (
+          console.log('[LakeModel] 水面レンダリング判定', {
+            showWater,
+            isLoaded,
+            hasWater: !!water,
+            waterPosition,
+            waterScale,
+            renderCount: renderCountRef.current,
+          });
+          if (!water) {
+            console.log('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした');
+            return null;
+          }
+          return (
         <primitive
-          ref={waterRef}
+          ref={(ref: THREE.Group | null) => {
+            console.log('[LakeModel] 水面primitive refコールバック', {
+              previousRef: !!waterRef.current,
+              newRef: !!ref,
+              timestamp: Date.now(),
+            });
+            if (ref) {
+              (waterRef as React.MutableRefObject<THREE.Group | null>).current = ref;
+              console.log('[LakeModel] ✅ waterRefが設定されました');
+            } else {
+              console.log('[LakeModel] ⚠️ waterRefがnullになりました');
+            }
+          }}
               object={water}
           position={waterPosition}
           scale={waterScale}
@@ -629,7 +575,7 @@ export default function LakeModel({
             }
           }}
         />
-          ) : null;
+          );
         })()}
       
             {/* ローディング表示 */}
