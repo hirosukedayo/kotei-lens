@@ -121,7 +121,12 @@ function App() {
   if (appState === '3d-view') {
     return (
       <div>
-        <Scene3D initialPosition={initial3DPosition} selectedPin={selectedPin} />
+        <Scene3D 
+          initialPosition={initial3DPosition} 
+          selectedPin={selectedPin}
+          onSelectPin={setSelectedPin}
+          onDeselectPin={() => setSelectedPin(null)}
+        />
         {/* 2Dに戻る（右上・円形アイコンボタン） */}
         <div
           style={{

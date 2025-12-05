@@ -29,6 +29,8 @@ import {
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
   selectedPin?: PinData | null;
+  onSelectPin?: (pin: PinData) => void;
+  onDeselectPin?: () => void;
 }
 
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
@@ -48,11 +50,18 @@ const calculateTerrainPosition = (): [number, number, number] => {
 };
 
 // 3Dシーンコンポーネント
-export default function Scene3D({ initialPosition, selectedPin: propSelectedPin }: Scene3DProps) {
+export default function Scene3D({ 
+  initialPosition, 
+  selectedPin: propSelectedPin,
+  onSelectPin: propOnSelectPin,
+  onDeselectPin: propOnDeselectPin,
+}: Scene3DProps) {
   const { isDevMode } = useDevModeStore();
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
+  const handleSelectPin = propOnSelectPin ?? setLocalSelectedPin;
+  const handleDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
   const [permissionGranted, setPermissionGranted] = useState(() => {
@@ -327,8 +336,8 @@ export default function Scene3D({ initialPosition, selectedPin: propSelectedPin 
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         selectedPin={selectedPin}
-        onSelectPin={setLocalSelectedPin}
-        onDeselectPin={() => setLocalSelectedPin(null)}
+        onSelectPin={handleSelectPin}
+        onDeselectPin={handleDeselectPin}
       />
 
       {/* デバイス向き許可ボタン（モバイルのみ） */}
