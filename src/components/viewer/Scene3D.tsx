@@ -757,7 +757,19 @@ function FPSCameraControls() {
       }
     };
 
-    const handleClick = () => {
+    const handleClick = (event: MouseEvent) => {
+      // UI要素（ボタンなど）がクリックされた場合はポインターロックをリクエストしない
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === 'BUTTON' ||
+        target.closest('button') !== null ||
+        target.closest('[role="button"]') !== null ||
+        target.style.zIndex !== '' ||
+        target.closest('[style*="z-index"]') !== null
+      ) {
+        return;
+      }
+
       if (!isPointerLocked) {
         document.body.requestPointerLock();
       }
