@@ -4,6 +4,7 @@ import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
 import OkutamaMap2D, { type Initial3DPosition } from './components/map/OkutamaMap2D';
 import { useDevModeStore } from './stores/devMode';
+import type { PinData } from './types/pins';
 import './App.css';
 
 type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
@@ -12,6 +13,7 @@ function App() {
   const [appState, setAppState] = useState<AppState>('2d-view');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
   const [initial3DPosition, setInitial3DPosition] = useState<Initial3DPosition | null>(null);
+  const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
   const { isDevMode, toggleDevMode } = useDevModeStore();
   const tapCountRef = useRef(0);
   const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,7 +121,7 @@ function App() {
   if (appState === '3d-view') {
     return (
       <div>
-        <Scene3D initialPosition={initial3DPosition} />
+        <Scene3D initialPosition={initial3DPosition} selectedPin={selectedPin} />
         {/* 2Dに戻る（右上・円形アイコンボタン） */}
         <div
           style={{
@@ -231,7 +233,12 @@ function App() {
   // 2Dマップをデフォルトで表示
   return (
     <>
-      <OkutamaMap2D onRequest3D={handleStart3D} />
+      <OkutamaMap2D
+        onRequest3D={handleStart3D}
+        selectedPin={selectedPin}
+        onSelectPin={setSelectedPin}
+        onDeselectPin={() => setSelectedPin(null)}
+      />
       {/* Devモード表示バッジ */}
       {isDevMode && (
         <div

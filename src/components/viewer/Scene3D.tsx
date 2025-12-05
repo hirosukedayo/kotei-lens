@@ -17,6 +17,9 @@ import {
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
+import type { PinData } from '../../types/pins';
+import PinListDrawer from '../ui/PinListDrawer';
+import { FaMapSigns } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -29,8 +32,8 @@ import {
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
+  selectedPin?: PinData | null;
 }
-
 
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
 // position = -terrainCenterScaled + offset = -(terrainOriginalCenter * scale) + offset
@@ -49,8 +52,11 @@ const calculateTerrainPosition = (): [number, number, number] => {
 };
 
 // 3Dシーンコンポーネント
-export default function Scene3D({ initialPosition }: Scene3DProps) {
+export default function Scene3D({ initialPosition, selectedPin: propSelectedPin }: Scene3DProps) {
   const { isDevMode } = useDevModeStore();
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
+  const selectedPin = propSelectedPin ?? localSelectedPin;
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
   const [permissionGranted, setPermissionGranted] = useState(() => {
@@ -285,11 +291,51 @@ export default function Scene3D({ initialPosition }: Scene3DProps) {
           />
 
           {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
-          {isDevMode && <PinMarkers3D />}
+          {isDevMode && <PinMarkers3D selectedPin={selectedPin} />}
 
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
       </Canvas>
+
+      {/* 左下：ピン一覧（アイコン） */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '16px',
+          bottom: '80px',
+          zIndex: 10000,
+        }}
+      >
+        <button
+          type="button"
+          aria-label="ピン一覧"
+          onClick={() => setSheetOpen(true)}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <FaMapSigns size={22} />
+        </button>
+      </div>
+
+      {/* ピンリストDrawer */}
+      <PinListDrawer
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        selectedPin={selectedPin}
+        onSelectPin={setLocalSelectedPin}
+        onDeselectPin={() => setLocalSelectedPin(null)}
+      />
 
       {/* デバイス向き許可ボタン（モバイルのみ） */}
       {isMobile && !permissionGranted && (
@@ -355,31 +401,42 @@ function CameraPositionSetter({
     const cameraX = initialCameraConfig.position[0];
     const cameraZ = initialCameraConfig.position[2];
     let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
-    
+
     // シーン内の地形オブジェクトを検索
     // 地形はGroup内のprimitiveとして配置されているため、実際のMeshを再帰的に検索
     let terrainMesh: THREE.Mesh | null = null;
-    const foundMeshes: Array<{ name: string; size: { x: number; y: number; z: number }; type: string; hasGeometry: boolean }> = [];
-    
+    const foundMeshes: Array<{
+      name: string;
+      size: { x: number; y: number; z: number };
+      type: string;
+      hasGeometry: boolean;
+    }> = [];
+
     scene.traverse((child) => {
       // GroupやObject3Dではなく、実際のMeshを探す
       if (child instanceof THREE.Mesh && child.geometry) {
         const box = new THREE.Box3().setFromObject(child);
         const size = box.getSize(new THREE.Vector3());
         const meshName = child.name || '(無名)';
-        foundMeshes.push({ 
-          name: meshName, 
+        foundMeshes.push({
+          name: meshName,
           size: { x: size.x, y: size.y, z: size.z },
           type: child.type,
-          hasGeometry: child.geometry !== null
+          hasGeometry: child.geometry !== null,
         });
-        
+
         // 地形のMeshを探す（名前で判定、または適切なサイズのMesh）
         // バウンディングボックスを除外するため、サイズ制限を追加
         if (!terrainMesh) {
           if (meshName === 'Displacement.001' || meshName === 'Displacement') {
             terrainMesh = child;
-          } else if (size.x > 100 && size.z > 100 && size.x < 10000 && size.z < 10000 && size.y < 1000) {
+          } else if (
+            size.x > 100 &&
+            size.z > 100 &&
+            size.x < 10000 &&
+            size.z < 10000 &&
+            size.y < 1000
+          ) {
             // 100m以上10000m未満のサイズで、高さが1000m未満のMeshを地形として扱う
             // これにより、異常に大きなバウンディングボックスを除外
             terrainMesh = child;
@@ -402,13 +459,13 @@ function CameraPositionSetter({
       const rayStartY = 1000;
       const rayStart = new THREE.Vector3(cameraX, rayStartY, cameraZ);
       const rayDirection = new THREE.Vector3(0, -1, 0);
-      
+
       raycaster.set(rayStart, rayDirection);
 
       // 地形のMeshの実際のジオメトリと交差するように、再帰的検索を無効化
       // 第2引数をfalseにして、このMesh自体のみを対象とする
       let intersects = raycaster.intersectObject(mesh, false);
-      
+
       // 交差が見つからない場合、子要素を再帰的に検索
       if (intersects.length === 0 && mesh.children.length > 0) {
         // 子要素の中から実際のMeshを探す
@@ -418,7 +475,7 @@ function CameraPositionSetter({
             childMeshes.push(child);
           }
         });
-        
+
         // 子要素のMeshに対してRaycastingを実行
         for (const childMesh of childMeshes) {
           const childIntersects = raycaster.intersectObject(childMesh, false);
@@ -428,12 +485,12 @@ function CameraPositionSetter({
           }
         }
       }
-      
+
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
         finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET;
-        
+
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
 
@@ -486,7 +543,7 @@ function CameraPositionSetter({
         console.log('=====================================');
         return;
       }
-      
+
       // 交差が見つからない場合のログ（初回のみ）
       if (frameCount.current === 1) {
         console.log('=== カメラ高さ調整（交差なし） ===');
@@ -543,7 +600,11 @@ function CameraPositionSetter({
       console.warn('=== カメラ高さ調整（タイムアウト） ===');
       console.warn('地形との交差が見つかりませんでした。デフォルトの高さを使用します。');
       console.warn('見つかったMesh:', foundMeshes);
-      console.warn('最終的なカメラ位置:', [cameraX.toFixed(2), finalCameraY.toFixed(2), cameraZ.toFixed(2)]);
+      console.warn('最終的なカメラ位置:', [
+        cameraX.toFixed(2),
+        finalCameraY.toFixed(2),
+        cameraZ.toFixed(2),
+      ]);
     }
   });
 
@@ -781,7 +842,7 @@ function PCKeyboardControls() {
 }
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
-function PinMarkers3D() {
+function PinMarkers3D({ selectedPin }: { selectedPin?: PinData | null }) {
   const { scene } = useThree();
   const pinBasePositions = useMemo(() => {
     return okutamaPins.map((pin) => {
@@ -807,6 +868,7 @@ function PinMarkers3D() {
           title={pin.title}
           basePosition={pin.basePosition}
           scene={scene}
+          isSelected={selectedPin?.id === pin.id}
         />
       ))}
     </>
@@ -819,11 +881,13 @@ function PinMarker({
   title,
   basePosition,
   scene,
+  isSelected = false,
 }: {
   id: string;
   title: string;
   basePosition: [number, number, number];
   scene: THREE.Scene;
+  isSelected?: boolean;
 }) {
   const [pinHeight, setPinHeight] = React.useState<number | null>(null);
   const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
@@ -848,7 +912,13 @@ function PinMarker({
         if (!terrainMesh) {
           if (meshName === 'Displacement.001' || meshName === 'Displacement') {
             terrainMesh = child;
-          } else if (size.x > 100 && size.z > 100 && size.x < 10000 && size.z < 10000 && size.y < 1000) {
+          } else if (
+            size.x > 100 &&
+            size.z > 100 &&
+            size.x < 10000 &&
+            size.z < 10000 &&
+            size.y < 1000
+          ) {
             terrainMesh = child;
           }
         }
@@ -906,10 +976,14 @@ function PinMarker({
 
   return (
     <group key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
-      {/* マーカー（赤い球体） */}
+      {/* マーカー（選択時は大きく、色も変更） */}
       <mesh>
-        <sphereGeometry args={[50, 16, 16]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.5} />
+        <sphereGeometry args={[isSelected ? 70 : 50, 16, 16]} />
+        <meshStandardMaterial
+          color={isSelected ? '#dc2626' : '#ef4444'}
+          emissive={isSelected ? '#dc2626' : '#ef4444'}
+          emissiveIntensity={isSelected ? 0.8 : 0.5}
+        />
       </mesh>
       {/* ラベル（テキスト） - 常にカメラを向く */}
       <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
