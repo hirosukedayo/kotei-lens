@@ -4,7 +4,7 @@ const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポ�
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
-import { FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaExternalLinkAlt, FaCheck } from 'react-icons/fa';
 
 interface PinListDrawerProps {
   open: boolean;
@@ -23,14 +23,26 @@ export default function PinListDrawer({
 }: PinListDrawerProps) {
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
 
-  const handleSelectPinFromList = (pin: PinData) => {
-    onSelectPin(pin);
-    setSheetMode('pin-detail');
+  const handleTogglePinSelection = (pin: PinData, e: React.MouseEvent) => {
+    // 右矢印部分をクリックした場合は詳細表示
+    const target = e.target as HTMLElement;
+    if (target.closest('.pin-detail-button')) {
+      onSelectPin(pin);
+      setSheetMode('pin-detail');
+      return;
+    }
+
+    // それ以外の場合は選択/選択解除
+    if (selectedPin?.id === pin.id) {
+      onDeselectPin();
+    } else {
+      onSelectPin(pin);
+    }
   };
 
   const backToList = () => {
     setSheetMode('pin-list');
-    onDeselectPin();
+    // 選択状態は保持する（onDeselectPinを呼ばない）
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -44,7 +56,12 @@ export default function PinListDrawer({
   return (
     <VDrawer.Root open={open} onOpenChange={handleOpenChange}>
       <VDrawer.Portal>
-        <VDrawer.Overlay style={{ background: 'rgba(0,0,0,.15)' }} />
+        <VDrawer.Overlay
+          style={{
+            background: 'rgba(0,0,0,.15)',
+            pointerEvents: 'none', // Canvasのクリックイベントを妨げないようにする
+          }}
+        />
         <VDrawer.Content
           style={{
             position: 'fixed',
@@ -56,6 +73,7 @@ export default function PinListDrawer({
             borderTopLeftRadius: 14,
             borderTopRightRadius: 14,
             boxShadow: '0 -8px 24px rgba(0,0,0,.2)',
+            pointerEvents: 'auto', // Contentはクリック可能
           }}
           onOpenAutoFocus={(e: Event) => e.preventDefault()}
           onCloseAutoFocus={(e: Event) => e.preventDefault()}
@@ -251,43 +269,88 @@ export default function PinListDrawer({
                 <div>
                   {okutamaPins.map((pin) => {
                     const style = pinTypeStyles[pin.type];
+                    const isSelected = selectedPin?.id === pin.id;
                     return (
-                      <button
+                      <div
                         key={pin.id}
-                        type="button"
-                        onClick={() => handleSelectPinFromList(pin)}
                         style={{
                           width: '100%',
-                          textAlign: 'left',
-                          background: '#fff',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: 8,
-                          padding: '10px 12px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 12,
                           marginBottom: 8,
-                          cursor: 'pointer',
+                          borderRadius: 8,
+                          border: `1px solid ${isSelected ? '#3b82f6' : '#e5e7eb'}`,
+                          background: isSelected ? '#eff6ff' : '#fff',
+                          overflow: 'hidden',
                         }}
                       >
-                        <div style={{ fontSize: 20 }}>{style.icon}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontWeight: 700,
-                              fontSize: 14,
-                              color: '#111827',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {pin.title}
+                        <button
+                          type="button"
+                          onClick={(e) => handleTogglePinSelection(pin, e)}
+                          style={{
+                            flex: 1,
+                            textAlign: 'left',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '10px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ fontSize: 20 }}>{style.icon}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: '#111827',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {pin.title}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
                           </div>
-                          <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
-                        </div>
-                        <div style={{ color: '#9ca3af' }}>›</div>
-                      </button>
+                          {isSelected && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: '#3b82f6',
+                                color: '#fff',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <FaCheck size={12} />
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="pin-detail-button"
+                          onClick={(e) => handleTogglePinSelection(pin, e)}
+                          style={{
+                            padding: '10px 12px',
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#9ca3af',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            borderLeft: `1px solid ${isSelected ? '#3b82f6' : '#e5e7eb'}`,
+                          }}
+                        >
+                          ›
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
