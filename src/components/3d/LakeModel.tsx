@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -137,8 +137,8 @@ export default function LakeModel({
     );
   }, [basePath]);
 
-  // 地形と水面を分離して取得する関数
-  const getTerrainObject = () => {
+  // 地形と水面を分離して取得する関数（useMemoでメモ化して参照を安定化）
+  const terrainObject = useMemo(() => {
     if (!gltf) return null;
     console.log('地形オブジェクトを検索中...');
     let terrain = gltf.scene.getObjectByName('Displacement.001');
@@ -188,7 +188,7 @@ export default function LakeModel({
     }
 
     return terrain;
-  };
+  }, [gltf, terrainScale]);
 
   const getWaterObject = () => {
     if (!gltf) return null;
@@ -382,8 +382,9 @@ export default function LakeModel({
       {/* 地形の表示 */}
       {showTerrain &&
         isLoaded &&
+        terrainObject &&
         (() => {
-          const terrain = getTerrainObject();
+          const terrain = terrainObject;
           if (terrain) {
             // terrainScale適用後の実際のバウンディングボックスを取得
             const terrainScaled = terrain.clone();
