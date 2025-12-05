@@ -363,12 +363,10 @@ export default function LakeModel({
 
   // アニメーション（水面の干上がり）
   useFrame(() => {
-    if (waterRef.current && isLoaded && showWater && terrainBottomYRef.current !== null) {
-      // 地形の一番下から10m下を最終位置とする
-      const targetWaterY = terrainBottomYRef.current - 10; // 地形の一番下から10m下（ワールド座標）
-      const initialWaterY = waterPosition[1] + 2 * waterScale[1]; // 初期位置（waterPosition + 2m上）
-      
-      let waterY = initialWaterY; // 初期位置から開始
+    if (waterRef.current && isLoaded && showWater) {
+      // 初期位置を上に設定して、そこから下がるようにする
+      const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
+      let waterY = initialWaterOffset; // 初期位置は上から
       
       if (waterDrainStartTime) {
         const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
@@ -383,21 +381,75 @@ export default function LakeModel({
           // イージング関数（easeOutCubic）
           const easedProgress = 1 - (1 - drainProgress) ** 3;
           
-          // 初期位置から最終位置まで補間
-          waterY = initialWaterY + (targetWaterY - initialWaterY) * easedProgress;
+          // 地形の一番下が計算済みの場合は、そこから10m下を最終位置とする
+          if (terrainBottomYRef.current !== null) {
+            const targetWaterY = terrainBottomYRef.current - 10; // 地形の一番下から10m下（ワールド座標）
+            const initialWaterY = waterPosition[1] + initialWaterOffset; // 初期位置（waterPosition + 2m上）
+            // 初期位置から最終位置まで補間
+            waterY = initialWaterY + (targetWaterY - initialWaterY) * easedProgress - waterPosition[1];
+            
+            // デバッグログ（10フレームに1回）
+            if (Math.floor(Date.now() / 100) % 10 === 0) {
+              console.log('[LakeModel] 水面アニメーション（地形基準）', {
+                elapsed: elapsed.toFixed(2),
+                drainProgress: drainProgress.toFixed(3),
+                easedProgress: easedProgress.toFixed(3),
+                terrainBottomY: terrainBottomYRef.current.toFixed(2),
+                targetWaterY: targetWaterY.toFixed(2),
+                initialWaterY: initialWaterY.toFixed(2),
+                waterY: waterY.toFixed(2),
+                waterPositionY: waterPosition[1].toFixed(2),
+              });
+            }
+          } else {
+            // 地形の一番下がまだ計算されていない場合は、固定の降下量を使用（フォールバック）
+            const baseDrainHeight = -25;
+            const scaledDrainHeight = baseDrainHeight * waterScale[1];
+            // 初期位置から下がる量を計算
+            waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
+            
+            // デバッグログ（10フレームに1回）
+            if (Math.floor(Date.now() / 100) % 10 === 0) {
+              console.log('[LakeModel] 水面アニメーション（フォールバック）', {
+                elapsed: elapsed.toFixed(2),
+                drainProgress: drainProgress.toFixed(3),
+                easedProgress: easedProgress.toFixed(3),
+                initialWaterOffset: initialWaterOffset.toFixed(2),
+                scaledDrainHeight: scaledDrainHeight.toFixed(2),
+                waterY: waterY.toFixed(2),
+                terrainBottomYRef: terrainBottomYRef.current,
+              });
+            }
+          }
         } else {
           // elapsed < delay の場合は初期位置を維持（待機中）
-          waterY = initialWaterY;
+          waterY = initialWaterOffset;
+          
+          // デバッグログ（10フレームに1回）
+          if (Math.floor(Date.now() / 100) % 10 === 0) {
+            console.log('[LakeModel] 水面アニメーション（待機中）', {
+              elapsed: elapsed.toFixed(2),
+              delay,
+              waterY: waterY.toFixed(2),
+            });
+          }
         }
       } else {
         // waterDrainStartTimeが設定される前は初期位置を維持
-        waterY = initialWaterY;
+        waterY = initialWaterOffset;
+        
+        // デバッグログ（10フレームに1回）
+        if (Math.floor(Date.now() / 100) % 10 === 0) {
+          console.log('[LakeModel] 水面アニメーション（開始前）', {
+            waterDrainStartTime,
+            waterY: waterY.toFixed(2),
+            terrainBottomYRef: terrainBottomYRef.current,
+          });
+        }
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
-      // waterYは既にワールド座標系での値なので、waterPosition[1]との差分を計算
-      const waterYOffset = waterY - waterPosition[1];
-      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterYOffset, waterPosition[2]);
+      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
       
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
@@ -461,6 +513,15 @@ export default function LakeModel({
           const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
           const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
           const terrainSize = terrainBox.getSize(new THREE.Vector3());
+          
+          // 地形の一番下のY座標を計算（ワールド座標）
+          // terrainBox.min.yはローカル座標での最小値なので、ワールド座標に変換
+          const terrainBottomLocal = new THREE.Vector3(0, terrainBox.min.y, 0);
+          const terrainBottomWorld = new THREE.Vector3();
+          terrainRef.current.localToWorld(terrainBottomLocal);
+          terrainBottomYRef.current = terrainBottomWorld.y;
+          
+          console.log('[LakeModel] 地形の一番下のY座標（ワールド座標）:', terrainBottomYRef.current);
 
           // 水面の実際の位置を取得
           const waterWorldPosition = new THREE.Vector3();
