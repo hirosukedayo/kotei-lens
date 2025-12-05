@@ -206,6 +206,7 @@ export default function LakeModel({
 
   // 地形オブジェクトを一度だけクローンして保持（useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
   useEffect(() => {
     console.log('[LakeModel] useEffect: 地形クローン処理開始', {
       hasGltf: !!gltf,
@@ -268,7 +269,7 @@ export default function LakeModel({
 
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
   useEffect(() => {
     if (!clonedTerrain) return;
 
