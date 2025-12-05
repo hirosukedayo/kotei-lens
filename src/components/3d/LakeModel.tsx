@@ -365,7 +365,7 @@ export default function LakeModel({
     if (waterRef.current && isLoaded && showWater) {
       // 干上がりアニメーション（50%で停止）
       // 初期位置を上に設定して、そこから下がるようにする
-      const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
+      const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
       let waterY = initialWaterOffset; // 初期位置は上から
       
       if (waterDrainStartTime) {
