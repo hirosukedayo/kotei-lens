@@ -48,6 +48,7 @@ export default function LakeModel({
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
 
   const basePath = getBasePath();
 
@@ -194,6 +195,7 @@ export default function LakeModel({
         gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
         setGltf(loadedGltf);
         setIsLoaded(true);
+        setWaterDrainStartTime(Date.now());
       })
       .catch((error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
@@ -358,20 +360,73 @@ export default function LakeModel({
   }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
 
-  // 水面の位置とマテリアルを設定（アニメーションは一時的に無効化）
+  // アニメーション（水面の干上がり）
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-      // 水面の位置を設定（waterPositionを使用）
-      waterRef.current.position.set(waterPosition[0], waterPosition[1], waterPosition[2]);
+      // 干上がりアニメーション（50%で停止）
+      // 初期位置を上に設定して、そこから下がるようにする
+      const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
+      let waterY = initialWaterOffset; // 初期位置は上から
+      
+      if (waterDrainStartTime) {
+        const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
+        const delay = 1.0; // レンダリング後1秒待機
+        const animationDuration = 30.0; // アニメーション時間を30秒に延長（よりゆっくり）
+        
+        // 1秒待機してからアニメーション開始
+        if (elapsed >= delay) {
+          const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
+          const drainProgress = Math.min(animationElapsed / animationDuration, 0.5); // 30秒で50%まで
+          
+          // イージング関数（easeOutCubic）
+          const easedProgress = 1 - (1 - drainProgress) ** 3;
+          
+          // 水面を下に移動（地形スケールに応じて調整）
+          // ベースの降下量は-25（スケール1.0の場合）
+          // waterScale[1]（Y成分）を使用してスケールに応じて調整
+          const baseDrainHeight = -25;
+          const scaledDrainHeight = baseDrainHeight * waterScale[1];
+          // 初期位置から下がる量を計算
+          waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
+        } else {
+          // elapsed < delay の場合は初期位置を維持（待機中）
+          waterY = initialWaterOffset;
+        }
+      } else {
+        // waterDrainStartTimeが設定される前は初期位置を維持
+        waterY = initialWaterOffset;
+      }
+
+      // 水面の位置（waterPositionを基準に干上がりを適用）
+      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
       
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
           
-          // 透明度を設定
-          material.opacity = 0.8;
-          material.transparent = true;
+          // 干上がりに伴う透明度の変化（50%で停止）
+          if (waterDrainStartTime) {
+            const elapsed = (Date.now() - waterDrainStartTime) / 1000;
+            const delay = 1.0; // レンダリング後1秒待機
+            const animationDuration = 30.0; // アニメーション時間を30秒に延長
+            
+            if (elapsed >= delay) {
+              const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
+              const drainProgress = Math.min(animationElapsed / animationDuration, 0.5);
+              const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
+              material.opacity = opacity;
+              material.transparent = true;
+            } else {
+              // 待機中は透明度を80%に設定
+              material.opacity = 0.8;
+              material.transparent = true;
+            }
+          } else {
+            // waterDrainStartTimeが設定される前は透明度を80%に設定
+            material.opacity = 0.8;
+            material.transparent = true;
+          }
           
           // 反射強度を固定値に設定
           if (material.metalness !== undefined) {
