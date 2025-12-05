@@ -315,12 +315,20 @@ export default function LakeModel({
       const cloned = water.clone();
       clonedWaterRef.current = cloned; // refにも保持（後方互換性のため）
       setClonedWater(cloned); // Reactの状態として設定
+      
+      // アニメーション開始時間を設定（まだ設定されていない場合のみ）
+      if (waterDrainStartTime === null) {
+        setWaterDrainStartTime(Date.now());
+        console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
+      }
+      
       console.log('[LakeModel] ✅ 水面オブジェクトをクローンしました:', {
         clonedObject: cloned,
         name: cloned.name,
         type: cloned.type,
         uuid: cloned.uuid,
         renderCount: renderCountRef.current,
+        waterDrainStartTime: waterDrainStartTime || Date.now(),
       });
     } else {
       console.warn('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした', {
