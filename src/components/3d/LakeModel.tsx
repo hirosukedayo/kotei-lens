@@ -41,6 +41,8 @@ export default function LakeModel({
   const waterRef = useRef<THREE.Group>(null);
   const clonedTerrainRef = useRef<THREE.Object3D | null>(null); // クローンした地形オブジェクトを保持（内部参照用）
   const [clonedTerrain, setClonedTerrain] = useState<THREE.Object3D | null>(null); // Reactの状態として管理
+  const clonedWaterRef = useRef<THREE.Object3D | null>(null); // クローンした水面オブジェクトを保持（内部参照用）
+  const [clonedWater, setClonedWater] = useState<THREE.Object3D | null>(null); // Reactの状態として管理
   const renderCountRef = useRef(0); // レンダリング回数を追跡
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,6 +265,68 @@ export default function LakeModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gltf]); // gltfが変わったときだけ実行（clonedTerrainは一度設定されたら変わらないため、依存配列に含めない）
 
+  // 水面オブジェクトを一度だけクローンして保持（useEffectで実行）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clonedWaterは一度設定されたら変わらないため、依存配列に含めない
+  useEffect(() => {
+    console.log('[LakeModel] useEffect: 水面クローン処理開始', {
+      hasGltf: !!gltf,
+      hasClonedWater: !!clonedWater,
+      gltfSceneChildren: gltf?.scene?.children?.length || 0,
+      renderCount: renderCountRef.current,
+    });
+
+    if (!gltf) {
+      console.log('[LakeModel] gltfがnullのためスキップ');
+      return;
+    }
+
+    if (clonedWater) {
+      console.log('[LakeModel] 既に水面クローン済みのためスキップ', {
+        existingClone: {
+          name: clonedWater.name,
+          type: clonedWater.type,
+          uuid: clonedWater.uuid,
+        },
+      });
+      return;
+    }
+
+    console.log('[LakeModel] 水面オブジェクトを検索中...', {
+      sceneChildren: gltf.scene.children.length,
+      sceneChildrenNames: gltf.scene.children.map((c) => c.name),
+    });
+    let water = gltf.scene.getObjectByName('Water');
+    
+    // それでも見つからない場合は、シーンの2番目のオブジェクトを使用
+    if (!water && gltf.scene.children.length > 1) {
+      water = gltf.scene.children[1];
+      console.log('[LakeModel] 水面オブジェクト（フォールバック）:', {
+        water,
+        name: water.name,
+        type: water.type,
+      });
+    }
+
+    if (water) {
+      // 水面オブジェクトをクローンして独立したオブジェクトとして保持
+      const cloned = water.clone();
+      clonedWaterRef.current = cloned; // refにも保持（後方互換性のため）
+      setClonedWater(cloned); // Reactの状態として設定
+      console.log('[LakeModel] ✅ 水面オブジェクトをクローンしました:', {
+        clonedObject: cloned,
+        name: cloned.name,
+        type: cloned.type,
+        uuid: cloned.uuid,
+        renderCount: renderCountRef.current,
+      });
+    } else {
+      console.warn('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした', {
+        sceneChildren: gltf.scene.children.length,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gltf]); // gltfが変わったときだけ実行（clonedWaterは一度設定されたら変わらないため、依存配列に含めない）
+
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
   // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
@@ -293,46 +357,6 @@ export default function LakeModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
-  const getWaterObject = () => {
-    if (!gltf) return null;
-    console.log('水面オブジェクトを検索中...');
-    let water = gltf.scene.getObjectByName('Water');
-    
-    // 名前で見つからない場合は、メッシュを直接検索
-    // if (!water) {
-    //   console.log('名前で見つからないため、メッシュを直接検索...');
-    //   gltf.scene.traverse((child) => {
-    //     if (child.name && child.name.includes("Water")) {
-    //       water = child;
-    //       console.log('水面オブジェクト（代替）:', child);
-    //     }
-    //   });
-    // }
-    
-    // それでも見つからない場合は、シーンの2番目のオブジェクトを使用
-    if (!water && gltf.scene.children.length > 1) {
-      water = gltf.scene.children[1];
-      console.log('水面オブジェクト（フォールバック）:', water);
-    }
-    
-    console.log('水面オブジェクト:', water);
-    
-    // 水面のバウンディングボックスを出力
-    if (water) {
-      const waterBox = new THREE.Box3().setFromObject(water);
-      const waterCenter = waterBox.getCenter(new THREE.Vector3());
-      const waterSize = waterBox.getSize(new THREE.Vector3());
-      
-      console.log('=== 水面のバウンディングボックス ===');
-      console.log('最小値:', { x: waterBox.min.x, y: waterBox.min.y, z: waterBox.min.z });
-      console.log('最大値:', { x: waterBox.max.x, y: waterBox.max.y, z: waterBox.max.z });
-      console.log('中心点:', { x: waterCenter.x, y: waterCenter.y, z: waterCenter.z });
-      console.log('サイズ:', { x: waterSize.x, y: waterSize.y, z: waterSize.z });
-      console.log('=====================================');
-    }
-    
-    return water;
-  };
 
   // 水面の位置とマテリアルを設定（アニメーションは一時的に無効化）
   useFrame(() => {
@@ -516,23 +540,7 @@ export default function LakeModel({
         })()}
       
       {/* 水面の表示 */}
-      {showWater &&
-        isLoaded &&
-        (() => {
-          const water = getWaterObject();
-          console.log('[LakeModel] 水面レンダリング判定', {
-            showWater,
-            isLoaded,
-            hasWater: !!water,
-            waterPosition,
-            waterScale,
-            renderCount: renderCountRef.current,
-          });
-          if (!water) {
-            console.log('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした');
-            return null;
-          }
-          return (
+      {showWater && isLoaded && clonedWater && (
         <primitive
           ref={(ref: THREE.Group | null) => {
             console.log('[LakeModel] 水面primitive refコールバック', {
@@ -547,12 +555,12 @@ export default function LakeModel({
               console.log('[LakeModel] ⚠️ waterRefがnullになりました');
             }
           }}
-              object={water}
+          object={clonedWater}
           position={waterPosition}
           scale={waterScale}
           onUpdate={(self: THREE.Object3D) => {
             // 水面のマテリアルを動的に調整
-                if (self?.traverse) {
+            if (self?.traverse) {
               self.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh && child.material) {
                   const material = child.material as THREE.MeshStandardMaterial;
@@ -575,8 +583,7 @@ export default function LakeModel({
             }
           }}
         />
-          );
-        })()}
+      )}
       
             {/* ローディング表示 */}
             {!isLoaded && (
