@@ -23,6 +23,9 @@ const getBasePath = () => {
   return import.meta.env.BASE_URL || '/';
 };
 
+// glTFファイルの読み込み結果をキャッシュ（グローバル）
+const gltfCache = new Map<string, { gltf: GLTF | null; promise: Promise<GLTF> }>();
+
 export default function LakeModel({
   position = [0, 0, 0],
   scale = [1, 1, 1],
@@ -36,7 +39,8 @@ export default function LakeModel({
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
-  const clonedTerrainRef = useRef<THREE.Object3D | null>(null); // クローンした地形オブジェクトを保持
+  const clonedTerrainRef = useRef<THREE.Object3D | null>(null); // クローンした地形オブジェクトを保持（内部参照用）
+  const [clonedTerrain, setClonedTerrain] = useState<THREE.Object3D | null>(null); // Reactの状態として管理
   const renderCountRef = useRef(0); // レンダリング回数を追跡
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,110 +66,151 @@ export default function LakeModel({
     visible,
     showTerrain,
     isLoaded,
-    hasClonedTerrain: !!clonedTerrainRef.current,
+    hasClonedTerrain: !!clonedTerrain,
     terrainRefCurrent: !!terrainRef.current,
     terrainScale,
   });
 
-  // glTFファイルの読み込み
+  // glTFファイルの読み込み（キャッシュを使用）
   useEffect(() => {
-    const gltfLoader = new GLTFLoader();
     const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
-
-    console.log('glTFファイルパス:', gltfPath);
-    console.log('デバイス情報:', {
-      userAgent: navigator.userAgent,
-      isMobile: /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-        navigator.userAgent.toLowerCase()
-      ),
-      memory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 'unknown',
-      connection:
-        (navigator as Navigator & { connection?: { effectiveType?: string } }).connection
-          ?.effectiveType || 'unknown',
-    });
-
+    
+    console.log('[LakeModel] glTFファイル読み込み開始:', gltfPath);
+    
+    // キャッシュをチェック
+    const cached = gltfCache.get(gltfPath);
+    
+    if (cached?.gltf) {
+      // キャッシュから即座に設定
+      console.log('[LakeModel] ✅ キャッシュからglTFを取得');
+      setGltf(cached.gltf);
+      setIsLoaded(true);
+      setWaterDrainStartTime(Date.now());
+      return;
+    }
+    
+    // 読み込み中のPromiseがある場合は待機
+    if (cached?.promise) {
+      console.log('[LakeModel] ⏳ 既存の読み込みPromiseを待機中...');
+      cached.promise
+        .then((loadedGltf) => {
+          setGltf(loadedGltf);
+          setIsLoaded(true);
+          setWaterDrainStartTime(Date.now());
+        })
+        .catch((error) => {
+          console.error('glTFファイルの読み込みに失敗:', error);
+          setError('glTFファイルの読み込みに失敗しました');
+        });
+      return;
+    }
+    
+    // 新規読み込み
+    console.log('[LakeModel] 📥 新規にglTFファイルを読み込み中...');
+    const gltfLoader = new GLTFLoader();
+    
     // モバイル用の読み込み設定
     const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
       navigator.userAgent.toLowerCase()
     );
-
-    gltfLoader.load(
-      gltfPath,
-      (loadedGltf) => {
+    
+    const loadPromise = new Promise<GLTF>((resolve, reject) => {
+      gltfLoader.load(
+        gltfPath,
+        (loadedGltf) => {
+          console.log('[LakeModel] ✅ glTFファイルが正常に読み込まれました');
+          
+          if (!isMobile) {
+            // PCでのみ詳細ログを出力
+            console.log('glTF情報:', {
+              scene: loadedGltf.scene,
+              animations: loadedGltf.animations,
+              cameras: loadedGltf.cameras,
+              asset: loadedGltf.asset,
+            });
+            
+            // シーンの詳細情報を出力
+            console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
+            loadedGltf.scene.traverse((child) => {
+              console.log('オブジェクト:', child.name, child.type);
+            });
+            
+            // バウンディングボックスを計算してログ出力
+            const box = new THREE.Box3().setFromObject(loadedGltf.scene);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            
+            console.log('=== モデルのバウンディングボックス ===');
+            console.log('最小値 (min):', {
+              x: box.min.x,
+              y: box.min.y,
+              z: box.min.z,
+            });
+            console.log('最大値 (max):', {
+              x: box.max.x,
+              y: box.max.y,
+              z: box.max.z,
+            });
+            console.log('中心点 (center):', {
+              x: center.x,
+              y: center.y,
+              z: center.z,
+            });
+            console.log('サイズ (size):', {
+              x: size.x,
+              y: size.y,
+              z: size.z,
+            });
+            console.log('=====================================');
+          }
+          
+          resolve(loadedGltf);
+        },
+        (progress) => {
+          const percentage = (progress.loaded / progress.total) * 100;
+          setLoadingProgress(percentage);
+          
+          // モバイルでの読み込みが遅い場合の警告
+          if (isMobile && percentage < 10 && progress.total > 0) {
+            console.warn(
+              'モバイルでの読み込みが遅い可能性があります。ファイルサイズ:',
+              (progress.total / 1024 / 1024).toFixed(1),
+              'MB'
+            );
+          }
+        },
+        (error) => {
+          console.error('glTFファイルの読み込みに失敗:', error);
+          reject(error);
+        }
+      );
+    });
+    
+    // キャッシュにPromiseを保存
+    gltfCache.set(gltfPath, { gltf: null, promise: loadPromise });
+    
+    // Promiseが解決したらキャッシュを更新
+    loadPromise
+      .then((loadedGltf) => {
+        gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
         setGltf(loadedGltf);
         setIsLoaded(true);
-        setWaterDrainStartTime(Date.now()); // 干上がりアニメーション開始時間を設定
-        console.log('glTFファイルが正常に読み込まれました');
-
-        if (!isMobile) {
-          // PCでのみ詳細ログを出力
-          console.log('glTF情報:', {
-            scene: loadedGltf.scene,
-            animations: loadedGltf.animations,
-            cameras: loadedGltf.cameras,
-            asset: loadedGltf.asset,
-          });
-
-          // シーンの詳細情報を出力
-          console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
-          loadedGltf.scene.traverse((child) => {
-            console.log('オブジェクト:', child.name, child.type);
-          });
-
-          // バウンディングボックスを計算してログ出力
-          const box = new THREE.Box3().setFromObject(loadedGltf.scene);
-          const center = box.getCenter(new THREE.Vector3());
-          const size = box.getSize(new THREE.Vector3());
-
-          console.log('=== モデルのバウンディングボックス ===');
-          console.log('最小値 (min):', {
-            x: box.min.x,
-            y: box.min.y,
-            z: box.min.z,
-          });
-          console.log('最大値 (max):', {
-            x: box.max.x,
-            y: box.max.y,
-            z: box.max.z,
-          });
-          console.log('中心点 (center):', {
-            x: center.x,
-            y: center.y,
-            z: center.z,
-          });
-          console.log('サイズ (size):', {
-            x: size.x,
-            y: size.y,
-            z: size.z,
-          });
-          console.log('=====================================');
-        }
-      },
-      (progress) => {
-        const percentage = (progress.loaded / progress.total) * 100;
-        setLoadingProgress(percentage);
-
-        // モバイルでの読み込みが遅い場合の警告
-        if (isMobile && percentage < 10 && progress.total > 0) {
-          console.warn(
-            'モバイルでの読み込みが遅い可能性があります。ファイルサイズ:',
-            (progress.total / 1024 / 1024).toFixed(1),
-            'MB'
-          );
-        }
-      },
-      (error) => {
+        setWaterDrainStartTime(Date.now());
+      })
+      .catch((error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
         setError('glTFファイルの読み込みに失敗しました');
-      }
-    );
+        gltfCache.delete(gltfPath); // エラー時はキャッシュを削除
+      });
   }, [basePath]);
 
   // 地形オブジェクトを一度だけクローンして保持（useEffectで実行）
+  // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
   useEffect(() => {
     console.log('[LakeModel] useEffect: 地形クローン処理開始', {
       hasGltf: !!gltf,
-      hasClonedTerrain: !!clonedTerrainRef.current,
+      hasClonedTerrain: !!clonedTerrain,
       gltfSceneChildren: gltf?.scene?.children?.length || 0,
       renderCount: renderCountRef.current,
     });
@@ -175,12 +220,12 @@ export default function LakeModel({
       return;
     }
 
-    if (clonedTerrainRef.current) {
+    if (clonedTerrain) {
       console.log('[LakeModel] 既にクローン済みのためスキップ', {
         existingClone: {
-          name: clonedTerrainRef.current.name,
-          type: clonedTerrainRef.current.type,
-          uuid: clonedTerrainRef.current.uuid,
+          name: clonedTerrain.name,
+          type: clonedTerrain.type,
+          uuid: clonedTerrain.uuid,
         },
       });
       return;
@@ -191,18 +236,7 @@ export default function LakeModel({
       sceneChildrenNames: gltf.scene.children.map((c) => c.name),
     });
     let terrain = gltf.scene.getObjectByName('Displacement.001');
-
-    // 名前で見つからない場合は、メッシュを直接検索
-    // if (!terrain) {
-    //   console.log('名前で見つからないため、メッシュを直接検索...');
-    //   gltf.scene.traverse((child) => {
-    //     if (child.name && child.name.includes("Displacement")) {
-    //       terrain = child;
-    //       console.log('地形オブジェクト（代替）:', child);
-    //     }
-    //   });
-    // }
-
+    
     // それでも見つからない場合は、シーンの最初のオブジェクトを使用
     if (!terrain && gltf.scene.children.length > 0) {
       terrain = gltf.scene.children[0];
@@ -215,12 +249,14 @@ export default function LakeModel({
 
     if (terrain) {
       // 地形オブジェクトをクローンして独立したオブジェクトとして保持
-      clonedTerrainRef.current = terrain.clone();
+      const cloned = terrain.clone();
+      clonedTerrainRef.current = cloned; // refにも保持（後方互換性のため）
+      setClonedTerrain(cloned); // Reactの状態として設定
       console.log('[LakeModel] ✅ 地形オブジェクトをクローンしました:', {
-        clonedObject: clonedTerrainRef.current,
-        name: clonedTerrainRef.current.name,
-        type: clonedTerrainRef.current.type,
-        uuid: clonedTerrainRef.current.uuid,
+        clonedObject: cloned,
+        name: cloned.name,
+        type: cloned.type,
+        uuid: cloned.uuid,
         renderCount: renderCountRef.current,
       });
     } else {
@@ -228,21 +264,24 @@ export default function LakeModel({
         sceneChildren: gltf.scene.children.length,
       });
     }
-  }, [gltf]); // gltfが変わったときだけ実行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gltf]); // gltfが変わったときだけ実行（clonedTerrainは一度設定されたら変わらないため、依存配列に含めない）
 
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
+  // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
   useEffect(() => {
-    if (!clonedTerrainRef.current) return;
+    if (!clonedTerrain) return;
 
-    const terrainBox = new THREE.Box3().setFromObject(clonedTerrainRef.current);
-    const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-    const terrainSize = terrainBox.getSize(new THREE.Vector3());
-
+    const terrainBox = new THREE.Box3().setFromObject(clonedTerrain);
+      const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+      const terrainSize = terrainBox.getSize(new THREE.Vector3());
+      
     console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
-    console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
-    console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
-    console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
-    console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
+      console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
+      console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
+      console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
+      console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
 
     // terrainScale適用後の中心を計算
     // スケールは原点を中心に適用されるため、中心点もスケール倍される
@@ -255,13 +294,14 @@ export default function LakeModel({
     console.log('terrainScale:', terrainScale);
     console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
     console.log('=====================================');
-  }, [terrainScale]); // clonedTerrainRef.currentはrefなので依存配列に含めない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
   const getWaterObject = () => {
     if (!gltf) return null;
     console.log('水面オブジェクトを検索中...');
     let water = gltf.scene.getObjectByName('Water');
-
+    
     // 名前で見つからない場合は、メッシュを直接検索
     // if (!water) {
     //   console.log('名前で見つからないため、メッシュを直接検索...');
@@ -272,21 +312,21 @@ export default function LakeModel({
     //     }
     //   });
     // }
-
+    
     // それでも見つからない場合は、シーンの2番目のオブジェクトを使用
     if (!water && gltf.scene.children.length > 1) {
       water = gltf.scene.children[1];
       console.log('水面オブジェクト（フォールバック）:', water);
     }
-
+    
     console.log('水面オブジェクト:', water);
-
+    
     // 水面のバウンディングボックスを出力
     if (water) {
       const waterBox = new THREE.Box3().setFromObject(water);
       const waterCenter = waterBox.getCenter(new THREE.Vector3());
       const waterSize = waterBox.getSize(new THREE.Vector3());
-
+      
       console.log('=== 水面のバウンディングボックス ===');
       console.log('最小値:', { x: waterBox.min.x, y: waterBox.min.y, z: waterBox.min.z });
       console.log('最大値:', { x: waterBox.max.x, y: waterBox.max.y, z: waterBox.max.z });
@@ -294,22 +334,22 @@ export default function LakeModel({
       console.log('サイズ:', { x: waterSize.x, y: waterSize.y, z: waterSize.z });
       console.log('=====================================');
     }
-
+    
     return water;
   };
 
   // アニメーション（水面の干上がり）
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
-      // 干上がりアニメーション（50%で停止）
-      let waterY = 0;
-      if (waterDrainStartTime) {
-        const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
-        const drainProgress = Math.min(elapsed / 15.0, 0.5); // 15秒で50%まで（30秒の50%）
-
+            // 干上がりアニメーション（50%で停止）
+            let waterY = 0;
+            if (waterDrainStartTime) {
+              const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
+              const drainProgress = Math.min(elapsed / 15.0, 0.5); // 15秒で50%まで（30秒の50%）
+        
         // イージング関数（easeOutCubic）
         const easedProgress = 1 - (1 - drainProgress) ** 3;
-
+        
         // 水面を下に移動（地形スケールに応じて調整）
         // ベースの降下量は-25（スケール1.0の場合）
         // waterScale[1]（Y成分）を使用してスケールに応じて調整
@@ -320,31 +360,31 @@ export default function LakeModel({
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
       waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
-
+      
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
-
-          // 干上がりに伴う透明度の変化（50%で停止）
-          if (waterDrainStartTime) {
-            const elapsed = (Date.now() - waterDrainStartTime) / 1000;
-            const drainProgress = Math.min(elapsed / 15.0, 0.5);
-            const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
+          
+                // 干上がりに伴う透明度の変化（50%で停止）
+                if (waterDrainStartTime) {
+                  const elapsed = (Date.now() - waterDrainStartTime) / 1000;
+                  const drainProgress = Math.min(elapsed / 15.0, 0.5);
+                  const opacity = Math.max(0.4, 0.8 * (1 - drainProgress)); // 透明度を徐々に下げる（80%→40%）
             material.opacity = opacity;
             material.transparent = true;
           }
-
+          
           // 反射強度を固定値に設定
           if (material.metalness !== undefined) {
             material.metalness = 0.2;
           }
-
+          
           // 粗さを固定値に設定
           if (material.roughness !== undefined) {
             material.roughness = 0.3;
           }
-
+          
           // 色を固定値に設定
           if (material.color) {
             material.color.setHSL(0.5, 0.8, 0.6); // 青系の色
@@ -445,17 +485,17 @@ export default function LakeModel({
   }
 
   // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
-  const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrainRef.current;
+  const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrain;
   console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
     shouldRenderTerrain,
     showTerrain,
     isLoaded,
-    hasClonedTerrain: !!clonedTerrainRef.current,
-    terrainObject: clonedTerrainRef.current
+    hasClonedTerrain: !!clonedTerrain,
+    terrainObject: clonedTerrain
       ? {
-          name: clonedTerrainRef.current.name,
-          type: clonedTerrainRef.current.type,
-          uuid: clonedTerrainRef.current.uuid,
+          name: clonedTerrain.name,
+          type: clonedTerrain.type,
+          uuid: clonedTerrain.uuid,
         }
       : null,
     renderCount: renderCountRef.current,
@@ -464,7 +504,7 @@ export default function LakeModel({
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
       {/* 地形の表示 */}
-      {shouldRenderTerrain && clonedTerrainRef.current && (
+      {shouldRenderTerrain && clonedTerrain && (
         <primitive
           ref={(ref: THREE.Group | null) => {
             console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
@@ -479,7 +519,7 @@ export default function LakeModel({
               console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
             }
           }}
-          object={clonedTerrainRef.current}
+          object={clonedTerrain}
           scale={stableTerrainScale}
         />
       )}
@@ -487,74 +527,74 @@ export default function LakeModel({
         (() => {
           console.log(`[LakeModel] ❌ 地形はレンダリングされません #${renderCountRef.current}`, {
             shouldRenderTerrain,
-            hasClonedTerrain: !!clonedTerrainRef.current,
+            hasClonedTerrain: !!clonedTerrain,
             showTerrain,
             isLoaded,
             reason: !showTerrain
               ? 'showTerrain=false'
               : !isLoaded
                 ? 'isLoaded=false'
-                : !clonedTerrainRef.current
-                  ? 'clonedTerrainRef.current=null'
+                : !clonedTerrain
+                  ? 'clonedTerrain=null'
                   : 'unknown',
           });
           return null;
         })()}
-
+      
       {/* 水面の表示 */}
       {showWater &&
         isLoaded &&
         (() => {
           const water = getWaterObject();
           return water ? (
-            <primitive
-              ref={waterRef}
+        <primitive
+          ref={waterRef}
               object={water}
-              position={waterPosition}
-              scale={waterScale}
-              onUpdate={(self: THREE.Object3D) => {
-                // 水面のマテリアルを動的に調整
+          position={waterPosition}
+          scale={waterScale}
+          onUpdate={(self: THREE.Object3D) => {
+            // 水面のマテリアルを動的に調整
                 if (self?.traverse) {
-                  self.traverse((child: THREE.Object3D) => {
-                    if (child instanceof THREE.Mesh && child.material) {
-                      const material = child.material as THREE.MeshStandardMaterial;
-
-                      // 透明度を設定
-                      material.transparent = true;
-                      material.opacity = 0.8;
-
-                      // 反射を強化
-                      material.metalness = 0.3;
-                      material.roughness = 0.2;
-
-                      // 色を青系に設定
-                      material.color.setHSL(0.6, 0.8, 0.6);
-
-                      // 両面表示を有効化
-                      material.side = THREE.DoubleSide;
-                    }
-                  });
+              self.traverse((child: THREE.Object3D) => {
+                if (child instanceof THREE.Mesh && child.material) {
+                  const material = child.material as THREE.MeshStandardMaterial;
+                  
+                  // 透明度を設定
+                  material.transparent = true;
+                  material.opacity = 0.8;
+                  
+                  // 反射を強化
+                  material.metalness = 0.3;
+                  material.roughness = 0.2;
+                  
+                  // 色を青系に設定
+                  material.color.setHSL(0.6, 0.8, 0.6);
+                  
+                  // 両面表示を有効化
+                  material.side = THREE.DoubleSide;
                 }
-              }}
-            />
+              });
+            }
+          }}
+        />
           ) : null;
         })()}
-
-      {/* ローディング表示 */}
-      {!isLoaded && (
-        <mesh>
-          <boxGeometry args={[10, 1, 10]} />
-          <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
-        </mesh>
-      )}
-
-      {/* ローディング進捗表示（モバイル用） */}
-      {!isLoaded && loadingProgress > 0 && (
-        <mesh position={[0, 5, 0]}>
-          <planeGeometry args={[20, 2]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.7} />
-        </mesh>
-      )}
+      
+            {/* ローディング表示 */}
+            {!isLoaded && (
+              <mesh>
+                <boxGeometry args={[10, 1, 10]} />
+                <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
+              </mesh>
+            )}
+            
+            {/* ローディング進捗表示（モバイル用） */}
+            {!isLoaded && loadingProgress > 0 && (
+              <mesh position={[0, 5, 0]}>
+                <planeGeometry args={[20, 2]} />
+                <meshBasicMaterial color="#000000" transparent opacity={0.7} />
+              </mesh>
+            )}
     </group>
   );
 }
