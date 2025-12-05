@@ -59,7 +59,7 @@ export default function PinListDrawer({
       <VDrawer.Portal>
         <VDrawer.Overlay
           style={{
-            background: 'rgba(0,0,0,.15)',
+            background: 'transparent', // Canvasが見えるように透明にする
             pointerEvents: 'none', // Canvasのクリックイベントを妨げないようにする
           }}
         />
