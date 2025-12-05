@@ -26,6 +26,9 @@ const getBasePath = () => {
 // glTFファイルの読み込み結果をキャッシュ（グローバル）
 const gltfCache = new Map<string, { gltf: GLTF | null; promise: Promise<GLTF> }>();
 
+// 水面アニメーション開始時間をグローバルに保持（コンポーネント再マウント時も保持）
+const globalWaterDrainStartTime = { value: null as number | null };
+
 export default function LakeModel({
   position = [0, 0, 0],
   scale = [1, 1, 1],
@@ -48,7 +51,6 @@ export default function LakeModel({
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const waterDrainStartTimeRef = useRef<number | null>(null); // アニメーション開始時間（コンポーネント再マウント時も保持）
   const terrainBottomYRef = useRef<number | null>(null); // 地形の一番下のY座標（スケール適用後、ワールド座標）
 
   const basePath = getBasePath();
@@ -197,8 +199,8 @@ export default function LakeModel({
         setGltf(loadedGltf);
         setIsLoaded(true);
         // アニメーション開始時間を設定（まだ設定されていない場合のみ）
-        if (waterDrainStartTimeRef.current === null) {
-          waterDrainStartTimeRef.current = Date.now();
+        if (globalWaterDrainStartTime.value === null) {
+          globalWaterDrainStartTime.value = Date.now();
         }
       })
       .catch((error) => {
@@ -320,8 +322,8 @@ export default function LakeModel({
       setClonedWater(cloned); // Reactの状態として設定
       
       // アニメーション開始時間を設定（まだ設定されていない場合のみ）
-      if (waterDrainStartTimeRef.current === null) {
-        waterDrainStartTimeRef.current = Date.now();
+      if (globalWaterDrainStartTime.value === null) {
+        globalWaterDrainStartTime.value = Date.now();
         console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
       }
       
@@ -331,7 +333,7 @@ export default function LakeModel({
         type: cloned.type,
         uuid: cloned.uuid,
         renderCount: renderCountRef.current,
-        waterDrainStartTime: waterDrainStartTimeRef.current || Date.now(),
+        waterDrainStartTime: globalWaterDrainStartTime.value || Date.now(),
       });
     } else {
       console.warn('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした', {
@@ -379,8 +381,8 @@ export default function LakeModel({
       const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
       let waterY = initialWaterOffset; // 初期位置は上から
       
-      if (waterDrainStartTimeRef.current) {
-        const elapsed = (Date.now() - waterDrainStartTimeRef.current) / 1000; // 経過秒数
+      if (globalWaterDrainStartTime.value) {
+        const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
         const animationDuration = 120.0; // アニメーション時間を120秒に延長（よりゆっくり）
         
@@ -446,13 +448,13 @@ export default function LakeModel({
           }
         }
       } else {
-        // waterDrainStartTimeRefが設定される前は初期位置を維持
+        // globalWaterDrainStartTimeが設定される前は初期位置を維持
         waterY = initialWaterOffset;
         
         // デバッグログ（10フレームに1回）
         if (Math.floor(Date.now() / 100) % 10 === 0) {
           console.log('[LakeModel] 水面アニメーション（開始前）', {
-            waterDrainStartTime: waterDrainStartTimeRef.current,
+            waterDrainStartTime: globalWaterDrainStartTime.value,
             waterY: waterY.toFixed(2),
             terrainBottomYRef: terrainBottomYRef.current,
           });
@@ -468,8 +470,8 @@ export default function LakeModel({
           const material = child.material as THREE.MeshStandardMaterial;
           
           // 干上がりに伴う透明度の変化
-          if (waterDrainStartTimeRef.current) {
-            const elapsed = (Date.now() - waterDrainStartTimeRef.current) / 1000;
+          if (globalWaterDrainStartTime.value) {
+            const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
             const animationDuration = 120.0; // アニメーション時間を120秒に延長
             
@@ -485,7 +487,7 @@ export default function LakeModel({
               material.transparent = true;
             }
           } else {
-            // waterDrainStartTimeRefが設定される前は透明度を80%に設定
+            // globalWaterDrainStartTimeが設定される前は透明度を80%に設定
             material.opacity = 0.8;
             material.transparent = true;
           }
@@ -676,13 +678,14 @@ export default function LakeModel({
             });
             if (ref) {
               (waterRef as React.MutableRefObject<THREE.Group | null>).current = ref;
+              // 初期位置を設定（useFrameで更新される）
+              ref.position.set(waterPosition[0], waterPosition[1], waterPosition[2]);
               console.log('[LakeModel] ✅ waterRefが設定されました');
             } else {
               console.log('[LakeModel] ⚠️ waterRefがnullになりました');
             }
           }}
           object={clonedWater}
-          position={waterPosition}
           scale={waterScale}
           onUpdate={(self: THREE.Object3D) => {
             // 水面のマテリアルを動的に調整
