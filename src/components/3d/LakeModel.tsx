@@ -48,7 +48,7 @@ export default function LakeModel({
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [waterDrainStartTime, setWaterDrainStartTime] = useState<number | null>(null);
+  const waterDrainStartTimeRef = useRef<number | null>(null); // アニメーション開始時間（コンポーネント再マウント時も保持）
   const terrainBottomYRef = useRef<number | null>(null); // 地形の一番下のY座標（スケール適用後、ワールド座標）
 
   const basePath = getBasePath();
@@ -196,7 +196,10 @@ export default function LakeModel({
         gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
         setGltf(loadedGltf);
         setIsLoaded(true);
-        setWaterDrainStartTime(Date.now());
+        // アニメーション開始時間を設定（まだ設定されていない場合のみ）
+        if (waterDrainStartTimeRef.current === null) {
+          waterDrainStartTimeRef.current = Date.now();
+        }
       })
       .catch((error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
@@ -317,8 +320,8 @@ export default function LakeModel({
       setClonedWater(cloned); // Reactの状態として設定
       
       // アニメーション開始時間を設定（まだ設定されていない場合のみ）
-      if (waterDrainStartTime === null) {
-        setWaterDrainStartTime(Date.now());
+      if (waterDrainStartTimeRef.current === null) {
+        waterDrainStartTimeRef.current = Date.now();
         console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
       }
       
@@ -328,7 +331,7 @@ export default function LakeModel({
         type: cloned.type,
         uuid: cloned.uuid,
         renderCount: renderCountRef.current,
-        waterDrainStartTime: waterDrainStartTime || Date.now(),
+        waterDrainStartTime: waterDrainStartTimeRef.current || Date.now(),
       });
     } else {
       console.warn('[LakeModel] ❌ 水面オブジェクトが見つかりませんでした', {
@@ -376,8 +379,8 @@ export default function LakeModel({
       const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
       let waterY = initialWaterOffset; // 初期位置は上から
       
-      if (waterDrainStartTime) {
-        const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
+      if (waterDrainStartTimeRef.current) {
+        const elapsed = (Date.now() - waterDrainStartTimeRef.current) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
         const animationDuration = 120.0; // アニメーション時間を120秒に延長（よりゆっくり）
         
@@ -443,13 +446,13 @@ export default function LakeModel({
           }
         }
       } else {
-        // waterDrainStartTimeが設定される前は初期位置を維持
+        // waterDrainStartTimeRefが設定される前は初期位置を維持
         waterY = initialWaterOffset;
         
         // デバッグログ（10フレームに1回）
         if (Math.floor(Date.now() / 100) % 10 === 0) {
           console.log('[LakeModel] 水面アニメーション（開始前）', {
-            waterDrainStartTime,
+            waterDrainStartTime: waterDrainStartTimeRef.current,
             waterY: waterY.toFixed(2),
             terrainBottomYRef: terrainBottomYRef.current,
           });
@@ -465,8 +468,8 @@ export default function LakeModel({
           const material = child.material as THREE.MeshStandardMaterial;
           
           // 干上がりに伴う透明度の変化
-          if (waterDrainStartTime) {
-            const elapsed = (Date.now() - waterDrainStartTime) / 1000;
+          if (waterDrainStartTimeRef.current) {
+            const elapsed = (Date.now() - waterDrainStartTimeRef.current) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
             const animationDuration = 120.0; // アニメーション時間を120秒に延長
             
@@ -482,7 +485,7 @@ export default function LakeModel({
               material.transparent = true;
             }
           } else {
-            // waterDrainStartTimeが設定される前は透明度を80%に設定
+            // waterDrainStartTimeRefが設定される前は透明度を80%に設定
             material.opacity = 0.8;
             material.transparent = true;
           }
