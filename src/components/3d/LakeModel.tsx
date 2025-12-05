@@ -342,7 +342,10 @@ export default function LakeModel({
   useFrame(() => {
     if (waterRef.current && isLoaded && showWater) {
       // 干上がりアニメーション（50%で停止）
-      let waterY = 0;
+      // 初期位置を上に設定して、そこから下がるようにする
+      const initialWaterOffset = 10 * waterScale[1]; // 初期位置を上に10m（スケール適用後）
+      let waterY = initialWaterOffset; // 初期位置は上から
+      
       if (waterDrainStartTime) {
         const elapsed = (Date.now() - waterDrainStartTime) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
@@ -361,9 +364,15 @@ export default function LakeModel({
           // waterScale[1]（Y成分）を使用してスケールに応じて調整
           const baseDrainHeight = -25;
           const scaledDrainHeight = baseDrainHeight * waterScale[1];
-          waterY = scaledDrainHeight * easedProgress;
+          // 初期位置から下がる量を計算
+          waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
+        } else {
+          // elapsed < delay の場合は初期位置を維持（待機中）
+          waterY = initialWaterOffset;
         }
-        // elapsed < delay の場合は waterY = 0 のまま（待機中）
+      } else {
+        // waterDrainStartTimeが設定される前は初期位置を維持
+        waterY = initialWaterOffset;
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
