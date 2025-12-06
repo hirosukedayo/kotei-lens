@@ -390,7 +390,6 @@ export default function LakeModel({
         console.log('[LakeModel] ✅ 水面をシーンから削除しました（クリーンアップ）');
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clonedWater, showWater, isLoaded, waterScale, scene]);
 
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
