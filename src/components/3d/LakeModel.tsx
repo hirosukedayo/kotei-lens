@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
@@ -29,6 +29,9 @@ const gltfCache = new Map<string, { gltf: GLTF | null; promise: Promise<GLTF> }>
 // 水面アニメーション開始時間をグローバルに保持（コンポーネント再マウント時も保持）
 const globalWaterDrainStartTime = { value: null as number | null };
 
+// 水面の現在位置をグローバルに保持（コンポーネント再マウント時も保持）
+const globalWaterPosition = { value: null as { x: number; y: number; z: number } | null };
+
 export default function LakeModel({
   position = [0, 0, 0],
   scale = [1, 1, 1],
@@ -52,7 +55,8 @@ export default function LakeModel({
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const terrainBottomYRef = useRef<number | null>(null); // 地形の一番下のY座標（スケール適用後、ワールド座標）
-  const waterPositionRef = useRef<{ x: number; y: number; z: number } | null>(null); // 水面の現在位置を保持（再マウント時の復元用）
+  const { scene } = useThree(); // シーンへの参照を取得
+  const waterGroupRef = useRef<THREE.Group | null>(null); // 水面用のGroup（シーンに直接追加）
 
   const basePath = getBasePath();
 
@@ -344,6 +348,51 @@ export default function LakeModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gltf]); // gltfが変わったときだけ実行（clonedWaterは一度設定されたら変わらないため、依存配列に含めない）
 
+  // 水面オブジェクトをシーンに直接追加・削除（primitiveコンポーネントの再マウントを回避）
+  useEffect(() => {
+    if (!clonedWater || !showWater || !isLoaded) {
+      // 水面を削除
+      if (waterGroupRef.current?.parent) {
+        waterGroupRef.current.parent.remove(waterGroupRef.current);
+        waterGroupRef.current = null;
+        console.log('[LakeModel] ✅ 水面をシーンから削除しました');
+      }
+      return;
+    }
+
+    // 水面用のGroupを作成（まだ存在しない場合）
+    if (!waterGroupRef.current) {
+      const waterGroup = new THREE.Group();
+      waterGroup.name = 'WaterGroup';
+      waterGroupRef.current = waterGroup;
+      
+      // clonedWaterをGroupに追加
+      clonedWater.scale.set(waterScale[0], waterScale[1], waterScale[2]);
+      waterGroup.add(clonedWater);
+      
+      // Groupをシーンに追加
+      scene.add(waterGroup);
+      
+      console.log('[LakeModel] ✅ 水面をシーンに追加しました', {
+        waterGroupUuid: waterGroup.uuid,
+        clonedWaterUuid: clonedWater.uuid,
+      });
+    } else {
+      // 既存のGroupのスケールを更新
+      waterGroupRef.current.scale.set(waterScale[0], waterScale[1], waterScale[2]);
+    }
+
+    // クリーンアップ関数：コンポーネントがアンマウントされる際にシーンから削除
+    return () => {
+      if (waterGroupRef.current?.parent) {
+        waterGroupRef.current.parent.remove(waterGroupRef.current);
+        waterGroupRef.current = null;
+        console.log('[LakeModel] ✅ 水面をシーンから削除しました（クリーンアップ）');
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clonedWater, showWater, isLoaded, waterScale, scene]);
+
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
   // biome-ignore lint/correctness/useExhaustiveDependencies: clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
@@ -377,7 +426,9 @@ export default function LakeModel({
 
   // アニメーション（水面の干上がり）
   useFrame(() => {
-    if (waterRef.current && isLoaded && showWater && clonedWater) {
+    // clonedWaterオブジェクトが存在する場合は、その位置を直接更新
+    // これにより、primitiveコンポーネントが再マウントされても位置が保持される
+    if (isLoaded && showWater && clonedWater) {
       // 初期位置を上に設定して、そこから下がるようにする
       const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
       let waterY = initialWaterOffset; // 初期位置は上から
@@ -467,8 +518,28 @@ export default function LakeModel({
       const targetY = waterPosition[1] + waterY;
       const targetZ = waterPosition[2];
       
-      // 位置をrefに保存（再マウント時の復元用）
-      waterPositionRef.current = { x: targetX, y: targetY, z: targetZ };
+      // 位置をグローバル変数に保存（再マウント時の復元用）
+      globalWaterPosition.value = { x: targetX, y: targetY, z: targetZ };
+      
+      // clonedWaterオブジェクト自体の位置を直接更新（primitiveコンポーネントが再マウントされても位置が保持されるように）
+      clonedWater.position.set(targetX, targetY, targetZ);
+      // waterGroupRefが存在する場合は、その位置も更新（同期のため）
+      if (waterGroupRef.current) {
+        waterGroupRef.current.position.set(
+          position[0] + targetX,
+          position[1] + targetY,
+          position[2] + targetZ
+        );
+        waterGroupRef.current.updateMatrixWorld(true);
+      }
+      // clonedWaterオブジェクトの位置を強制的に更新（updateMatrixWorldを呼び出して反映）
+      clonedWater.updateMatrixWorld(true);
+      
+      // waterRefが存在する場合は、その位置も更新（同期のため）
+      if (waterRef.current) {
+        waterRef.current.position.set(targetX, targetY, targetZ);
+        waterRef.current.updateMatrixWorld(true);
+      }
       
       // デバッグログ（10フレームに1回）
       if (Math.floor(Date.now() / 100) % 10 === 0) {
@@ -478,7 +549,12 @@ export default function LakeModel({
           targetZ: targetZ.toFixed(2),
           waterY: waterY.toFixed(2),
           waterPosition: waterPosition,
-          currentPosition: waterRef.current.position
+          clonedWaterPosition: {
+            x: clonedWater.position.x.toFixed(2),
+            y: clonedWater.position.y.toFixed(2),
+            z: clonedWater.position.z.toFixed(2),
+          },
+          waterRefPosition: waterRef.current?.position
             ? {
                 x: waterRef.current.position.x.toFixed(2),
                 y: waterRef.current.position.y.toFixed(2),
@@ -489,10 +565,8 @@ export default function LakeModel({
         });
       }
       
-      waterRef.current.position.set(targetX, targetY, targetZ);
-      
       // 水面のマテリアル効果を動的に調整
-      waterRef.current.traverse((child) => {
+      clonedWater.traverse((child: THREE.Object3D) => {
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
           
@@ -694,88 +768,7 @@ export default function LakeModel({
           return null;
         })()}
       
-      {/* 水面の表示 */}
-      {showWater && isLoaded && clonedWater && (
-        <primitive
-          key={`water-${clonedWater.uuid}`}
-          ref={(ref: THREE.Group | null) => {
-            console.log('[LakeModel] 水面primitive refコールバック', {
-              previousRef: !!waterRef.current,
-              newRef: !!ref,
-              timestamp: Date.now(),
-              globalWaterDrainStartTime: globalWaterDrainStartTime.value,
-              clonedWaterUuid: clonedWater?.uuid,
-              savedPosition: waterPositionRef.current,
-            });
-            if (ref) {
-              const previousPosition = waterRef.current?.position
-                ? {
-                    x: waterRef.current.position.x.toFixed(2),
-                    y: waterRef.current.position.y.toFixed(2),
-                    z: waterRef.current.position.z.toFixed(2),
-                  }
-                : null;
-              (waterRef as React.MutableRefObject<THREE.Group | null>).current = ref;
-              
-              // 保存された位置があれば復元（再マウント時の復元）
-              if (waterPositionRef.current) {
-                ref.position.set(
-                  waterPositionRef.current.x,
-                  waterPositionRef.current.y,
-                  waterPositionRef.current.z
-                );
-                console.log('[LakeModel] ✅ waterRefが設定されました（位置を復元）', {
-                  previousPosition,
-                  restoredPosition: {
-                    x: waterPositionRef.current.x.toFixed(2),
-                    y: waterPositionRef.current.y.toFixed(2),
-                    z: waterPositionRef.current.z.toFixed(2),
-                  },
-                });
-              } else {
-                // 保存された位置がない場合は、useFrame内で管理
-                console.log('[LakeModel] ✅ waterRefが設定されました（位置はuseFrameで管理）', {
-                  previousPosition,
-                  newPosition: {
-                    x: ref.position.x.toFixed(2),
-                    y: ref.position.y.toFixed(2),
-                    z: ref.position.z.toFixed(2),
-                  },
-                });
-              }
-            } else {
-              console.log('[LakeModel] ⚠️ waterRefがnullになりました');
-            }
-          }}
-          object={clonedWater}
-          scale={waterScale}
-          onUpdate={(self: THREE.Object3D) => {
-            // 水面のマテリアルを動的に調整（位置は変更しない）
-            // 注意: onUpdateは毎フレーム呼ばれる可能性があるため、位置を変更しないこと
-            if (self?.traverse) {
-              self.traverse((child: THREE.Object3D) => {
-                if (child instanceof THREE.Mesh && child.material) {
-                  const material = child.material as THREE.MeshStandardMaterial;
-                  
-                  // 透明度を設定
-                  material.transparent = true;
-                  material.opacity = 0.8;
-                  
-                  // 反射を強化
-                  material.metalness = 0.3;
-                  material.roughness = 0.2;
-                  
-                  // 色を青系に設定
-                  material.color.setHSL(0.6, 0.8, 0.6);
-                  
-                  // 両面表示を有効化
-                  material.side = THREE.DoubleSide;
-                }
-              });
-            }
-          }}
-        />
-      )}
+      {/* 水面の表示はuseEffectでシーンに直接追加するため、ここでは何もレンダリングしない */}
       
             {/* ローディング表示 */}
             {!isLoaded && (
