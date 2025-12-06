@@ -799,6 +799,8 @@ function PinMarker({
   const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
   const frameCount = React.useRef(0);
   const groupRef = React.useRef<THREE.Group>(null);
+  const lightBeamRef = React.useRef<THREE.Mesh>(null);
+  const lightBeamIntensity = React.useRef(0.5);
 
   useFrame(() => {
     // 地形の高さを一度だけ計算
@@ -876,6 +878,21 @@ function PinMarker({
     }
   });
 
+  // 光の柱のアニメーション
+  useFrame((state) => {
+    if (isSelected && lightBeamRef.current) {
+      // 光の強度をアニメーション（sin波で脈動）
+      const time = state.clock.elapsedTime;
+      lightBeamIntensity.current = 0.5 + Math.sin(time * 2) * 0.3;
+      
+      const material = lightBeamRef.current.material as THREE.MeshStandardMaterial;
+      if (material) {
+        material.emissiveIntensity = lightBeamIntensity.current;
+        material.opacity = 0.3 + Math.sin(time * 2) * 0.2;
+      }
+    }
+  });
+
   // 高さが計算されるまで表示しない
   if (pinHeight === null) {
     return null;
@@ -916,10 +933,10 @@ function PinMarker({
 
     return (
       <Text
-        position={[0, 100, 0]}
+        position={[50, 100, 0]}
         fontSize={40}
         color="white"
-        anchorX="center"
+        anchorX="left"
         anchorY="middle"
         outlineWidth={2}
         outlineColor="black"
@@ -931,12 +948,26 @@ function PinMarker({
 
   return (
     <group ref={groupRef} key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
-      {/* マーカー（選択時は大きく、色も変更） */}
-      <mesh>
-        <sphereGeometry args={[isSelected ? 70 : 50, 16, 16]} />
+      {/* 選択時: 光の柱（三角錐） */}
+      {isSelected && (
+        <mesh ref={lightBeamRef} position={[0, 250, 0]}>
+          <coneGeometry args={[15, 1000, 32]} />
+          <meshStandardMaterial
+            color="#ffffff"
+            emissive="#3b82f6"
+            emissiveIntensity={0.5}
+            transparent={true}
+            opacity={0.3}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+      {/* マーカー（選択時は位置を上げる） */}
+      <mesh position={[0, isSelected ? 20 : 0, 0]}>
+        <sphereGeometry args={[30, 16, 16]} />
         <meshStandardMaterial
-          color={isSelected ? '#dc2626' : '#ef4444'}
-          emissive={isSelected ? '#dc2626' : '#ef4444'}
+          color="#ef4444"
+          emissive="#ef4444"
           emissiveIntensity={isSelected ? 0.8 : 0.5}
         />
       </mesh>
