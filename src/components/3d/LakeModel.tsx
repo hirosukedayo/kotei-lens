@@ -52,6 +52,7 @@ export default function LakeModel({
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const terrainBottomYRef = useRef<number | null>(null); // 地形の一番下のY座標（スケール適用後、ワールド座標）
+  const waterPositionRef = useRef<{ x: number; y: number; z: number } | null>(null); // 水面の現在位置を保持（再マウント時の復元用）
 
   const basePath = getBasePath();
 
@@ -376,7 +377,7 @@ export default function LakeModel({
 
   // アニメーション（水面の干上がり）
   useFrame(() => {
-    if (waterRef.current && isLoaded && showWater) {
+    if (waterRef.current && isLoaded && showWater && clonedWater) {
       // 初期位置を上に設定して、そこから下がるようにする
       const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
       let waterY = initialWaterOffset; // 初期位置は上から
@@ -462,7 +463,33 @@ export default function LakeModel({
       }
 
       // 水面の位置（waterPositionを基準に干上がりを適用）
-      waterRef.current.position.set(waterPosition[0], waterPosition[1] + waterY, waterPosition[2]);
+      const targetX = waterPosition[0];
+      const targetY = waterPosition[1] + waterY;
+      const targetZ = waterPosition[2];
+      
+      // 位置をrefに保存（再マウント時の復元用）
+      waterPositionRef.current = { x: targetX, y: targetY, z: targetZ };
+      
+      // デバッグログ（10フレームに1回）
+      if (Math.floor(Date.now() / 100) % 10 === 0) {
+        console.log('[LakeModel] 水面位置設定', {
+          targetX: targetX.toFixed(2),
+          targetY: targetY.toFixed(2),
+          targetZ: targetZ.toFixed(2),
+          waterY: waterY.toFixed(2),
+          waterPosition: waterPosition,
+          currentPosition: waterRef.current.position
+            ? {
+                x: waterRef.current.position.x.toFixed(2),
+                y: waterRef.current.position.y.toFixed(2),
+                z: waterRef.current.position.z.toFixed(2),
+              }
+            : null,
+          globalWaterDrainStartTime: globalWaterDrainStartTime.value,
+        });
+      }
+      
+      waterRef.current.position.set(targetX, targetY, targetZ);
       
       // 水面のマテリアル効果を動的に調整
       waterRef.current.traverse((child) => {
@@ -670,17 +697,52 @@ export default function LakeModel({
       {/* 水面の表示 */}
       {showWater && isLoaded && clonedWater && (
         <primitive
+          key={`water-${clonedWater.uuid}`}
           ref={(ref: THREE.Group | null) => {
             console.log('[LakeModel] 水面primitive refコールバック', {
               previousRef: !!waterRef.current,
               newRef: !!ref,
               timestamp: Date.now(),
+              globalWaterDrainStartTime: globalWaterDrainStartTime.value,
+              clonedWaterUuid: clonedWater?.uuid,
+              savedPosition: waterPositionRef.current,
             });
             if (ref) {
+              const previousPosition = waterRef.current?.position
+                ? {
+                    x: waterRef.current.position.x.toFixed(2),
+                    y: waterRef.current.position.y.toFixed(2),
+                    z: waterRef.current.position.z.toFixed(2),
+                  }
+                : null;
               (waterRef as React.MutableRefObject<THREE.Group | null>).current = ref;
-              // 初期位置を設定（useFrameで更新される）
-              ref.position.set(waterPosition[0], waterPosition[1], waterPosition[2]);
-              console.log('[LakeModel] ✅ waterRefが設定されました');
+              
+              // 保存された位置があれば復元（再マウント時の復元）
+              if (waterPositionRef.current) {
+                ref.position.set(
+                  waterPositionRef.current.x,
+                  waterPositionRef.current.y,
+                  waterPositionRef.current.z
+                );
+                console.log('[LakeModel] ✅ waterRefが設定されました（位置を復元）', {
+                  previousPosition,
+                  restoredPosition: {
+                    x: waterPositionRef.current.x.toFixed(2),
+                    y: waterPositionRef.current.y.toFixed(2),
+                    z: waterPositionRef.current.z.toFixed(2),
+                  },
+                });
+              } else {
+                // 保存された位置がない場合は、useFrame内で管理
+                console.log('[LakeModel] ✅ waterRefが設定されました（位置はuseFrameで管理）', {
+                  previousPosition,
+                  newPosition: {
+                    x: ref.position.x.toFixed(2),
+                    y: ref.position.y.toFixed(2),
+                    z: ref.position.z.toFixed(2),
+                  },
+                });
+              }
             } else {
               console.log('[LakeModel] ⚠️ waterRefがnullになりました');
             }
@@ -688,7 +750,8 @@ export default function LakeModel({
           object={clonedWater}
           scale={waterScale}
           onUpdate={(self: THREE.Object3D) => {
-            // 水面のマテリアルを動的に調整
+            // 水面のマテリアルを動的に調整（位置は変更しない）
+            // 注意: onUpdateは毎フレーム呼ばれる可能性があるため、位置を変更しないこと
             if (self?.traverse) {
               self.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh && child.material) {
