@@ -11,7 +11,6 @@ import {
 import LakeModel from '../3d/LakeModel';
 import { gpsToWorldCoordinate, SCENE_CENTER, worldToGpsCoordinate, calculateDistance } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
-import { useDevModeStore } from '../../stores/devMode';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
@@ -56,7 +55,6 @@ export default function Scene3D({
   onSelectPin: propOnSelectPin,
   onDeselectPin: propOnDeselectPin,
 }: Scene3DProps) {
-  const { isDevMode } = useDevModeStore();
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -293,8 +291,8 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
-          {/* devモード時: 2Dマップ上のピン位置を3Dビューに表示 */}
-          {isDevMode && <PinMarkers3D selectedPin={selectedPin} />}
+          {/* 2Dマップ上のピン位置を3Dビューに表示 */}
+          <PinMarkers3D selectedPin={selectedPin} />
 
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
