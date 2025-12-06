@@ -409,6 +409,12 @@ function CameraPositionSetter({
       type: string;
       hasGeometry: boolean;
     }> = [];
+    
+    // スケールに応じてサイズ判定を調整
+    const baseSizeLimit = 100;
+    const maxSizeLimit = 10000;
+    const maxHeightLimit = 1000;
+    const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2; // スケールに応じて調整（余裕を持たせる）
 
     scene.traverse((child) => {
       // GroupやObject3Dではなく、実際のMeshを探す
@@ -429,14 +435,14 @@ function CameraPositionSetter({
           if (meshName === 'Displacement.001' || meshName === 'Displacement') {
             terrainMesh = child;
           } else if (
-            size.x > 100 &&
-            size.z > 100 &&
-            size.x < 10000 &&
-            size.z < 10000 &&
-            size.y < 1000
+            size.x > baseSizeLimit &&
+            size.z > baseSizeLimit &&
+            size.x < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
+            size.z < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
+            size.y < scaledMaxHeightLimit
           ) {
-            // 100m以上10000m未満のサイズで、高さが1000m未満のMeshを地形として扱う
-            // これにより、異常に大きなバウンディングボックスを除外
+            // スケールに応じてサイズ制限を調整
+            // これにより、異常に大きなバウンディングボックスを除外しつつ、スケールが大きくなった地形も検出可能
             terrainMesh = child;
           }
         }
@@ -454,7 +460,10 @@ function CameraPositionSetter({
       const terrainName = mesh.name || '(無名)';
 
       // 高い位置から下方向にレイを飛ばして地形との交差を計算
-      const rayStartY = 1000;
+      // 地形のバウンディングボックスの最大Y座標を取得し、その上からレイを飛ばす
+      // スケールに応じてオフセットを調整
+      const terrainMaxY = terrainBox.max.y;
+      const rayStartY = terrainMaxY + 1000 * TERRAIN_SCALE_FACTOR; // スケールに応じてレイの開始位置を調整
       const rayStart = new THREE.Vector3(cameraX, rayStartY, cameraZ);
       const rayDirection = new THREE.Vector3(0, -1, 0);
 
@@ -811,6 +820,12 @@ function PinMarker({
 
     // シーン内の地形オブジェクトを検索
     let terrainMesh: THREE.Mesh | null = null;
+    
+    // スケールに応じてサイズ判定を調整
+    const baseSizeLimit = 100;
+    const maxSizeLimit = 10000;
+    const maxHeightLimit = 1000;
+    const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2; // スケールに応じて調整（余裕を持たせる）
 
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.geometry) {
@@ -818,16 +833,18 @@ function PinMarker({
         const size = box.getSize(new THREE.Vector3());
         const meshName = child.name || '(無名)';
 
+        // 地形のMeshを探す（名前で判定、または適切なサイズのMesh）
         if (!terrainMesh) {
           if (meshName === 'Displacement.001' || meshName === 'Displacement') {
             terrainMesh = child;
           } else if (
-            size.x > 100 &&
-            size.z > 100 &&
-            size.x < 10000 &&
-            size.z < 10000 &&
-            size.y < 1000
+            size.x > baseSizeLimit &&
+            size.z > baseSizeLimit &&
+            size.x < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
+            size.z < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
+            size.y < scaledMaxHeightLimit
           ) {
+            // スケールに応じてサイズ制限を調整
             terrainMesh = child;
           }
         }
@@ -836,9 +853,13 @@ function PinMarker({
 
     if (terrainMesh) {
       const mesh = terrainMesh as THREE.Mesh;
+      const terrainBox = new THREE.Box3().setFromObject(mesh);
 
       // 高い位置から下方向にレイを飛ばして地形との交差を計算
-      const rayStartY = 1000;
+      // 地形のバウンディングボックスの最大Y座標を取得し、その上からレイを飛ばす
+      // スケールに応じてオフセットを調整
+      const terrainMaxY = terrainBox.max.y;
+      const rayStartY = terrainMaxY + 1000 * TERRAIN_SCALE_FACTOR; // スケールに応じてレイの開始位置を調整
       const rayStart = new THREE.Vector3(pinX, rayStartY, pinZ);
       const rayDirection = new THREE.Vector3(0, -1, 0);
 

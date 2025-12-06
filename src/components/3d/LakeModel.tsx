@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
+import { TERRAIN_SCALE_FACTOR, WATER_INITIAL_OFFSET } from '../../config/terrain-config';
 
 interface LakeModelProps {
   position?: [number, number, number];
@@ -429,7 +430,9 @@ export default function LakeModel({
     // これにより、primitiveコンポーネントが再マウントされても位置が保持される
     if (isLoaded && showWater && clonedWater) {
       // 初期位置を上に設定して、そこから下がるようにする
-      const initialWaterOffset = 2 * waterScale[1]; // 初期位置を上に2m（スケール適用後）
+      // スケールに応じて初期位置を調整（スケールが大きくなっても相対的な位置を維持）
+      // WATER_INITIAL_OFFSET（terrain-config.tsで設定）を基準に、スケールに応じて調整
+      const initialWaterOffset = WATER_INITIAL_OFFSET * TERRAIN_SCALE_FACTOR; // スケールに応じて調整
       let waterY = initialWaterOffset; // 初期位置は上から
       
       if (globalWaterDrainStartTime.value) {
@@ -468,7 +471,7 @@ export default function LakeModel({
           } else {
             // 地形の一番下がまだ計算されていない場合は、固定の降下量を使用（フォールバック）
             const baseDrainHeight = -25;
-            const scaledDrainHeight = baseDrainHeight * waterScale[1];
+            const scaledDrainHeight = baseDrainHeight * TERRAIN_SCALE_FACTOR; // スケールに応じて調整
             // 初期位置から下がる量を計算
             waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
             
