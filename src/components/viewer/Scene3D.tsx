@@ -1,4 +1,4 @@
-import { Environment, Sky, DeviceOrientationControls, Text, Billboard } from '@react-three/drei';
+import { Environment, Sky, Text, Billboard } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
@@ -14,7 +14,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns } from 'react-icons/fa';
+import { FaMapSigns, FaCompass } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -24,6 +24,8 @@ import {
   CAMERA_HEIGHT_OFFSET,
   PIN_HEIGHT_OFFSET,
 } from '../../config/terrain-config';
+import OrientationCamera from '../ar/OrientationCamera';
+import { useSensors } from '../../hooks/useSensors';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -49,8 +51,8 @@ const calculateTerrainPosition = (): [number, number, number] => {
 };
 
 // 3Dシーンコンポーネント
-export default function Scene3D({ 
-  initialPosition, 
+export default function Scene3D({
+  initialPosition,
   selectedPin: propSelectedPin,
   onSelectPin: propOnSelectPin,
   onDeselectPin: propOnDeselectPin,
@@ -62,14 +64,13 @@ export default function Scene3D({
   const handleDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
-  const [permissionGranted, setPermissionGranted] = useState(() => {
-    // ローカルストレージから許可状態を復元
-    const stored = localStorage.getItem('deviceOrientationPermission');
-    console.log('保存された許可状態:', stored);
-    return stored === 'granted';
-  });
+  const [permissionGranted, setPermissionGranted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const deviceOrientationControlsRef = React.useRef<any>(null);
+
+  // センサーフックの使用
+  const { sensorData, isActive, startSensors } = useSensors();
+  const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -89,68 +90,18 @@ export default function Scene3D({
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const mobile = isMobileDevice || isTouchDevice;
       setIsMobile(mobile);
-      console.log('Device detection:', { isMobileDevice, isTouchDevice, isMobile: mobile });
-      console.log('User Agent:', navigator.userAgent);
-      console.log(
-        'Touch support:',
-        'ontouchstart' in window,
-        'maxTouchPoints:',
-        navigator.maxTouchPoints
-      );
     };
 
     checkDevice();
-
-    // デバイス向きイベントの状態を監視
-    const checkOrientationPermission = () => {
-      if (typeof DeviceOrientationEvent !== 'undefined') {
-        // デバイス向きイベントが利用可能かテスト
-        const testHandler = () => {
-          console.log('デバイス向きイベントが利用可能です');
-          setPermissionGranted(true);
-          localStorage.setItem('deviceOrientationPermission', 'granted');
-          window.removeEventListener('deviceorientation', testHandler);
-        };
-
-        window.addEventListener('deviceorientation', testHandler, { once: true });
-
-        // 3秒後にタイムアウト
-        setTimeout(() => {
-          window.removeEventListener('deviceorientation', testHandler);
-        }, 3000);
-      }
-    };
-
-    // モバイルの場合のみチェック
-    if (isMobile) {
-      checkOrientationPermission();
-    }
-  }, [isMobile]);
+  }, []);
 
   // デバイス向き許可のハンドラ
   const handleDeviceOrientationPermission = async () => {
     try {
-      // デバイス向きイベントの許可をリクエスト
-      if (
-        typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof (DeviceOrientationEvent as any).requestPermission === 'function'
-      ) {
-        const permission = await (DeviceOrientationEvent as any).requestPermission();
-        if (permission === 'granted') {
-          setPermissionGranted(true);
-          localStorage.setItem('deviceOrientationPermission', 'granted');
-          console.log('デバイス向き許可が取得されました');
-        } else {
-          console.warn('デバイス向き許可が拒否されました');
-        }
-      } else {
-        // 古いブラウザや許可が不要な場合
-        setPermissionGranted(true);
-        localStorage.setItem('deviceOrientationPermission', 'granted');
-        console.log('デバイス向き許可が不要です');
-      }
+      await startSensors();
+      setPermissionGranted(true);
     } catch (error) {
-      console.error('デバイス向き許可の取得に失敗:', error);
+      console.error('センサー開始エラー:', error);
     }
   };
 
@@ -239,9 +190,13 @@ export default function Scene3D({
           <CameraPositionSetter initialCameraConfig={initialCameraConfig} />
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
-          {/* デバイス向きコントロール（モバイルのみ） */}
-          {isMobile && permissionGranted && (
-            <DeviceOrientationControls ref={deviceOrientationControlsRef} />
+          {/* デバイス向きコントロール（モバイルのみ、かつ許可済み） */}
+          {isMobile && permissionGranted && sensorData.orientation && (
+            <OrientationCamera
+              deviceOrientation={sensorData.orientation}
+              arMode={true}
+              manualHeadingOffset={manualHeadingOffset}
+            />
           )}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
@@ -356,7 +311,7 @@ export default function Scene3D({
         >
           <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可が必要です</h3>
           <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
-            3Dビューでデバイスの向きに応じてカメラを制御するために、デバイス向きの許可が必要です。
+            AR体験のために、デバイスの向きへのアクセスを許可してください。
           </p>
           <button
             type="button"
@@ -371,8 +326,98 @@ export default function Scene3D({
               fontSize: '16px',
             }}
           >
-            デバイス向きを許可
+            アクセスを許可
           </button>
+        </div>
+      )}
+
+      {/* デバッグボタン（左上） */}
+      {isMobile && permissionGranted && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '16px',
+            zIndex: 1000,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowDebug(!showDebug)}
+            style={{
+              background: 'rgba(0,0,0,0.5)',
+              color: 'white',
+              border: 'none',
+              padding: '5px 10px',
+              borderRadius: '5px',
+              fontSize: '12px',
+            }}
+          >
+            {showDebug ? 'Debug OFF' : 'Debug ON'}
+          </button>
+        </div>
+      )}
+
+      {/* デバッグパネル */}
+      {showDebug && sensorData.orientation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50px',
+            left: '16px',
+            zIndex: 1000,
+            background: 'rgba(0, 0, 0, 0.7)',
+            color: '#00ff00',
+            padding: '10px',
+            borderRadius: '5px',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            pointerEvents: 'none',
+          }}
+        >
+          <div>Alpha: {sensorData.orientation.alpha?.toFixed(2)}</div>
+          <div>Beta:  {sensorData.orientation.beta?.toFixed(2)}</div>
+          <div>Gamma: {sensorData.orientation.gamma?.toFixed(2)}</div>
+          <div>Heading: {sensorData.compassHeading?.toFixed(2) ?? 'N/A'}</div>
+          <div>Offset: {manualHeadingOffset.toFixed(0)}</div>
+          <div>Abs: {sensorData.orientation.absolute ? 'Yes' : 'No'}</div>
+        </div>
+      )}
+
+      {/* 手動補正スライダー（画面下部） */}
+      {isMobile && permissionGranted && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '150px', // ピンリストの上
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '80%',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            background: 'rgba(0,0,0,0.5)',
+            padding: '10px',
+            borderRadius: '20px',
+          }}
+        >
+          <div style={{ color: 'white', fontSize: '12px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <FaCompass /> 方位補正: {manualHeadingOffset}°
+          </div>
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            value={manualHeadingOffset}
+            onChange={(e) => setManualHeadingOffset(Number(e.target.value))}
+            style={{ width: '100%' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '10px', color: '#ccc' }}>
+            <span>-180°</span>
+            <span onClick={() => setManualHeadingOffset(0)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Reset</span>
+            <span>+180°</span>
+          </div>
         </div>
       )}
     </div>
@@ -409,7 +454,7 @@ function CameraPositionSetter({
       type: string;
       hasGeometry: boolean;
     }> = [];
-    
+
     // スケールに応じてサイズ判定を調整
     const baseSizeLimit = 100;
     const maxSizeLimit = 10000;
@@ -750,9 +795,9 @@ function PCKeyboardControls() {
 }
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
-function PinMarkers3D({ 
+function PinMarkers3D({
   selectedPin
-}: { 
+}: {
   selectedPin?: PinData | null;
 }) {
   const { scene } = useThree();
@@ -820,7 +865,7 @@ function PinMarker({
 
     // シーン内の地形オブジェクトを検索
     let terrainMesh: THREE.Mesh | null = null;
-    
+
     // スケールに応じてサイズ判定を調整
     const baseSizeLimit = 100;
     const maxSizeLimit = 10000;
@@ -905,7 +950,7 @@ function PinMarker({
       // 光の強度をアニメーション（sin波で脈動）
       const time = state.clock.elapsedTime;
       lightBeamIntensity.current = 0.5 + Math.sin(time * 2) * 0.3;
-      
+
       const material = lightBeamRef.current.material as THREE.MeshStandardMaterial;
       if (material) {
         material.emissiveIntensity = lightBeamIntensity.current;
@@ -923,20 +968,20 @@ function PinMarker({
   const DistanceLabel = () => {
     const { camera } = useThree();
     const [distance, setDistance] = React.useState<number | null>(null);
-    
+
     useFrame(() => {
       if (!pinGpsPosition) return;
-      
+
       // カメラのワールド座標を取得
       const cameraPosition = new THREE.Vector3();
       camera.getWorldPosition(cameraPosition);
-      
+
       // カメラの3D座標をGPS座標に変換
       const cameraGps = worldToGpsCoordinate(
         { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
         SCENE_CENTER
       );
-      
+
       // GPS座標ベースで距離を計算（Haversine公式）
       const dist = calculateDistance(cameraGps, pinGpsPosition);
       setDistance(dist);
@@ -946,7 +991,7 @@ function PinMarker({
     if (distance !== null && pinGpsPosition) {
       const distanceKm = distance / 1000;
       // 1km未満はm単位、1km以上はkm単位で表示
-      const distanceText = distanceKm < 1 
+      const distanceText = distanceKm < 1
         ? `${Math.round(distance)}m`
         : `${distanceKm.toFixed(1)}km`;
       labelText = `${title}\n${distanceText}`;
