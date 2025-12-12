@@ -7,6 +7,7 @@ interface OrientationCameraProps {
   enableRotation?: boolean;
   smoothing?: number; // 0-1の範囲、1が最も滑らか
   arMode?: boolean; // ARモード：より直接的な制御
+  manualHeadingOffset?: number; // 手動補正（度数法）
 }
 
 export default function OrientationCamera({
@@ -14,6 +15,7 @@ export default function OrientationCamera({
   enableRotation = true,
   smoothing = 0.1,
   arMode = false,
+  manualHeadingOffset = 0,
 }: OrientationCameraProps) {
   const { camera } = useThree();
   const targetRotation = useRef({ x: 0, y: 0, z: 0 });
@@ -46,6 +48,8 @@ export default function OrientationCamera({
       const alphaRad = (alpha * Math.PI) / 180;
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
+      // 手動オフセットをラジアンに変換
+      const manualOffsetRad = (manualHeadingOffset * Math.PI) / 180;
 
       if (arMode) {
         // ARモード: Three.js DeviceOrientationControls準拠の座標変換
@@ -71,7 +75,8 @@ export default function OrientationCamera({
           x: betaRad - Math.PI / 2,
 
           // Y軸: alphaからオフセットを引く（画面向きによる調整）
-          y: alphaRad - screenOrientationOffset.current,
+          // さらに手動オフセットを加算（ユーザー補正）
+          y: alphaRad - screenOrientationOffset.current + manualOffsetRad,
 
           // Z軸: フィルタリングされたガンマを反転
           z: -filteredGamma,
@@ -91,7 +96,7 @@ export default function OrientationCamera({
         camera.rotation.order = 'XYZ';
       }
     }
-  }, [deviceOrientation, enableRotation, arMode, camera]);
+  }, [deviceOrientation, enableRotation, arMode, camera, manualHeadingOffset]);
 
   // フレームごとにカメラの回転を滑らかに更新
   useFrame(() => {
