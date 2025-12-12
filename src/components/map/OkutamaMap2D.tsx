@@ -249,7 +249,7 @@ export default function OkutamaMap2D({
     } else {
       // 新しいピンを選択
       handleSelectPin(pin);
-    setSheetOpen(true);
+      setSheetOpen(true);
     }
   };
 
