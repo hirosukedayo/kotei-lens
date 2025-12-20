@@ -1,6 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
-import * as THREE from 'three';
 import type { DeviceOrientation } from '../../types/sensors';
 
 interface OrientationCameraProps {
@@ -21,15 +20,6 @@ export default function OrientationCamera({
   const { camera } = useThree();
   const targetRotation = useRef({ x: 0, y: 0, z: 0 });
   const currentRotation = useRef({ x: 0, y: 0, z: 0 });
-
-  // 描画パフォーマンス向上のための事前アロケーション
-  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
-  const q_device = useRef(new THREE.Quaternion());
-  const q_world = useRef(
-    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)
-  );
-  const zee = useRef(new THREE.Vector3(0, 0, 1));
-  const q_screen = useRef(new THREE.Quaternion());
 
   // 画面の向きによるオフセット調整
   const screenOrientation = useRef(0);
@@ -69,30 +59,43 @@ export default function OrientationCamera({
           // Android/Others: absolute alphaを使用
           initialHeadingOffset.current = 0; // すでに北基準
         } else {
-          // 不明な場合は0
           initialHeadingOffset.current = 0;
         }
         console.log('Initial heading offset calibrated:', initialHeadingOffset.current);
       }
 
       // ラジアンに変換
-      // 注意: OrientationServiceが正規化していない生の実装に近い値（0-360）を返すことを想定
       const alphaRad = (alpha * Math.PI) / 180;
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
-      const offsetRad = ((initialHeadingOffset.current || 0) * Math.PI) / 180;
+      const initialOffsetRad = ((initialHeadingOffset.current || 0) * Math.PI) / 180;
       const manualRad = (manualHeadingOffset * Math.PI) / 180;
 
       if (arMode) {
-        // DeviceOrientationControls 相当の計算（Euler YXZを使用）
-        // alphaにオフセット（コンパス初期値 + 手動補正）を加算
-        // webkitCompassHeading(時計回り)を考慮してalphaを調整
-        // Three.jsの標準的なARカメラの向きにするための補正
+        // 安定版 (a625957) のロジックに回帰
+        // デバイスが垂直に近いかどうかを判定（beta値で判定）
+        const isNearVertical = Math.abs(betaRad - Math.PI / 2) < Math.PI / 6;
+
+        // 垂直時のガンマ値フィルタリング
+        let filteredGamma = gammaRad;
+        if (isNearVertical) {
+          const gammaThreshold = Math.PI / 12;
+          if (Math.abs(gammaRad) > gammaThreshold) {
+            filteredGamma = Math.sign(gammaRad) * gammaThreshold;
+          }
+        }
+
         targetRotation.current = {
-          x: betaRad,
-          y: alphaRad - offsetRad - manualRad,
-          z: -gammaRad,
+          // X軸: beta - π/2（背面カメラ向きに調整）
+          x: betaRad - Math.PI / 2,
+
+          // Y軸: alphaから「初期オフセット」「画面回転分」「手動オフセット」を引く
+          y: alphaRad - initialOffsetRad - screenOrientation.current - manualRad,
+
+          // Z軸: フィルタリングされたガンマを反転
+          z: -filteredGamma,
         };
+
         camera.rotation.order = 'YXZ';
       } else {
         targetRotation.current = {
@@ -117,19 +120,7 @@ export default function OrientationCamera({
     current.y = lerpAngle(current.y, target.y, smoothing);
     current.z = lerp(current.z, target.z, smoothing);
 
-    if (arMode) {
-      // DeviceOrientationControls の内部ロジックに準拠
-      euler.current.set(current.x, current.y, current.z, 'YXZ');
-      q_device.current.setFromEuler(euler.current);
-      q_screen.current.setFromAxisAngle(zee.current, -screenOrientation.current);
-
-      camera.quaternion
-        .copy(q_device.current)
-        .multiply(q_world.current)
-        .multiply(q_screen.current);
-    } else {
-      camera.rotation.set(current.x, current.y, current.z);
-    }
+    camera.rotation.set(current.x, current.y, current.z);
   });
 
   return null; // このコンポーネントは視覚的な要素を持たない
