@@ -20,6 +20,7 @@ import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
 import { FaMapSigns, FaCompass } from 'react-icons/fa';
+import { PiCubeFocusFill } from 'react-icons/pi';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -28,8 +29,10 @@ import {
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
   PIN_HEIGHT_OFFSET,
+  DEFAULT_FOV,
 } from '../../config/terrain-config';
 import OrientationCamera from '../ar/OrientationCamera';
+import ARBackground from '../ar/ARBackground';
 import { useSensors } from '../../hooks/useSensors';
 
 interface Scene3DProps {
@@ -75,7 +78,9 @@ export default function Scene3D({
   // センサーフックの使用
   const { sensorData, startSensors } = useSensors();
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
+  const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
+  const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -179,16 +184,17 @@ export default function Scene3D({
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
+    <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: 'transparent' }}>
+      {isArBackgroundActive && isMobile && <ARBackground active={true} />}
       <Canvas
         style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}
         camera={{
           position: initialCameraConfig.position,
-          fov: 65,
+          fov: fov,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
         }}
-        gl={getRendererConfig(renderer)}
+        gl={{ ...getRendererConfig(renderer), alpha: true }}
       >
         <Suspense fallback={null}>
           {/* カメラの初期位置を明示的に設定 */}
@@ -206,12 +212,14 @@ export default function Scene3D({
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
-          <Sky
-            distance={50000} // 広範囲のスカイボックス（50km）
-            sunPosition={[100, 50, 100]} // 太陽位置を調整
-            inclination={0.49} // 太陽の高さを調整
-            azimuth={0.25} // 太陽の方位角
-          />
+          {(!isArBackgroundActive || !isMobile) && (
+            <Sky
+              distance={50000} // 広範囲のスカイボックス（50km）
+              sunPosition={[100, 50, 100]} // 太陽位置を調整
+              inclination={0.49} // 太陽の高さを調整
+              azimuth={0.25} // 太陽の方位角
+            />
+          )}
 
           {/* 環境マップ（反射などに使用） */}
           <Environment preset="sunset" />
@@ -389,7 +397,7 @@ export default function Scene3D({
         </div>
       )}
 
-      {/* 手動補正スライダー（画面下部） */}
+      {/* 手動補正 & FOVスライダー（画面下部） */}
       {isMobile && permissionGranted && (
         <div
           style={{
@@ -397,62 +405,119 @@ export default function Scene3D({
             bottom: '150px', // ピンリストの上
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '80%',
+            width: '90%',
+            maxWidth: '400px',
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            background: 'rgba(0,0,0,0.5)',
-            padding: '10px',
-            borderRadius: '20px',
+            gap: '12px',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            padding: '16px',
+            borderRadius: '24px',
+            border: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          <div
-            style={{
-              color: 'white',
-              fontSize: '12px',
-              marginBottom: '5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-            }}
-          >
-            <FaCompass /> 方位補正: {manualHeadingOffset}°
-          </div>
-          <input
-            type="range"
-            min="-180"
-            max="180"
-            value={manualHeadingOffset}
-            onChange={(e) => setManualHeadingOffset(Number(e.target.value))}
-            style={{ width: '100%' }}
-          />
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              width: '100%',
-              fontSize: '10px',
-              color: '#ccc',
-            }}
-          >
-            <span>-180°</span>
-            <button
-              type="button"
-              onClick={() => setManualHeadingOffset(0)}
+          {/* 方位補正スライダー */}
+          <div style={{ width: '100%' }}>
+            <div
               style={{
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                color: 'inherit',
-                fontSize: 'inherit',
+                color: 'white',
+                fontSize: '12px',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              Reset
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <FaCompass /> 方位補正: {manualHeadingOffset}°
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualHeadingOffset(0)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              value={manualHeadingOffset}
+              onChange={(e) => setManualHeadingOffset(Number(e.target.value))}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* 画角(FOV)スライダー */}
+          <div style={{ width: '100%' }}>
+            <div
+              style={{
+                color: 'white',
+                fontSize: '12px',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <PiCubeFocusFill /> 画角 (FOV): {fov}°
+              </div>
+              <button
+                type="button"
+                onClick={() => setFov(DEFAULT_FOV)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <input
+              type="range"
+              min="30"
+              max="120"
+              value={fov}
+              onChange={(e) => setFov(Number(e.target.value))}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* AR背景トグル */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setIsArBackgroundActive(!isArBackgroundActive)}
+              style={{
+                background: isArBackgroundActive ? '#2B6CB0' : 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                fontSize: '11px',
+                padding: '6px 12px',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              AR背景: {isArBackgroundActive ? 'ON' : 'OFF'}
             </button>
-            <span>+180°</span>
           </div>
         </div>
       )}
