@@ -38,7 +38,9 @@ export default function ARBackground({ active = true }: ARBackgroundProps) {
 
         return () => {
             if (currentStream) {
-                currentStream.getTracks().forEach((track) => track.stop());
+                for (const track of currentStream.getTracks()) {
+                    track.stop();
+                }
             }
         };
     }, [active]);

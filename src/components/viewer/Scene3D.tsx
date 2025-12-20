@@ -503,6 +503,7 @@ export default function Scene3D({
           {/* AR背景トグル */}
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             <button
+              type="button"
               onClick={() => setIsArBackgroundActive(!isArBackgroundActive)}
               style={{
                 background: isArBackgroundActive ? '#2B6CB0' : 'rgba(255,255,255,0.2)',
