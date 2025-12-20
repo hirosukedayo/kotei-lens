@@ -310,30 +310,47 @@ export default function OkutamaMap2D({
               position={[sensorData.gps.latitude, sensorData.gps.longitude]}
               icon={L.divIcon({
                 html: `
-                  <div style="
-                    width: 24px;
-                    height: 24px;
-                    background: #3b82f6;
-                    border: 3px solid white;
-                    border-radius: 50%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                    position: relative;
-                  ">
+                  <div style="position: relative; width: 48px; height: 48px; margin-left: -12px; margin-top: -12px; display: flex; align-items: center; justify-content: center;">
+                    <!-- 視界インジケーター（コンパス連動） -->
                     <div style="
                       position: absolute;
-                      top: 50%;
-                      left: 50%;
-                      transform: translate(-50%, -50%);
-                      width: 8px;
-                      height: 8px;
-                      background: white;
-                      border-radius: 50%;
+                      width: 0;
+                      height: 0;
+                      border-left: 15px solid transparent;
+                      border-right: 15px solid transparent;
+                      border-bottom: 25px solid rgba(59, 130, 246, 0.4);
+                      bottom: 50%;
+                      transform-origin: 50% 100%;
+                      transform: rotate(${sensorData.orientation?.webkitCompassHeading ?? sensorData.orientation?.alpha ?? 0}deg);
+                      transition: transform 0.2s ease-out;
                     "></div>
+                    <!-- GPSドット -->
+                    <div style="
+                      width: 24px;
+                      height: 24px;
+                      background: #3b82f6;
+                      border: 3px solid white;
+                      border-radius: 50%;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                      position: relative;
+                      z-index: 2;
+                    ">
+                      <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 8px;
+                        height: 8px;
+                        background: white;
+                        border-radius: 50%;
+                      "></div>
+                    </div>
                   </div>
                 `,
                 className: 'gps-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12],
+                iconSize: [48, 48],
+                iconAnchor: [24, 24],
               })}
             />
           )}
