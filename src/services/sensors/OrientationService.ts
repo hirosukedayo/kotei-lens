@@ -47,7 +47,7 @@ export class OrientationService {
     console.log('OrientationService.startTracking called, current state:', {
       isAvailable: this.isAvailable(),
       isTracking: this.isTracking,
-      callbackCount: this.callbacks.length
+      callbackCount: this.callbacks.length,
     });
 
     if (!this.isAvailable()) {
@@ -74,23 +74,24 @@ export class OrientationService {
         console.log('Using deviceorientation event');
         window.addEventListener('deviceorientation', this.handleOrientationEvent);
       }
-      
+
       console.log('Orientation event listener added');
-      
+
       // 5秒後にイベント受信状況をチェック
       setTimeout(() => {
         console.log('5秒後の方位センサー状況:', {
           isTracking: this.isTracking,
           callbackCount: this.callbacks.length,
           lastOrientation: this.lastOrientation,
-          hasReceivedData: this.lastOrientation !== null
+          hasReceivedData: this.lastOrientation !== null,
         });
-        
+
         if (this.lastOrientation === null) {
-          console.warn('方位センサーからのデータを受信していません。デバイスを動かしてみてください。');
+          console.warn(
+            '方位センサーからのデータを受信していません。デバイスを動かしてみてください。'
+          );
         }
       }, 5000);
-      
     } else {
       console.log('Orientation tracking already active');
     }
@@ -190,38 +191,18 @@ export class OrientationService {
   private handleOrientationEvent = (event: DeviceOrientationEvent): void => {
     console.log('Orientation event received:', {
       alpha: event.alpha,
-      beta: event.beta, 
+      beta: event.beta,
       gamma: event.gamma,
       absolute: event.absolute,
       webkitCompassHeading: event.webkitCompassHeading,
-      callbackCount: this.callbacks.length
+      callbackCount: this.callbacks.length,
     });
 
-    // 補正されたalpha値を計算
-    let correctedAlpha = event.alpha;
-    
-    // iOSでwebkitCompassHeadingが利用可能な場合は使用
-    if ('webkitCompassHeading' in event && typeof event.webkitCompassHeading === 'number') {
-      const webkitHeading = event.webkitCompassHeading;
-      // webkitCompassHeadingは時計回りなので、反時計回りに変換
-      correctedAlpha = 360 - webkitHeading;
-    } else if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
-      // その他のデバイスの場合、gammaを考慮した補正
-      const gammaRad = (event.gamma * Math.PI) / 180;
-      const alphaRad = (event.alpha * Math.PI) / 180;
-      
-      const correctedHeading = Math.atan2(
-        Math.sin(alphaRad) * Math.cos(gammaRad), 
-        Math.cos(alphaRad)
-      ) * (180 / Math.PI);
-      
-      correctedAlpha = (correctedHeading + 360) % 360;
-    }
-
     const orientation: DeviceOrientation = {
-      alpha: correctedAlpha,
+      alpha: event.alpha,
       beta: event.beta,
       gamma: event.gamma,
+      webkitCompassHeading: event.webkitCompassHeading,
       absolute: event.absolute || false,
       timestamp: Date.now(),
     };
@@ -271,6 +252,7 @@ export class OrientationService {
       alpha: orientation.alpha !== null ? averages.alpha / count : null,
       beta: orientation.beta !== null ? averages.beta / count : null,
       gamma: orientation.gamma !== null ? averages.gamma / count : null,
+      webkitCompassHeading: orientation.webkitCompassHeading,
       absolute: orientation.absolute,
       timestamp: orientation.timestamp,
     };

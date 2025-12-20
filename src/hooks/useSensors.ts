@@ -71,13 +71,13 @@ export function useSensors() {
 
     console.log('センサー開始を試行中...', {
       gpsAvailable: sensorManager.locationService.isAvailable(),
-      orientationAvailable: sensorManager.orientationService.isAvailable(),  
+      orientationAvailable: sensorManager.orientationService.isAvailable(),
       motionAvailable: sensorManager.motionService.isAvailable(),
     });
 
     try {
       let startedCount = 0;
-      
+
       // GPS開始
       if (sensorManager.locationService.isAvailable()) {
         console.log('GPS開始を試行中...');
@@ -122,7 +122,7 @@ export function useSensors() {
 
       setIsActive(true);
       console.log(`センサー開始完了: ${startedCount}個のセンサーが開始されました`);
-      
+
       // 5秒後にデータ受信状況をチェック
       setTimeout(() => {
         console.log('5秒後のセンサーデータ状況:', {
@@ -131,11 +131,18 @@ export function useSensors() {
           motion: sensorData.motion ? '取得済み' : '未取得',
         });
       }, 5000);
-      
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }
-  }, [isActive, sensorManager, handleGPSUpdate, handleGPSError, handleOrientationUpdate, handleMotionUpdate, sensorData]);
+  }, [
+    isActive,
+    sensorManager,
+    handleGPSUpdate,
+    handleGPSError,
+    handleOrientationUpdate,
+    handleMotionUpdate,
+    sensorData,
+  ]);
 
   // センサー停止
   const stopSensors = useCallback(() => {

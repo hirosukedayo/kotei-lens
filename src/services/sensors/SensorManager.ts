@@ -5,7 +5,7 @@ import { MotionService } from './MotionService';
 
 export class SensorManager {
   private static instance: SensorManager;
-  
+
   private _locationService: LocationService;
   private _orientationService: OrientationService;
   private _motionService: MotionService;
@@ -14,7 +14,7 @@ export class SensorManager {
     this._locationService = new LocationService();
     this._orientationService = new OrientationService();
     this._motionService = new MotionService();
-    
+
     console.log('SensorManager singleton instance created');
   }
 
@@ -43,18 +43,18 @@ export class SensorManager {
       location: {
         available: this._locationService.isAvailable(),
         watching: this._locationService.getLastPosition() !== null,
-        lastUpdate: this._locationService.getLastPosition()?.timestamp || null
+        lastUpdate: this._locationService.getLastPosition()?.timestamp || null,
       },
       orientation: {
         available: this._orientationService.isAvailable(),
         tracking: this._orientationService.getLastOrientation() !== null,
-        lastUpdate: this._orientationService.getLastOrientation()?.timestamp || null
+        lastUpdate: this._orientationService.getLastOrientation()?.timestamp || null,
       },
       motion: {
         available: this._motionService.isAvailable(),
         tracking: false, // MotionServiceにgetLastMotionメソッドを追加する必要がある
-        lastUpdate: null
-      }
+        lastUpdate: null,
+      },
     };
   }
 

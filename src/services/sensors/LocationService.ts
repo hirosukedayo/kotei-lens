@@ -78,7 +78,7 @@ export class LocationService {
     console.log('LocationService.startWatching called, current state:', {
       isAvailable: this.isAvailable(),
       watchId: this.watchId,
-      callbackCount: this.callbacks.length
+      callbackCount: this.callbacks.length,
     });
 
     if (!this.isAvailable()) {
@@ -102,7 +102,7 @@ export class LocationService {
           this.lastPosition = gpsPosition;
           console.log('GPS callbacks to execute:', this.callbacks.length);
           console.log('GPS position converted:', gpsPosition);
-          
+
           for (let i = 0; i < this.callbacks.length; i++) {
             console.log(`Executing GPS callback ${i + 1}/${this.callbacks.length}`);
             try {
@@ -123,21 +123,22 @@ export class LocationService {
         this.options
       );
       console.log('GPS watchPosition started with ID:', this.watchId);
-      
+
       // 10秒後にGPS受信状況をチェック
       setTimeout(() => {
         console.log('10秒後のGPS状況:', {
           watchId: this.watchId,
           callbackCount: this.callbacks.length,
           lastPosition: this.lastPosition,
-          hasReceivedData: this.lastPosition !== null
+          hasReceivedData: this.lastPosition !== null,
         });
-        
+
         if (this.lastPosition === null) {
-          console.warn('GPSからのデータを受信していません。位置の許可が適切に設定されているか確認してください。');
+          console.warn(
+            'GPSからのデータを受信していません。位置の許可が適切に設定されているか確認してください。'
+          );
         }
       }, 10000);
-      
     } else {
       console.log('GPS watching already active with ID:', this.watchId);
     }

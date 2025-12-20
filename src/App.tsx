@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaMapLocationDot } from 'react-icons/fa6';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
-import OkutamaMap2D from './components/map/OkutamaMap2D';
+import OkutamaMap2D, { type Initial3DPosition } from './components/map/OkutamaMap2D';
+import { useDevModeStore } from './stores/devMode';
+import type { PinData } from './types/pins';
 import './App.css';
 
 type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
@@ -10,6 +12,14 @@ type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
 function App() {
   const [appState, setAppState] = useState<AppState>('2d-view');
   const [permissionErrors, setPermissionErrors] = useState<string[]>([]);
+  const [initial3DPosition, setInitial3DPosition] = useState<Initial3DPosition | null>(null);
+  const [selectedPin, setSelectedPin] = useState<PinData | null>(null);
+  const { isDevMode, toggleDevMode } = useDevModeStore();
+  const tapCountRef = useRef(0);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const CORNER_SIZE = 50; // 右下角の検出範囲（px）
+  const REQUIRED_TAPS = 5; // devモード切り替えに必要なタップ数
+  const TAP_TIMEOUT = 2000; // タップ間のタイムアウト（ms）
 
   // 3Dビュー表示時にrootに全画面クラスを追加
   useEffect(() => {
@@ -31,7 +41,58 @@ function App() {
     };
   }, [appState]);
 
-  const handleStart3D = () => {
+  // 右下角の連続タップでdevモードを切り替える
+  useEffect(() => {
+    const handleTap = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+
+      // 右下角（右下からCORNER_SIZE以内）をタップしたかチェック
+      if (clientX >= windowWidth - CORNER_SIZE && clientY >= windowHeight - CORNER_SIZE) {
+        tapCountRef.current += 1;
+
+        // タイムアウトをリセット
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+        }
+
+        // 必要な回数タップされたらdevモードを切り替え
+        if (tapCountRef.current >= REQUIRED_TAPS) {
+          toggleDevMode();
+          tapCountRef.current = 0;
+          console.log(`Dev mode ${isDevMode ? 'disabled' : 'enabled'}`);
+        } else {
+          // タイムアウトを設定（一定時間タップがないとリセット）
+          tapTimeoutRef.current = setTimeout(() => {
+            tapCountRef.current = 0;
+          }, TAP_TIMEOUT);
+        }
+      } else {
+        // 右下角以外をタップしたらリセット
+        tapCountRef.current = 0;
+        if (tapTimeoutRef.current) {
+          clearTimeout(tapTimeoutRef.current);
+        }
+      }
+    };
+
+    // マウスとタッチの両方に対応
+    window.addEventListener('click', handleTap);
+    window.addEventListener('touchstart', handleTap, { passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleTap);
+      window.removeEventListener('touchstart', handleTap);
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, [toggleDevMode, isDevMode]);
+
+  const handleStart3D = (initialPosition: Initial3DPosition) => {
+    setInitial3DPosition(initialPosition);
     setAppState('3d-view');
   };
 
@@ -60,7 +121,12 @@ function App() {
   if (appState === '3d-view') {
     return (
       <div>
-        <Scene3D />
+        <Scene3D
+          initialPosition={initial3DPosition}
+          selectedPin={selectedPin}
+          onSelectPin={setSelectedPin}
+          onDeselectPin={() => setSelectedPin(null)}
+        />
         {/* 2Dに戻る（右上・円形アイコンボタン） */}
         <div
           style={{
@@ -85,12 +151,33 @@ function App() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <FaMapLocationDot size={64} />
           </button>
         </div>
+        {/* Devモード表示バッジ */}
+        {isDevMode && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '16px',
+              left: '16px',
+              zIndex: 1000,
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              pointerEvents: 'none',
+            }}
+          >
+            DEV MODE
+          </div>
+        )}
       </div>
     );
   }
@@ -128,10 +215,18 @@ function App() {
           <div
             style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}
           >
-            <button type="button" onClick={handleRetryPermissions} style={{ backgroundColor: '#2B6CB0' }}>
+            <button
+              type="button"
+              onClick={handleRetryPermissions}
+              style={{ backgroundColor: '#2B6CB0' }}
+            >
               再試行
             </button>
-            <button type="button" onClick={handleContinueWithoutPermissions} style={{ backgroundColor: '#666' }}>
+            <button
+              type="button"
+              onClick={handleContinueWithoutPermissions}
+              style={{ backgroundColor: '#666' }}
+            >
               制限モードで続行
             </button>
           </div>
@@ -142,7 +237,35 @@ function App() {
 
   // 2Dマップをデフォルトで表示
   return (
-    <OkutamaMap2D onRequest3D={handleStart3D} />
+    <>
+      <OkutamaMap2D
+        onRequest3D={handleStart3D}
+        selectedPin={selectedPin}
+        onSelectPin={setSelectedPin}
+        onDeselectPin={() => setSelectedPin(null)}
+      />
+      {/* Devモード表示バッジ */}
+      {isDevMode && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '16px',
+            zIndex: 1000,
+            backgroundColor: '#10b981',
+            color: '#ffffff',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            pointerEvents: 'none',
+          }}
+        >
+          DEV MODE
+        </div>
+      )}
+    </>
   );
 }
 
