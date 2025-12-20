@@ -6,10 +6,6 @@ export class OrientationService {
   private isTracking = false;
   private lastOrientation: DeviceOrientation | null = null;
 
-  // 平滑化用のバッファ
-  private orientationBuffer: DeviceOrientation[] = [];
-  private readonly BUFFER_SIZE = 3;
-
   constructor(customDeclination?: number) {
     if (customDeclination !== undefined) {
       this.magneticDeclination = customDeclination;
@@ -44,12 +40,6 @@ export class OrientationService {
 
   // 方位追跡開始
   public async startTracking(callback: OrientationCallback): Promise<void> {
-    console.log('OrientationService.startTracking called, current state:', {
-      isAvailable: this.isAvailable(),
-      isTracking: this.isTracking,
-      callbackCount: this.callbacks.length,
-    });
-
     if (!this.isAvailable()) {
       throw new Error('Device orientation is not supported');
     }
@@ -61,39 +51,16 @@ export class OrientationService {
     }
 
     this.callbacks.push(callback);
-    console.log('Orientation callback added, total callbacks:', this.callbacks.length);
 
     if (!this.isTracking) {
       this.isTracking = true;
 
       // iOS Safari では deviceorientationabsolute イベントを優先（コンパス基準）
       if ('ondeviceorientationabsolute' in window) {
-        console.log('Using deviceorientationabsolute event');
         window.addEventListener('deviceorientationabsolute', this.handleOrientationEvent);
       } else {
-        console.log('Using deviceorientation event');
         window.addEventListener('deviceorientation', this.handleOrientationEvent);
       }
-
-      console.log('Orientation event listener added');
-
-      // 5秒後にイベント受信状況をチェック
-      setTimeout(() => {
-        console.log('5秒後の方位センサー状況:', {
-          isTracking: this.isTracking,
-          callbackCount: this.callbacks.length,
-          lastOrientation: this.lastOrientation,
-          hasReceivedData: this.lastOrientation !== null,
-        });
-
-        if (this.lastOrientation === null) {
-          console.warn(
-            '方位センサーからのデータを受信していません。デバイスを動かしてみてください。'
-          );
-        }
-      }, 5000);
-    } else {
-      console.log('Orientation tracking already active');
     }
   }
 
@@ -110,13 +77,11 @@ export class OrientationService {
 
     if (this.callbacks.length === 0 && this.isTracking) {
       this.isTracking = false;
-      // 使用していたイベントタイプに応じて削除
       if ('ondeviceorientationabsolute' in window) {
         window.removeEventListener('deviceorientationabsolute', this.handleOrientationEvent);
       } else {
         window.removeEventListener('deviceorientation', this.handleOrientationEvent);
       }
-      this.orientationBuffer.length = 0;
     }
   }
 
@@ -189,80 +154,31 @@ export class OrientationService {
 
   // プライベートメソッド
   private handleOrientationEvent = (event: DeviceOrientationEvent): void => {
-    console.log('Orientation event received:', {
-      alpha: event.alpha,
-      beta: event.beta,
-      gamma: event.gamma,
-      absolute: event.absolute,
-      webkitCompassHeading: event.webkitCompassHeading,
-      callbackCount: this.callbacks.length,
-    });
-
     const orientation: DeviceOrientation = {
       alpha: event.alpha,
       beta: event.beta,
       gamma: event.gamma,
-      webkitCompassHeading: event.webkitCompassHeading,
+      webkitCompassHeading: (event as any).webkitCompassHeading,
       absolute: event.absolute || false,
       timestamp: Date.now(),
     };
 
-    // 平滑化処理
-    const smoothedOrientation = this.smoothOrientation(orientation);
-    this.lastOrientation = smoothedOrientation;
+    this.lastOrientation = orientation;
 
-    console.log('Executing orientation callbacks:', this.callbacks.length);
     // コールバック実行
     for (let i = 0; i < this.callbacks.length; i++) {
-      console.log(`Executing orientation callback ${i + 1}/${this.callbacks.length}`);
       try {
-        this.callbacks[i](smoothedOrientation);
-        console.log(`Orientation callback ${i + 1} executed successfully`);
+        this.callbacks[i](orientation);
       } catch (error) {
         console.error(`Orientation callback ${i + 1} failed:`, error);
       }
     }
   };
 
-  // 平滑化処理（ノイズ除去）
-  private smoothOrientation(orientation: DeviceOrientation): DeviceOrientation {
-    this.orientationBuffer.push(orientation);
-
-    if (this.orientationBuffer.length > this.BUFFER_SIZE) {
-      this.orientationBuffer.shift();
-    }
-
-    if (this.orientationBuffer.length === 1) {
-      return orientation;
-    }
-
-    // 移動平均を計算
-    const averages = this.orientationBuffer.reduce(
-      (acc, curr) => ({
-        alpha: (acc.alpha || 0) + (curr.alpha || 0),
-        beta: (acc.beta || 0) + (curr.beta || 0),
-        gamma: (acc.gamma || 0) + (curr.gamma || 0),
-      }),
-      { alpha: 0, beta: 0, gamma: 0 }
-    );
-
-    const count = this.orientationBuffer.length;
-
-    return {
-      alpha: orientation.alpha !== null ? averages.alpha / count : null,
-      beta: orientation.beta !== null ? averages.beta / count : null,
-      gamma: orientation.gamma !== null ? averages.gamma / count : null,
-      webkitCompassHeading: orientation.webkitCompassHeading,
-      absolute: orientation.absolute,
-      timestamp: orientation.timestamp,
-    };
-  }
-
   // クリーンアップ
   public dispose(): void {
     this.stopTracking();
     this.callbacks.length = 0;
-    this.orientationBuffer.length = 0;
     this.lastOrientation = null;
   }
 }
