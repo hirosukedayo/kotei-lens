@@ -22,61 +22,45 @@ export default function OrientationCamera({
   const currentRotation = useRef({ x: 0, y: 0, z: 0 });
 
   // 画面の向きによるオフセット調整
-  const screenOrientation = useRef(0);
-  const initialHeadingOffset = useRef<number | null>(null);
+  const screenOrientationOffset = useRef(0);
 
-  // 画面の向きの監視
+  // 画面の向きに基づくオフセット設定
   useEffect(() => {
-    const updateOrientation = () => {
-      const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0;
-      screenOrientation.current = (angle * Math.PI) / 180;
-    };
+    if (arMode) {
+      const update = () => {
+        const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0;
+        // 縦向き（portrait）では0、横向き（landscape）では90度オフセット
+        screenOrientationOffset.current = angle === 0 ? 0 : Math.PI / 2;
+      };
 
-    window.addEventListener('orientationchange', updateOrientation);
-    window.addEventListener('resize', updateOrientation);
-    updateOrientation();
+      window.addEventListener('orientationchange', update);
+      window.addEventListener('resize', update);
+      update();
 
-    return () => {
-      window.removeEventListener('orientationchange', updateOrientation);
-      window.removeEventListener('resize', updateOrientation);
-    };
-  }, []);
+      return () => {
+        window.removeEventListener('orientationchange', update);
+        window.removeEventListener('resize', update);
+      };
+    }
+  }, [arMode]);
 
   // デバイス方位の更新処理
   useEffect(() => {
     if (!deviceOrientation || !enableRotation) return;
 
-    const { alpha, beta, gamma, webkitCompassHeading } = deviceOrientation;
+    const { alpha, beta, gamma } = deviceOrientation;
 
     if (alpha !== null && beta !== null && gamma !== null) {
-      // 初回のみコンパス方位でオフセットを計算
-      if (initialHeadingOffset.current === null) {
-        if (webkitCompassHeading !== undefined) {
-          // iOS: webkitCompassHeadingを使用 (0度 = 北)
-          // webkitCompassHeadingは時計回り、alphaは反時計回り
-          initialHeadingOffset.current = (webkitCompassHeading + alpha) % 360;
-        } else if (deviceOrientation.absolute) {
-          // Android/Others: absolute alphaを使用
-          initialHeadingOffset.current = 0; // すでに北基準
-        } else {
-          initialHeadingOffset.current = 0;
-        }
-        console.log('Initial heading offset calibrated:', initialHeadingOffset.current);
-      }
-
       // ラジアンに変換
       const alphaRad = (alpha * Math.PI) / 180;
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
-      const initialOffsetRad = ((initialHeadingOffset.current || 0) * Math.PI) / 180;
-      const manualRad = (manualHeadingOffset * Math.PI) / 180;
+      const manualOffsetRad = (manualHeadingOffset * Math.PI) / 180;
 
       if (arMode) {
-        // 安定版 (a625957) のロジックに回帰
-        // デバイスが垂直に近いかどうかを判定（beta値で判定）
+        // 安定版 (a625957) のロジック
         const isNearVertical = Math.abs(betaRad - Math.PI / 2) < Math.PI / 6;
 
-        // 垂直時のガンマ値フィルタリング
         let filteredGamma = gammaRad;
         if (isNearVertical) {
           const gammaThreshold = Math.PI / 12;
@@ -86,13 +70,13 @@ export default function OrientationCamera({
         }
 
         targetRotation.current = {
-          // X軸: beta - π/2（背面カメラ向きに調整）
+          // X軸: beta - PI/2
           x: betaRad - Math.PI / 2,
 
-          // Y軸: alphaから「初期オフセット」「画面回転分」「手動オフセット」を引く
-          y: alphaRad - initialOffsetRad - screenOrientation.current - manualRad,
+          // Y軸: alpha - screenOrientationOffset + manualOffset
+          y: alphaRad - screenOrientationOffset.current + manualOffsetRad,
 
-          // Z軸: フィルタリングされたガンマを反転
+          // Z軸: filteredGammaを反転
           z: -filteredGamma,
         };
 
