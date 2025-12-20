@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useEffect } from 'react';
+import * as THREE from 'three';
 import type { DeviceOrientation } from '../../types/sensors';
 
 interface OrientationCameraProps {
@@ -21,78 +22,84 @@ export default function OrientationCamera({
   const targetRotation = useRef({ x: 0, y: 0, z: 0 });
   const currentRotation = useRef({ x: 0, y: 0, z: 0 });
 
-  // 画面の向きによるオフセット調整（Three.js DeviceOrientationControls準拠）
-  const screenOrientationOffset = useRef(0);
+  // 描画パフォーマンス向上のための事前アロケーション
+  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
+  const q_device = useRef(new THREE.Quaternion());
+  const q_world = useRef(
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2)
+  );
+  const zee = useRef(new THREE.Vector3(0, 0, 1));
+  const q_screen = useRef(new THREE.Quaternion());
 
-  // 画面の向きに基づくオフセット設定
+  // 画面の向きによるオフセット調整
+  const screenOrientation = useRef(0);
+  const initialHeadingOffset = useRef<number | null>(null);
+
+  // 画面の向きの監視
   useEffect(() => {
-    if (arMode) {
-      // 画面の向きを取得（iOS Safari対応）
-      const screenOrientation =
-        window.screen?.orientation?.angle ?? (window as any).orientation ?? 0;
+    const updateOrientation = () => {
+      const angle = window.screen?.orientation?.angle ?? (window as any).orientation ?? 0;
+      screenOrientation.current = (angle * Math.PI) / 180;
+    };
 
-      // Three.js DeviceOrientationControls準拠のオフセット設定
-      // 縦向き（portrait）では0、横向き（landscape）では90度オフセット
-      screenOrientationOffset.current = screenOrientation === 0 ? 0 : Math.PI / 2;
-    }
-  }, [arMode]);
+    window.addEventListener('orientationchange', updateOrientation);
+    window.addEventListener('resize', updateOrientation);
+    updateOrientation();
 
-  // デバイス方位が更新されたときにターゲット回転を計算
+    return () => {
+      window.removeEventListener('orientationchange', updateOrientation);
+      window.removeEventListener('resize', updateOrientation);
+    };
+  }, []);
+
+  // デバイス方位の更新処理
   useEffect(() => {
     if (!deviceOrientation || !enableRotation) return;
 
-    const { alpha, beta, gamma } = deviceOrientation;
+    const { alpha, beta, gamma, webkitCompassHeading } = deviceOrientation;
 
     if (alpha !== null && beta !== null && gamma !== null) {
+      // 初回のみコンパス方位でオフセットを計算
+      if (initialHeadingOffset.current === null) {
+        if (webkitCompassHeading !== undefined) {
+          // iOS: webkitCompassHeadingを使用 (0度 = 北)
+          // webkitCompassHeadingは時計回り、alphaは反時計回り
+          initialHeadingOffset.current = (webkitCompassHeading + alpha) % 360;
+        } else if (deviceOrientation.absolute) {
+          // Android/Others: absolute alphaを使用
+          initialHeadingOffset.current = 0; // すでに北基準
+        } else {
+          // 不明な場合は0
+          initialHeadingOffset.current = 0;
+        }
+        console.log('Initial heading offset calibrated:', initialHeadingOffset.current);
+      }
+
       // ラジアンに変換
+      // 注意: OrientationServiceが正規化していない生の実装に近い値（0-360）を返すことを想定
       const alphaRad = (alpha * Math.PI) / 180;
       const betaRad = (beta * Math.PI) / 180;
       const gammaRad = (gamma * Math.PI) / 180;
-      // 手動オフセットをラジアンに変換
-      const manualOffsetRad = (manualHeadingOffset * Math.PI) / 180;
+      const offsetRad = ((initialHeadingOffset.current || 0) * Math.PI) / 180;
+      const manualRad = (manualHeadingOffset * Math.PI) / 180;
 
       if (arMode) {
-        // ARモード: Three.js DeviceOrientationControls準拠の座標変換
-        // 回転順序: YXZ（Three.jsの標準）
-        // euler.set(beta, alpha - offset, -gamma, 'YXZ')
-
-        // デバイスが垂直に近いかどうかを判定（beta値で判定）
-        const isNearVertical = Math.abs(betaRad - Math.PI / 2) < Math.PI / 6; // 30度以内
-
-        // 垂直時のガンマ値フィルタリング
-        let filteredGamma = gammaRad;
-        if (isNearVertical) {
-          // 垂直時はガンマの変化を大幅に抑制
-          const gammaThreshold = Math.PI / 12; // 15度
-          if (Math.abs(gammaRad) > gammaThreshold) {
-            filteredGamma = Math.sign(gammaRad) * gammaThreshold;
-          }
-        }
-
+        // DeviceOrientationControls 相当の計算（Euler YXZを使用）
+        // alphaにオフセット（コンパス初期値 + 手動補正）を加算
+        // webkitCompassHeading(時計回り)を考慮してalphaを調整
+        // Three.jsの標準的なARカメラの向きにするための補正
         targetRotation.current = {
-          // X軸: beta - π/2（背面カメラ調整）
-          // デバイスの上ではなく背面から見るための-90度調整
-          x: betaRad - Math.PI / 2,
-
-          // Y軸: alphaからオフセットを引く（画面向きによる調整）
-          // さらに手動オフセットを加算（ユーザー補正）
-          y: alphaRad - screenOrientationOffset.current + manualOffsetRad,
-
-          // Z軸: フィルタリングされたガンマを反転
-          z: -filteredGamma,
+          x: betaRad,
+          y: alphaRad - offsetRad - manualRad,
+          z: -gammaRad,
         };
-
-        // カメラの回転順序をYXZに設定
         camera.rotation.order = 'YXZ';
       } else {
-        // 通常モード: 安全な制御（従来の方式）
         targetRotation.current = {
           x: betaRad * 0.1,
           y: alphaRad * 0.1,
           z: 0,
         };
-
-        // 通常モードではXYZ順序
         camera.rotation.order = 'XYZ';
       }
     }
@@ -105,34 +112,24 @@ export default function OrientationCamera({
     const target = targetRotation.current;
     const current = currentRotation.current;
 
-    // デバイスが垂直に近いかどうかを判定
-    const isNearVertical = Math.abs(target.x) < Math.PI / 6; // 30度以内で垂直と判定
-
-    // 垂直時はより強いスムージングを適用
-    const adaptiveSmoothing = isNearVertical ? smoothing * 0.3 : smoothing;
-
-    // 滑らかな補間（線形補間）
-    current.x = lerp(current.x, target.x, adaptiveSmoothing);
+    // 滑らかな補間
+    current.x = lerp(current.x, target.x, smoothing);
     current.y = lerpAngle(current.y, target.y, smoothing);
-    current.z = lerp(current.z, target.z, adaptiveSmoothing);
+    current.z = lerp(current.z, target.z, smoothing);
 
     if (arMode) {
-      // ARモード: 垂直時を考慮した制限
-      const maxTilt = Math.PI / 2; // 90度制限
-      current.x = Math.max(-maxTilt, Math.min(maxTilt * 0.8, current.x)); // 上向きは80%まで
+      // DeviceOrientationControls の内部ロジックに準拠
+      euler.current.set(current.x, current.y, current.z, 'YXZ');
+      q_device.current.setFromEuler(euler.current);
+      q_screen.current.setFromAxisAngle(zee.current, -screenOrientation.current);
 
-      // 垂直時は傾きを更に制限
-      const maxRoll = isNearVertical ? Math.PI / 12 : Math.PI / 4; // 垂直時15度、通常時45度
-      current.z = Math.max(-maxRoll, Math.min(maxRoll, current.z));
+      camera.quaternion
+        .copy(q_device.current)
+        .multiply(q_world.current)
+        .multiply(q_screen.current);
     } else {
-      // 通常モード: 厳しい制限
-      const maxTilt = Math.PI / 3; // 60度制限
-      current.x = Math.max(-maxTilt, Math.min(maxTilt, current.x));
-      current.z = Math.max(-maxTilt, Math.min(maxTilt, current.z));
+      camera.rotation.set(current.x, current.y, current.z);
     }
-
-    // カメラの回転を適用
-    camera.rotation.set(current.x, current.y, current.z);
   });
 
   return null; // このコンポーネントは視覚的な要素を持たない
