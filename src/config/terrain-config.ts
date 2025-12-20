@@ -34,4 +34,5 @@ export const PIN_HEIGHT_OFFSET = 10; // ピンの地表からの高さ
 // 水面の初期位置オフセット（メートル単位）
 // 水面の初期位置は waterPosition + (WATER_INITIAL_OFFSET * TERRAIN_SCALE_FACTOR) で計算されます
 // 例: 2 = 基準2m、スケール6.0の場合 = 2 * 6 = 12m上から開始
-export const WATER_INITIAL_OFFSET = 2; // 水面の初期位置オフセット（基準値）
+// カメラのデフォルト画角（FOV）
+export const DEFAULT_FOV = 65;
