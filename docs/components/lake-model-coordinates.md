@@ -37,23 +37,26 @@
 
 ### 3. 3D空間への配置
 
-地形モデルの中心を3D空間の原点（`[0, 0, 0]`）に配置するため、`LakeModel`コンポーネントの`position`プロパティで補正を行います。
+地形モデルの中心を3D空間の原点（`[0, 0, 0]`）に配置するため、`calculateTerrainPosition()` 関数を用いて動的に `position` を計算しています。
 
-**現在の設定**:
-```typescript
-<LakeModel 
-  position={[744.9999975831743, -177.19751206980436, -744.9999975831743]}
-  terrainScale={[10, 10, 10]}
-  // ...
-/>
+**計算ロジック**:
+```ts
+const calculateTerrainPosition = (): [number, number, number] => {
+  const scale = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR;
+  const terrainCenterScaled = {
+    x: TERRAIN_ORIGINAL_CENTER.x * scale,
+    y: TERRAIN_ORIGINAL_CENTER.y * scale,
+    z: TERRAIN_ORIGINAL_CENTER.z * scale,
+  };
+  return [
+    -terrainCenterScaled.x + TERRAIN_CENTER_OFFSET[0],
+    -terrainCenterScaled.y + TERRAIN_CENTER_OFFSET[1],
+    -terrainCenterScaled.z + TERRAIN_CENTER_OFFSET[2],
+  ];
+};
 ```
 
-この`position`は、`terrainScale`適用後の実際の中心点の符号を反転させた値です：
-- X座標: `-(-744.9999975831743) = 744.9999975831743`
-- Y座標: `-(177.19751206980436) = -177.19751206980436`
-- Z座標: `-(744.9999975831743) = -744.9999975831743`
-
-これにより、地形の中心が3D空間の原点に配置されます。
+これにより、`TERRAIN_SCALE_FACTOR` を変更しても、地形の中心が常に正しく原点付近に配置されるようになっています。
 
 ## 座標変換の流れ
 

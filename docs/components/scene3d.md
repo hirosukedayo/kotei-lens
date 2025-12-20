@@ -12,7 +12,10 @@ WebGL / WebGPU 対応状況の検出、PC / モバイル別のカメラ操作、
   - ローカルコンポーネント `LakeModel`
   - WebGL 判定ユーティリティ `utils/webgl-detector.ts`
 
----
+- `useDevModeStore`: デバッグモード管理
+- `useSensors`: 方位・GPS情報の取得
+- `OrientationCamera`: センサー連動カメラ
+- `LakeModel`: 地形・水面モデル
 
 ## コンポーネント構造
 
@@ -35,27 +38,17 @@ export default function Scene3D() { ... }
 
 ## レンダリングフロー
 
-1. **WebGL / WebGPU サポート判定**
-   - `detectWebGLSupport()` を呼び出し、`webglSupport` に格納
-   - `getRecommendedRenderer(support)` により、`renderer` を決定
-     - 例: WebGPU 対応なら `webgpu`、そうでなければ `webgl2` / `webgl`、非対応なら `none`
+2. **初期化と位置設定**
+   - `initialPosition` (緯度・経度) を受け取り、`gpsToWorldCoordinate` にて 3D 空間座標を決定。
+   - `CameraPositionSetter`:
+     - 地形 Mesh (Displacement 等) に対して上空からレイを飛ばす。
+     - 地表との交差点を検出し、`CAMERA_HEIGHT_OFFSET` (10m) を加えた高さをカメラの Y 座標に設定。
 
-2. **事前ビュー**
-   - `webglSupport === null` の間は「3D環境を初期化中...」のフルスクリーンビューを表示
-   - `renderer === 'none'` の場合は「WebGL未対応」画面を表示し、3D シーンは描画しない
-
-3. **Canvas 描画**
-   - `renderer !== 'none'` かつ `webglSupport` が取得済みの場合に `Canvas` を描画
-   - `camera` の初期設定:
-     - 位置: `[-63.43, 105.73, 1.65]`
-     - 視野角: `fov: 65`
-     - `near: 0.1`, `far: 50000000`
-   - `gl={getRendererConfig(renderer)}` により、選択されたレンダラー設定を Canvas に適用
-
-4. **シーン要素**
-   - PC / モバイル別カメラ操作
-   - 空・環境光・指向性ライト
-   - `LakeModel`（湖と地形の 3D モデル）
+3. **レンダリング要素**
+   - `Canvas`: `renderer` に応じた `gl` 設定を適用。
+   - `PCKeyboardControls`: PC での `WASD` 操作を提供。
+   - `OrientationCamera`: モバイルで方位センサーと連動。
+   - `LakeModel`: 動的に計算された `calculateTerrainPosition` に配置。
 
 ---
 
