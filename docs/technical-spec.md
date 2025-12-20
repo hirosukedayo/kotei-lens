@@ -71,56 +71,27 @@ kotei-lens/
 
 **使用API**: Geolocation API
 
-```typescript
-// 型定義
-interface GPSOptions {
-  enableHighAccuracy: boolean;
-  timeout: number;
-  maximumAge: number;
-}
-
-interface GPSPosition {
-  latitude: number;
-  longitude: number;
-  altitude: number | null;
-  accuracy: number;
-  timestamp: number;
-}
-
-// 位置情報サービス
-class LocationService {
-  private options: GPSOptions = {
-    enableHighAccuracy: true,    // 高精度モード
-    timeout: 10000,              // タイムアウト: 10秒
-    maximumAge: 5000            // キャッシュ有効期限: 5秒
-  };
-
-  async getCurrentPosition(): Promise<GPSPosition> {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => resolve(this.convertPosition(position)),
-        (error) => reject(error),
-        this.options
-      );
-    });
-  }
-
-  private convertPosition(position: GeolocationPosition): GPSPosition {
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      altitude: position.coords.altitude,
-      accuracy: position.coords.accuracy,
-      timestamp: position.timestamp
-    };
-  }
-}
-```
-
 **座標系**: WGS84 (世界測地系)
-- 小河内ダム周辺エリア: 
-  - 北緯: 35.785° 〜 35.795°
-  - 東経: 139.045° 〜 139.055°
+
+**基準座標 (SCENE_CENTER)**:
+地形推計の中心点として以下の座標を使用しています。
+- 北緯: 35.7794167 (35°46'45.9"N)
+- 東経: 139.0226944 (139°01'28.9"E)
+
+**小河内神社 (初期表示位置)**:
+GPSがエリア外の場合のデフォルト位置です。
+- 北緯: 35.777041
+- 東経: 139.0185245
+
+### デバイス方位
+
+**使用API**: DeviceOrientationEvent (`deviceorientationabsolute` 優先)
+
+**補正処理**:
+- **磁気偏角**: 東京近辺の磁気偏角（約7.3°西偏）を考慮して真北に補正。
+- **手動補正**: ユーザーがUI上のスライダーで±180°のオフセットを調整可能。
+- **スムージング**: `lerpAngle` を用いた回転の平滑化。
+- **iOS対応**: `DeviceOrientationEvent.requestPermission()` による明示的な許可取得。
 
 ### デバイス方位
 
@@ -280,32 +251,22 @@ const useWebGPU = async (): Promise<boolean> => {
 
 ### 座標変換システム
 
-```typescript
-// GPS座標からローカル3D座標への変換
-class CoordinateTransformer {
-  private origin: { lat: number; lng: number };
-  private scale = 100000; // 1度 ≈ 100km → 1000単位
+GPS座標（緯度・経度）とThree.jsのローカル座標（メートル）の変換には、以下のロジックを使用しています。
 
-  constructor(originLat: number, originLng: number) {
-    this.origin = { lat: originLat, lng: originLng };
-  }
+- **変換式**:
+  - `x = lngDistance` (東が正)
+  - `y = deltaAlt` (上が正)
+  - `z = -latDistance` (北が奥 = 負、南が手前 = 正)
+- **地球半径**: 6,371,000m を使用。
 
-  gpsToLocal(lat: number, lng: number, alt: number = 0): THREE.Vector3 {
-    const x = (lng - this.origin.lng) * this.scale;
-    const z = -(lat - this.origin.lat) * this.scale; // Z軸は北向き
-    const y = alt * 0.1; // 高度スケール調整
-    return new THREE.Vector3(x, y, z);
-  }
+### 地形・モデル設定 (terrain-config.ts)
 
-  localToGPS(position: THREE.Vector3): { lat: number; lng: number; alt: number } {
-    return {
-      lat: this.origin.lat - position.z / this.scale,
-      lng: this.origin.lng + position.x / this.scale,
-      alt: position.y * 10
-    };
-  }
-}
-```
+アプリケーションの視覚的なスケールや位置調整は `src/config/terrain-config.ts` で集中管理されています。
+
+- **TERRAIN_SCALE_FACTOR**: 地形モデルの拡大率（現在 6.0）。
+- **CAMERA_HEIGHT_OFFSET**: 地表からのカメラの高さ（現在 10m）。
+- **PIN_HEIGHT_OFFSET**: 地表からのピンの浮遊高さ（現在 10m）。
+- **WATER_INITIAL_OFFSET**: 水面の初期下降開始位置。
 
 ### 3Dモデル仕様
 
@@ -635,40 +596,15 @@ export default defineConfig({
 });
 ```
 
-### メモリ・バッテリー最適化
+### デバッグ・開発者モード
 
-```typescript
-// リソース管理
-class ResourceManager {
-  private disposables = new Set<THREE.Object3D>();
-  
-  // 自動メモリ解放
-  dispose(): void {
-    this.disposables.forEach(obj => {
-      if (obj instanceof THREE.Mesh) {
-        obj.geometry.dispose();
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach(m => m.dispose());
-        } else {
-          obj.material.dispose();
-        }
-      }
-    });
-    this.disposables.clear();
-  }
-  
-  // バックグラウンド時の処理停止
-  setupVisibilityHandling(): void {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.pauseRendering();
-      } else {
-        this.resumeRendering();
-      }
-    });
-  }
-}
-```
+**開発者モードの起動**:
+画面の右下（50px四方）を 2秒以内に 5回タップすることで切り替わります。
+
+**デバッグ機能**:
+- 2Dマップ上への3Dモデルバウンディングボックスの描画。
+- 3Dビュー内での方位（Alpha/Beta/Gamma）、磁気偏角補正値、GPS情報のリアルタイム表示。
+- PCブラウザでの `WASD` 移動とマウス視点操作の有効化。
 
 ## セキュリティ・プライバシー
 

@@ -23,80 +23,80 @@
 ### Step 1: 環境構築・基盤開発
 
 #### プロジェクト初期化
-- [ ] Vite + React + TypeScript プロジェクト作成
-- [ ] pnpm ワークスペース設定
-- [ ] ESLint/Prettier/Biome 設定
-- [ ] GitHub Actions CI/CD 設定
+- [x] Vite + React + TypeScript プロジェクト作成
+- [x] pnpm ワークスペース設定
+- [x] ESLint/Prettier/Biome 設定
+- [x] GitHub Actions CI/CD 設定
 
 #### React Three Fiber セットアップ
-- [ ] @react-three/fiber インストール・設定
-- [ ] @react-three/drei インストール・設定
-- [ ] 基本的な3Dシーン作成
-- [ ] WebGPU/WebGL2 自動選択機能
+- [x] @react-three/fiber インストール・設定
+- [x] @react-three/drei インストール・設定
+- [x] 基本的な3Dシーン作成
+- [x] WebGPU/WebGL2 自動選択機能
 
 #### 状態管理・型定義
-- [ ] Zustand ストア設計・実装
-- [ ] アプリケーション全体の型定義
-- [ ] データ仕様に基づくインターfaces作成
-- [ ] Zod スキーマ検証設定
+- [x] Zustand ストア設計・実装
+- [x] アプリケーション全体の型定義
+- [x] データ仕様に基づくインターfaces作成
+- [x] Zod スキーマ検証設定
 
 #### 開発ツール設定
-- [ ] ローカルHTTPS開発サーバー設定
-- [ ] モバイルデバッグ環境構築
-- [ ] Vitest ユニットテスト環境
+- [x] ローカルHTTPS開発サーバー設定
+- [x] モバイルデバッグ環境構築
+- [x] Vitest ユニットテスト環境
 - [ ] Playwright E2Eテスト環境
 
 ### Step 2: コア3D機能開発
 
 #### センサー統合
-- [ ] LocationService クラス実装（GPS）
-- [ ] OrientationService クラス実装（ジャイロ）
-- [ ] MotionService クラス実装（加速度）
-- [ ] センサー許可要求UI実装
+- [x] LocationService クラス実装（GPS）
+- [x] OrientationService クラス実装（ジャイロ）
+- [x] MotionService クラス実装（加速度）
+- [x] センサー許可要求UI実装
 
 #### 座標変換システム
-- [ ] CoordinateTransformer クラス実装
-- [ ] GPS座標→3D座標変換
-- [ ] デバイス方位→カメラ回転変換
-- [ ] 磁気偏角補正実装
+- [x] CoordinateTransformer クラス実装
+- [x] GPS座標→3D座標変換
+- [x] デバイス方位→カメラ回転変換
+- [x] 磁気偏角補正実装
 
 #### 3Dシーン基盤
-- [ ] React Three FiberのCanvas設定
-- [ ] 基本ライティング設定
-- [ ] 環境マップ・背景設定
-- [ ] カメラコントローラー実装
+- [x] React Three FiberのCanvas設定
+- [x] 基本ライティング設定
+- [x] 環境マップ・背景設定
+- [x] カメラコントローラー実装
 
 #### デバイス連動カメラ
-- [ ] useDeviceOrientationControls フック
-- [ ] スムーズなカメラ回転実装
-- [ ] 1人称視点モード実装
-- [ ] フォールバック（手動操作）モード
+- [x] useDeviceOrientationControls フック
+- [x] スムーズなカメラ回転実装
+- [x] 1人称視点モード実装
+- [x] フォールバック（手動操作）モード
 
 ### Step 3: インタラクション・UI開発
 
 #### 3Dオブジェクト管理
-- [ ] glTFモデルローダー実装
-- [ ] BuildingRenderer クラス実装
-- [ ] LODシステム実装
+- [x] glTFモデルローダー実装
+- [x] BuildingRenderer クラス実装
+- [x] LODシステム実装
 - [ ] インスタンス化による最適化
 
 #### インタラクション
-- [ ] レイキャスティングによるオブジェクト選択
-- [ ] 建物ハイライト表示
-- [ ] 建物詳細情報UI実装
-- [ ] ジェスチャー操作対応
+- [x] レイキャスティングによるオブジェクト選択
+- [x] 建物ハイライト表示
+- [x] 建物詳細情報UI実装
+- [x] ジェスチャー操作対応
 
 #### UI コンポーネント
-- [ ] メインメニュー実装
-- [ ] 設定画面実装
-- [ ] ローディング画面実装
-- [ ] エラー画面実装
+- [x] メインメニュー実装
+- [x] 設定画面実装
+- [x] ローディング画面実装
+- [x] エラー画面実装
 
 #### 表示モード切り替え
-- [ ] イマーシブ3Dビューモード
-- [ ] エクスプローラーモード（自由操作）
-- [ ] 地図ビューモード（2D）
-- [ ] モード切り替えUI実装
+- [x] イマーシブ3Dビューモード
+- [x] エクスプローラーモード（自由操作）
+- [x] 地図ビューモード（2D）
+- [x] モード切り替えUI実装
 
 ### Step 4: コンテンツ統合・最適化
 

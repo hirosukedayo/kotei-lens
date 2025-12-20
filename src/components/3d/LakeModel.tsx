@@ -85,12 +85,12 @@ export default function LakeModel({
   // glTFファイルの読み込み（キャッシュを使用）
   useEffect(() => {
     const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
-    
+
     console.log('[LakeModel] glTFファイル読み込み開始:', gltfPath);
-    
+
     // キャッシュをチェック
     const cached = gltfCache.get(gltfPath);
-    
+
     if (cached?.gltf) {
       // キャッシュから即座に設定
       console.log('[LakeModel] ✅ キャッシュからglTFを取得');
@@ -98,7 +98,7 @@ export default function LakeModel({
       setIsLoaded(true);
       return;
     }
-    
+
     // 読み込み中のPromiseがある場合は待機
     if (cached?.promise) {
       console.log('[LakeModel] ⏳ 既存の読み込みPromiseを待機中...');
@@ -113,22 +113,22 @@ export default function LakeModel({
         });
       return;
     }
-    
+
     // 新規読み込み
     console.log('[LakeModel] 📥 新規にglTFファイルを読み込み中...');
     const gltfLoader = new GLTFLoader();
-    
+
     // モバイル用の読み込み設定
     const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
       navigator.userAgent.toLowerCase()
     );
-    
+
     const loadPromise = new Promise<GLTF>((resolve, reject) => {
       gltfLoader.load(
         gltfPath,
         (loadedGltf) => {
           console.log('[LakeModel] ✅ glTFファイルが正常に読み込まれました');
-          
+
           if (!isMobile) {
             // PCでのみ詳細ログを出力
             console.log('glTF情報:', {
@@ -137,18 +137,18 @@ export default function LakeModel({
               cameras: loadedGltf.cameras,
               asset: loadedGltf.asset,
             });
-            
+
             // シーンの詳細情報を出力
             console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
             loadedGltf.scene.traverse((child) => {
               console.log('オブジェクト:', child.name, child.type);
             });
-            
+
             // バウンディングボックスを計算してログ出力
             const box = new THREE.Box3().setFromObject(loadedGltf.scene);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
-            
+
             console.log('=== モデルのバウンディングボックス ===');
             console.log('最小値 (min):', {
               x: box.min.x,
@@ -172,13 +172,13 @@ export default function LakeModel({
             });
             console.log('=====================================');
           }
-          
+
           resolve(loadedGltf);
         },
         (progress) => {
           const percentage = (progress.loaded / progress.total) * 100;
           setLoadingProgress(percentage);
-          
+
           // モバイルでの読み込みが遅い場合の警告
           if (isMobile && percentage < 10 && progress.total > 0) {
             console.warn(
@@ -194,10 +194,10 @@ export default function LakeModel({
         }
       );
     });
-    
+
     // キャッシュにPromiseを保存
     gltfCache.set(gltfPath, { gltf: null, promise: loadPromise });
-    
+
     // Promiseが解決したらキャッシュを更新
     loadPromise
       .then((loadedGltf) => {
@@ -248,7 +248,7 @@ export default function LakeModel({
       sceneChildrenNames: gltf.scene.children.map((c) => c.name),
     });
     let terrain = gltf.scene.getObjectByName('Displacement.001');
-    
+
     // それでも見つからない場合は、シーンの最初のオブジェクトを使用
     if (!terrain && gltf.scene.children.length > 0) {
       terrain = gltf.scene.children[0];
@@ -310,7 +310,7 @@ export default function LakeModel({
       sceneChildrenNames: gltf.scene.children.map((c) => c.name),
     });
     let water = gltf.scene.getObjectByName('Water');
-    
+
     // それでも見つからない場合は、シーンの2番目のオブジェクトを使用
     if (!water && gltf.scene.children.length > 1) {
       water = gltf.scene.children[1];
@@ -326,13 +326,13 @@ export default function LakeModel({
       const cloned = water.clone();
       clonedWaterRef.current = cloned; // refにも保持（後方互換性のため）
       setClonedWater(cloned); // Reactの状態として設定
-      
+
       // アニメーション開始時間を設定（まだ設定されていない場合のみ）
       if (globalWaterDrainStartTime.value === null) {
         globalWaterDrainStartTime.value = Date.now();
         console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
       }
-      
+
       console.log('[LakeModel] ✅ 水面オブジェクトをクローンしました:', {
         clonedObject: cloned,
         name: cloned.name,
@@ -366,14 +366,14 @@ export default function LakeModel({
       const waterGroup = new THREE.Group();
       waterGroup.name = 'WaterGroup';
       waterGroupRef.current = waterGroup;
-      
+
       // clonedWaterをGroupに追加
       clonedWater.scale.set(waterScale[0], waterScale[1], waterScale[2]);
       waterGroup.add(clonedWater);
-      
+
       // Groupをシーンに追加
       scene.add(waterGroup);
-      
+
       console.log('[LakeModel] ✅ 水面をシーンに追加しました', {
         waterGroupUuid: waterGroup.uuid,
         clonedWaterUuid: clonedWater.uuid,
@@ -400,14 +400,14 @@ export default function LakeModel({
     if (!clonedTerrain) return;
 
     const terrainBox = new THREE.Box3().setFromObject(clonedTerrain);
-      const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-      const terrainSize = terrainBox.getSize(new THREE.Vector3());
-      
+    const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+    const terrainSize = terrainBox.getSize(new THREE.Vector3());
+
     console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
-      console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
-      console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
-      console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
-      console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
+    console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
+    console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
+    console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
+    console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
 
     // terrainScale適用後の中心を計算
     // スケールは原点を中心に適用されるため、中心点もスケール倍される
@@ -423,7 +423,6 @@ export default function LakeModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
-
   // アニメーション（水面の干上がり）
   useFrame(() => {
     // clonedWaterオブジェクトが存在する場合は、その位置を直接更新
@@ -434,27 +433,28 @@ export default function LakeModel({
       // WATER_INITIAL_OFFSET（terrain-config.tsで設定）を基準に、スケールに応じて調整
       const initialWaterOffset = WATER_INITIAL_OFFSET * TERRAIN_SCALE_FACTOR; // スケールに応じて調整
       let waterY = initialWaterOffset; // 初期位置は上から
-      
+
       if (globalWaterDrainStartTime.value) {
         const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000; // 経過秒数
         const delay = 1.0; // レンダリング後1秒待機
         const animationDuration = 120.0; // アニメーション時間を120秒に延長（よりゆっくり）
-        
+
         // 1秒待機してからアニメーション開始
         if (elapsed >= delay) {
           const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
           const drainProgress = Math.min(animationElapsed / animationDuration, 1.0); // 120秒で100%まで（完全に下がる）
-          
+
           // イージング関数（easeOutCubic）
           const easedProgress = 1 - (1 - drainProgress) ** 3;
-          
+
           // 地形の一番下が計算済みの場合は、そこから5m下を最終位置とする
           if (terrainBottomYRef.current !== null) {
             const targetWaterY = terrainBottomYRef.current - 5; // 地形の一番下から5m下（ワールド座標）
             const initialWaterY = waterPosition[1] + initialWaterOffset; // 初期位置（waterPosition + 2m上）
             // 初期位置から最終位置まで補間
-            waterY = initialWaterY + (targetWaterY - initialWaterY) * easedProgress - waterPosition[1];
-            
+            waterY =
+              initialWaterY + (targetWaterY - initialWaterY) * easedProgress - waterPosition[1];
+
             // デバッグログ（10フレームに1回）
             if (Math.floor(Date.now() / 100) % 10 === 0) {
               console.log('[LakeModel] 水面アニメーション（地形基準）', {
@@ -474,7 +474,7 @@ export default function LakeModel({
             const scaledDrainHeight = baseDrainHeight * TERRAIN_SCALE_FACTOR; // スケールに応じて調整
             // 初期位置から下がる量を計算
             waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
-            
+
             // デバッグログ（10フレームに1回）
             if (Math.floor(Date.now() / 100) % 10 === 0) {
               console.log('[LakeModel] 水面アニメーション（フォールバック）', {
@@ -491,7 +491,7 @@ export default function LakeModel({
         } else {
           // elapsed < delay の場合は初期位置を維持（待機中）
           waterY = initialWaterOffset;
-          
+
           // デバッグログ（10フレームに1回）
           if (Math.floor(Date.now() / 100) % 10 === 0) {
             console.log('[LakeModel] 水面アニメーション（待機中）', {
@@ -504,7 +504,7 @@ export default function LakeModel({
       } else {
         // globalWaterDrainStartTimeが設定される前は初期位置を維持
         waterY = initialWaterOffset;
-        
+
         // デバッグログ（10フレームに1回）
         if (Math.floor(Date.now() / 100) % 10 === 0) {
           console.log('[LakeModel] 水面アニメーション（開始前）', {
@@ -519,10 +519,10 @@ export default function LakeModel({
       const targetX = waterPosition[0];
       const targetY = waterPosition[1] + waterY;
       const targetZ = waterPosition[2];
-      
+
       // 位置をグローバル変数に保存（再マウント時の復元用）
       globalWaterPosition.value = { x: targetX, y: targetY, z: targetZ };
-      
+
       // clonedWaterオブジェクト自体の位置を直接更新（primitiveコンポーネントが再マウントされても位置が保持されるように）
       clonedWater.position.set(targetX, targetY, targetZ);
       // waterGroupRefが存在する場合は、その位置も更新（同期のため）
@@ -536,13 +536,13 @@ export default function LakeModel({
       }
       // clonedWaterオブジェクトの位置を強制的に更新（updateMatrixWorldを呼び出して反映）
       clonedWater.updateMatrixWorld(true);
-      
+
       // waterRefが存在する場合は、その位置も更新（同期のため）
       if (waterRef.current) {
         waterRef.current.position.set(targetX, targetY, targetZ);
         waterRef.current.updateMatrixWorld(true);
       }
-      
+
       // デバッグログ（10フレームに1回）
       if (Math.floor(Date.now() / 100) % 10 === 0) {
         console.log('[LakeModel] 水面位置設定', {
@@ -566,18 +566,18 @@ export default function LakeModel({
           globalWaterDrainStartTime: globalWaterDrainStartTime.value,
         });
       }
-      
+
       // 水面のマテリアル効果を動的に調整
       clonedWater.traverse((child: THREE.Object3D) => {
         if (child instanceof THREE.Mesh && child.material) {
           const material = child.material as THREE.MeshStandardMaterial;
-          
+
           // 干上がりに伴う透明度の変化
           if (globalWaterDrainStartTime.value) {
             const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000;
             const delay = 1.0; // レンダリング後1秒待機
             const animationDuration = 120.0; // アニメーション時間を120秒に延長
-            
+
             if (elapsed >= delay) {
               const animationElapsed = elapsed - delay; // アニメーション開始からの経過時間
               const drainProgress = Math.min(animationElapsed / animationDuration, 1.0); // 60秒で100%まで
@@ -594,17 +594,17 @@ export default function LakeModel({
             material.opacity = 0.8;
             material.transparent = true;
           }
-          
+
           // 反射強度を固定値に設定
           if (material.metalness !== undefined) {
             material.metalness = 0.2;
           }
-          
+
           // 粗さを固定値に設定
           if (material.roughness !== undefined) {
             material.roughness = 0.3;
           }
-          
+
           // 色を固定値に設定
           if (material.color) {
             material.color.setHSL(0.5, 0.8, 0.6); // 青系の色
@@ -629,15 +629,18 @@ export default function LakeModel({
           const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
           const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
           const terrainSize = terrainBox.getSize(new THREE.Vector3());
-          
+
           // 地形の一番下のY座標を計算（ワールド座標）
           // terrainBox.min.yはローカル座標での最小値なので、ワールド座標に変換
           const terrainBottomLocal = new THREE.Vector3(0, terrainBox.min.y, 0);
           const terrainBottomWorld = new THREE.Vector3();
           terrainRef.current.localToWorld(terrainBottomLocal);
           terrainBottomYRef.current = terrainBottomWorld.y;
-          
-          console.log('[LakeModel] 地形の一番下のY座標（ワールド座標）:', terrainBottomYRef.current);
+
+          console.log(
+            '[LakeModel] 地形の一番下のY座標（ワールド座標）:',
+            terrainBottomYRef.current
+          );
 
           // 水面の実際の位置を取得
           const waterWorldPosition = new THREE.Vector3();
@@ -769,24 +772,24 @@ export default function LakeModel({
           });
           return null;
         })()}
-      
+
       {/* 水面の表示はuseEffectでシーンに直接追加するため、ここでは何もレンダリングしない */}
-      
-            {/* ローディング表示 */}
-            {!isLoaded && (
-              <mesh>
-                <boxGeometry args={[10, 1, 10]} />
-                <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
-              </mesh>
-            )}
-            
-            {/* ローディング進捗表示（モバイル用） */}
-            {!isLoaded && loadingProgress > 0 && (
-              <mesh position={[0, 5, 0]}>
-                <planeGeometry args={[20, 2]} />
-                <meshBasicMaterial color="#000000" transparent opacity={0.7} />
-              </mesh>
-            )}
+
+      {/* ローディング表示 */}
+      {!isLoaded && (
+        <mesh>
+          <boxGeometry args={[10, 1, 10]} />
+          <meshStandardMaterial color="#6AB7FF" transparent opacity={0.5} />
+        </mesh>
+      )}
+
+      {/* ローディング進捗表示（モバイル用） */}
+      {!isLoaded && loadingProgress > 0 && (
+        <mesh position={[0, 5, 0]}>
+          <planeGeometry args={[20, 2]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.7} />
+        </mesh>
+      )}
     </group>
   );
 }

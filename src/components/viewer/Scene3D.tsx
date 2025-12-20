@@ -9,7 +9,12 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import { gpsToWorldCoordinate, SCENE_CENTER, worldToGpsCoordinate, calculateDistance } from '../../utils/coordinate-converter';
+import {
+  gpsToWorldCoordinate,
+  SCENE_CENTER,
+  worldToGpsCoordinate,
+  calculateDistance,
+} from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData } from '../../types/pins';
@@ -68,7 +73,7 @@ export default function Scene3D({
   const [isMobile, setIsMobile] = useState(false);
 
   // センサーフックの使用
-  const { sensorData, isActive, startSensors } = useSensors();
+  const { sensorData, startSensors } = useSensors();
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
 
@@ -376,7 +381,7 @@ export default function Scene3D({
           }}
         >
           <div>Alpha: {sensorData.orientation.alpha?.toFixed(2)}</div>
-          <div>Beta:  {sensorData.orientation.beta?.toFixed(2)}</div>
+          <div>Beta: {sensorData.orientation.beta?.toFixed(2)}</div>
           <div>Gamma: {sensorData.orientation.gamma?.toFixed(2)}</div>
           <div>Heading: {sensorData.compassHeading?.toFixed(2) ?? 'N/A'}</div>
           <div>Offset: {manualHeadingOffset.toFixed(0)}</div>
@@ -402,7 +407,16 @@ export default function Scene3D({
             borderRadius: '20px',
           }}
         >
-          <div style={{ color: 'white', fontSize: '12px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <div
+            style={{
+              color: 'white',
+              fontSize: '12px',
+              marginBottom: '5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
             <FaCompass /> 方位補正: {manualHeadingOffset}°
           </div>
           <input
@@ -413,9 +427,31 @@ export default function Scene3D({
             onChange={(e) => setManualHeadingOffset(Number(e.target.value))}
             style={{ width: '100%' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '10px', color: '#ccc' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              width: '100%',
+              fontSize: '10px',
+              color: '#ccc',
+            }}
+          >
             <span>-180°</span>
-            <span onClick={() => setManualHeadingOffset(0)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Reset</span>
+            <button
+              type="button"
+              onClick={() => setManualHeadingOffset(0)}
+              style={{
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'inherit',
+                fontSize: 'inherit',
+              }}
+            >
+              Reset
+            </button>
             <span>+180°</span>
           </div>
         </div>
@@ -796,7 +832,7 @@ function PCKeyboardControls() {
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
 function PinMarkers3D({
-  selectedPin
+  selectedPin,
 }: {
   selectedPin?: PinData | null;
 }) {
@@ -991,9 +1027,8 @@ function PinMarker({
     if (distance !== null && pinGpsPosition) {
       const distanceKm = distance / 1000;
       // 1km未満はm単位、1km以上はkm単位で表示
-      const distanceText = distanceKm < 1
-        ? `${Math.round(distance)}m`
-        : `${distanceKm.toFixed(1)}km`;
+      const distanceText =
+        distanceKm < 1 ? `${Math.round(distance)}m` : `${distanceKm.toFixed(1)}km`;
       labelText = `${title}\n${distanceText}`;
     }
 

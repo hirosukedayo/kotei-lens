@@ -302,29 +302,21 @@
 
 ### ディレクトリ構造
 
+### 実装データ構造
+
+現在は GeoJSON の vision に基づきつつ、高速な読み込みと型安全性のために以下の TypeScript ファイルでデータを定義・管理しています。
+
+- **[okutama-pins.ts](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/data/okutama-pins.ts)**:
+  - 2D/3D共通の主要スポットデータ。
+  - 座標、アイコンタイプ、名称を含む。
+- **[historical-locations.ts](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/data/historical-locations.ts)**:
+  - 歴史的な重要地点の GeoJSON データ。
+
 ```
-data/
-├── geojson/
-│   ├── buildings.geojson
-│   ├── roads.geojson
-│   ├── bridges.geojson
-│   └── landmarks.geojson
-├── models/
-│   ├── buildings/
-│   │   ├── bldg_001_lod0.glb
-│   │   ├── bldg_001_lod1.glb
-│   │   └── bldg_001_lod2.glb
-│   └── environment/
-├── stories/
-│   ├── stories.json
-│   └── timeline.json
-├── media/
-│   ├── photos/
-│   ├── audio/
-│   └── documents/
-└── terrain/
-    ├── heightmap.png
-    └── satellite.jpg
+src/data/
+├── okutama-pins.ts        # 主要ピン情報
+├── historical-locations.ts # 地理空間データ
+└── models/                # 3Dモデル参照定義
 ```
 
 ### バージョン管理
