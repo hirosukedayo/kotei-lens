@@ -3,6 +3,41 @@ import type { PinData } from '../types/pins';
 // 奥多摩地域のピンデータ
 export const okutamaPins: PinData[] = [
   {
+    id: 'okutama-damu-suimon-west',
+    title: '奥多摩ダム 水門西岸',
+    coordinates: [35.792390, 139.049120],
+    type: 'historical',
+    description: '水門ダムの西岸。',
+  },
+  {
+    id: 'okutama-damu-suimon-east',
+    title: '奥多摩ダム 水門東岸',
+    coordinates: [35.792048, 139.049548],
+    type: 'historical',
+    description: '水門ダムの東岸。',
+  },
+  {
+    id: 'okutama-damu-katakuri',
+    title: 'ふれあい館 カタクリの花',
+    coordinates: [35.792751, 139.048331],
+    type: 'historical',
+    description: 'かたくりの花',
+  },
+  {
+    id: 'okutama-damu-tenboutou',
+    title: '展望塔',
+    coordinates: [35.789277, 139.050837],
+    type: 'historical',
+    description: '展望塔',
+  },
+  {
+    id: 'ogochi-sou',
+    title: '小河内荘',
+    coordinates: [35.783512, 139.044813],
+    type: 'historical',
+    description: '小河内荘',
+  },
+  {
     id: 'nonkiya',
     title: 'のんきや',
     coordinates: [35.778998, 139.031988],
