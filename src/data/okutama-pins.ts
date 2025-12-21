@@ -76,7 +76,7 @@ export const okutamaPins: PinData[] = [
       '奥多摩湖に突き出した風光明媚な岬。かつての小河内村原地区の端にあたり、現在は湖畔の展望スポットとして親しまれています。四季折々の湖面と周囲の山々を一望できる絶好のロケーションであり、ダム建設によって変容した地形の名残を留める重要な地点です。',
   },
   {
-    id: 'fureaikant-miharashidai',
+    id: 'fureai-kan-miharashidai',
     title: 'ふれあい館前の見晴台',
     coordinates: [35.791686, 139.047943],
     type: 'landmark',
@@ -84,14 +84,14 @@ export const okutamaPins: PinData[] = [
       '水と緑のふれあい館のすぐ目の前にある展望デッキ。奥多摩湖の広大な水面と、そびえ立つ堤体を間近に望むことができます。観光の合間に一息つける、湖畔を象徴する眺望ポイントの一つです。',
   },
   {
-    id: 'fureaikant-parking-east',
+    id: 'fureai-kan-parking-east',
     title: 'ふれあい館の駐車場入口（東）',
     coordinates: [35.792446, 139.047629],
     type: 'landmark',
     description: '水と緑のふれあい館駐車場の東側入口。奥多摩周遊道路からのアクセスポイントです。',
   },
   {
-    id: 'fureaikant-parking-west',
+    id: 'fureai-kan-parking-west',
     title: 'ふれあい館の駐車場入口（西）',
     coordinates: [35.791683, 139.046589],
     type: 'landmark',
