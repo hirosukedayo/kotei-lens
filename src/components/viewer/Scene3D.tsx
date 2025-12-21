@@ -82,6 +82,8 @@ export default function Scene3D({
   const [showDebug, setShowDebug] = useState(false);
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
   const [isWireframe, setIsWireframe] = useState(false);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const [waterLevelOffset, setWaterLevelOffset] = useState(0);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -248,6 +250,7 @@ export default function Scene3D({
             showTerrain={true} // 地形を表示
             showWater={true} // 水面を表示
             wireframe={isWireframe}
+            waterLevelOffset={waterLevelOffset}
             terrainScale={[
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
@@ -402,8 +405,41 @@ export default function Scene3D({
         </div>
       )}
 
-      {/* 手動補正 & FOVスライダー（画面下部） */}
-      {isMobile && permissionGranted && (
+      {/* パネル表示切替ボタン */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1001,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setIsControlsVisible(!isControlsVisible)}
+          style={{
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: 'white',
+            width: '40px',
+            height: '40px',
+            borderRadius: '20px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease',
+          }}
+          title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
+        >
+          <FaCompass style={{ transform: isControlsVisible ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+        </button>
+      </div>
+
+      {/* 手動補正 & FOVスライダーコンテナ */}
+      {isMobile && permissionGranted && isControlsVisible && (
         <div
           style={{
             position: 'fixed',
@@ -497,11 +533,53 @@ export default function Scene3D({
             </div>
             <input
               type="range"
-              min="30"
-              max="120"
+              min="10"
+              max="150"
               value={fov}
               onChange={(e) => setFov(Number(e.target.value))}
               style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* 水面高度調整スライダー */}
+          <div style={{ width: '100%' }}>
+            <div
+              style={{
+                color: 'white',
+                fontSize: '12px',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <PiCubeFocusFill style={{ transform: 'rotate(180deg)', color: '#3182ce' }} /> 水面高度: {waterLevelOffset > 0 ? `+${waterLevelOffset}` : waterLevelOffset}m
+              </div>
+              <button
+                type="button"
+                onClick={() => setWaterLevelOffset(0)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <input
+              type="range"
+              min="-10"
+              max="20"
+              step="0.5"
+              value={waterLevelOffset}
+              onChange={(e) => setWaterLevelOffset(Number(e.target.value))}
+              style={{ width: '100%', height: '4px', accentColor: '#3182ce' }}
             />
           </div>
 
