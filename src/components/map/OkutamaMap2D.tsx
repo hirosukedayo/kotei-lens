@@ -58,6 +58,8 @@ export default function OkutamaMap2D({
   const { isDevMode } = useDevModeStore();
   // エリア外トースト表示フラグ
   const [showOutsideToast, setShowOutsideToast] = useState(false);
+
+
   // 起動時の自動センタリング・トースト制御が完了したかどうか
   const [hasInitialCenterSet, setHasInitialCenterSet] = useState(false);
 
@@ -243,6 +245,11 @@ export default function OkutamaMap2D({
     return cornersGPS;
   }, [isDevMode]);
 
+  // デバッグ用: レンダリング条件の監視
+  useEffect(() => {
+    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, showCalibration, hasBounds: !!modelBounds });
+  }, [isDevMode, showCalibration, modelBounds]);
+
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
     if (selectedPin?.id === pin.id) {
@@ -292,7 +299,6 @@ export default function OkutamaMap2D({
           zIndex={700}
         />
 
-        {/* キャリブレーション用テクスチャオーバーレイ (Devモードのみ) */}
         {isDevMode && showCalibration && modelBounds && (
           <CalibrationOverlay initialBounds={L.latLngBounds(modelBounds)} />
         )}

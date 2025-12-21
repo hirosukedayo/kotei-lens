@@ -116,7 +116,10 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
 
             {/* コントロールパネル (PortalでMapの外に出す) */}
             {createPortal(
-                <div className="fixed top-28 right-4 z-[99999] bg-white/95 p-4 rounded-lg shadow-xl w-72 backdrop-blur-md max-h-[80vh] overflow-y-auto border border-gray-200">
+                <div
+                    className="fixed top-28 right-4 bg-white p-4 rounded-lg shadow-xl w-72 max-h-[80vh] overflow-y-auto border border-gray-200"
+                    style={{ zIndex: 99999 }}
+                >
                     <h3 className="font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
                         <span>🛠️</span> 位置合わせ (Calibration)
                     </h3>
@@ -126,8 +129,8 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
                         <div className="flex justify-between items-center">
                             <span className="font-bold text-gray-600">Status:</span>
                             <span className={`px-2 py-0.5 rounded-full ${isLoading ? 'bg-blue-100 text-blue-700' :
-                                    loadingError ? 'bg-red-100 text-red-700' :
-                                        'bg-green-100 text-green-700'
+                                loadingError ? 'bg-red-100 text-red-700' :
+                                    'bg-green-100 text-green-700'
                                 }`}>
                                 {isLoading ? 'Loading...' : loadingError ? 'Error' : 'Ready'}
                             </span>
