@@ -81,6 +81,7 @@ export default function Scene3D({
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
+  const [isWireframe, setIsWireframe] = useState(false);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -246,6 +247,7 @@ export default function Scene3D({
             visible={true}
             showTerrain={true} // 地形を表示
             showWater={true} // 水面を表示
+            wireframe={isWireframe}
             terrainScale={[
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
@@ -503,8 +505,8 @@ export default function Scene3D({
             />
           </div>
 
-          {/* AR背景トグル */}
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          {/* AR背景トグル & ワイヤーフレーム */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '10px' }}>
             <button
               type="button"
               onClick={() => setIsArBackgroundActive(!isArBackgroundActive)}
@@ -517,9 +519,29 @@ export default function Scene3D({
                 borderRadius: '15px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
+                flex: 1,
+                maxWidth: '120px',
               }}
             >
               AR背景: {isArBackgroundActive ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsWireframe(!isWireframe)}
+              style={{
+                background: isWireframe ? '#2B6CB0' : 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                fontSize: '11px',
+                padding: '6px 12px',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flex: 1,
+                maxWidth: '120px',
+              }}
+            >
+              線画: {isWireframe ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>

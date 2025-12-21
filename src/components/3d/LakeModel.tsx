@@ -16,6 +16,7 @@ interface LakeModelProps {
   terrainScale?: [number, number, number];
   waterScale?: [number, number, number];
   waterPosition?: [number, number, number];
+  wireframe?: boolean;
 }
 
 // ベースパスを動的に取得
@@ -43,6 +44,7 @@ export default function LakeModel({
   terrainScale = [1, 1, 1],
   waterScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
+  wireframe = false,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
@@ -558,10 +560,10 @@ export default function LakeModel({
           },
           waterRefPosition: waterRef.current?.position
             ? {
-                x: waterRef.current.position.x.toFixed(2),
-                y: waterRef.current.position.y.toFixed(2),
-                z: waterRef.current.position.z.toFixed(2),
-              }
+              x: waterRef.current.position.x.toFixed(2),
+              y: waterRef.current.position.y.toFixed(2),
+              z: waterRef.current.position.z.toFixed(2),
+            }
             : null,
           globalWaterDrainStartTime: globalWaterDrainStartTime.value,
         });
@@ -613,6 +615,29 @@ export default function LakeModel({
       });
     }
   });
+
+  // ワイヤーフレーム表示の切り替えを反映
+  useEffect(() => {
+    const applyWireframe = (obj: THREE.Object3D | null) => {
+      if (!obj) return;
+      obj.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          if (Array.isArray(child.material)) {
+            for (const mat of child.material) {
+              if ('wireframe' in mat) {
+                (mat as any).wireframe = wireframe;
+              }
+            }
+          } else if ('wireframe' in child.material) {
+            (child.material as any).wireframe = wireframe;
+          }
+        }
+      });
+    };
+
+    applyWireframe(clonedTerrain);
+    applyWireframe(clonedWater);
+  }, [wireframe, clonedTerrain, clonedWater]);
 
   // 地形モデルと水面の実際の位置を確認するためのデバッグログ
   // 注意: useEffectは早期リターンの前に配置する必要がある（React Hooksのルール）
@@ -725,10 +750,10 @@ export default function LakeModel({
     hasClonedTerrain: !!clonedTerrain,
     terrainObject: clonedTerrain
       ? {
-          name: clonedTerrain.name,
-          type: clonedTerrain.type,
-          uuid: clonedTerrain.uuid,
-        }
+        name: clonedTerrain.name,
+        type: clonedTerrain.type,
+        uuid: clonedTerrain.uuid,
+      }
       : null,
     renderCount: renderCountRef.current,
   });
