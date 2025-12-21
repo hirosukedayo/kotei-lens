@@ -4,13 +4,13 @@
 // 地形のスケール設定
 // 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
 // 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
-export const TERRAIN_SCALE_FACTOR = 6.0;
+export const TERRAIN_SCALE_FACTOR = 5.34;
 
 // 地形と水面の中心位置オフセット（メートル単位）
 // 地形と水面の中心位置をずらしたい場合は、この値を変更してください
 // 例: [10, 0, 5] = X方向（東）に10m、Z方向（南）に5mずらす
-// 現在は[0, 0, 0]で、小河内神社（SCENE_CENTER）が地形の中心に対応しています
-export const TERRAIN_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
+// 現在は[-30.94, 0, -101.01]で調整済み (Scale: 0.89x)
+export const TERRAIN_CENTER_OFFSET: [number, number, number] = [-30.94, 0, -101.01];
 export const WATER_CENTER_OFFSET: [number, number, number] = TERRAIN_CENTER_OFFSET;
 
 // 地形のベーススケール（モデルファイルの元のスケール）
