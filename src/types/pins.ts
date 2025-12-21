@@ -5,7 +5,8 @@ export type PinType =
   | 'nature'
   | 'cultural'
   | 'viewpoint'
-  | 'restaurant';
+  | 'restaurant'
+  | 'debug';
 
 export interface PinData {
   id: string;
@@ -58,5 +59,10 @@ export const pinTypeStyles: Record<
     color: '#FF6B35',
     icon: '🍜',
     label: '飲食店',
+  },
+  debug: {
+    color: '#000',
+    icon: '👨‍💻',
+    label: 'debug',
   },
 };
