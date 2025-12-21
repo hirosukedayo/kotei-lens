@@ -1,7 +1,9 @@
 import type { PinData } from '../types/pins';
+import { debugPins } from './debug-pins';
 
 // 奥多摩地域のピンデータ
 export const okutamaPins: PinData[] = [
+  ...debugPins,
   {
     id: 'okutama-damu-suimon-west',
     title: '奥多摩ダム 水門西岸',

@@ -17,7 +17,7 @@ import {
 } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
-import type { PinData } from '../../types/pins';
+import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
 import { FaMapSigns, FaCompass } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
@@ -1092,6 +1092,7 @@ function PinMarkers3D({
       return {
         id: pin.id,
         title: pin.title,
+        type: pin.type,
         basePosition: [worldPos.x, worldPos.y, worldPos.z] as [number, number, number],
         gps: { latitude, longitude },
         worldPos,
@@ -1107,6 +1108,7 @@ function PinMarkers3D({
           key={pin.id}
           id={pin.id}
           title={pin.title}
+          type={pin.type}
           basePosition={pin.basePosition}
           scene={scene}
           isSelected={selectedPin?.id === pin.id}
@@ -1121,6 +1123,7 @@ function PinMarkers3D({
 function PinMarker({
   id,
   title,
+  type,
   basePosition,
   scene,
   isSelected = false,
@@ -1128,6 +1131,7 @@ function PinMarker({
 }: {
   id: string;
   title: string;
+  type: PinType;
   basePosition: [number, number, number];
   scene: THREE.Scene;
   isSelected?: boolean;
@@ -1325,17 +1329,20 @@ function PinMarker({
       )}
       {/* マーカー（選択時は位置を上げる） */}
       <mesh position={[0, isSelected ? 20 : 0, 0]}>
-        <sphereGeometry args={[30, 16, 16]} />
+        {/* デバッグピンは小さく表示 */}
+        <sphereGeometry args={[type === 'debug' ? 10 : 30, 16, 16]} />
         <meshStandardMaterial
-          color="#ef4444"
-          emissive="#ef4444"
+          color={type === 'debug' ? '#333333' : '#ef4444'}
+          emissive={type === 'debug' ? '#000000' : '#ef4444'}
           emissiveIntensity={isSelected ? 0.8 : 0.5}
         />
       </mesh>
-      {/* ラベル（テキスト） - 常にカメラを向く */}
-      <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-        <DistanceLabel />
-      </Billboard>
+      {/* ラベル（テキスト） - 常にカメラを向く (デバッグピン以外) */}
+      {type !== 'debug' && (
+        <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
+          <DistanceLabel />
+        </Billboard>
+      )}
     </group>
   );
 }
