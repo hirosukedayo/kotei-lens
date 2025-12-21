@@ -1,47 +1,24 @@
 import type { PinData } from '../types/pins';
 
-// デバッグ用のピンデータ
-export const debugPins: PinData[] = [
-    {
-        id: 'okutama-damu-debug-0001',
-        title: '奥多摩ダム',
-        coordinates: [35.792007, 139.049611],
-        type: 'debug',
-        description: 'デバッグピン1',
-    },
-    {
-        id: 'okutama-damu-debug-0002',
-        title: '奥多摩ダム',
-        coordinates: [35.791882, 139.050163],
-        type: 'debug',
-        description: 'デバッグピン2',
-    },
-    {
-        id: 'okutama-damu-debug-0003',
-        title: '奥多摩ダム',
-        coordinates: [35.791435, 139.050864],
-        type: 'debug',
-        description: 'デバッグピン3',
-    },
-    {
-        id: 'okutama-damu-debug-0004',
-        title: '奥多摩ダム',
-        coordinates: [35.790794, 139.051071],
-        type: 'debug',
-        description: 'デバッグピン4',
-    },
-    {
-        id: 'okutama-damu-debug-0005',
-        title: '奥多摩ダム',
-        coordinates: [35.790122, 139.050957],
-        type: 'debug',
-        description: 'デバッグピン5',
-    },
-    {
-        id: 'okutama-damu-debug-0006',
-        title: '奥多摩ダム',
-        coordinates: [35.789560, 139.050822],
-        type: 'debug',
-        description: 'デバッグピン6',
-    },
+// デバッグ用の座標リスト [緯度, 経度]
+const debugCoordinates: [number, number][] = [
+    [35.792007, 139.049611],
+    [35.791882, 139.050163],
+    [35.791435, 139.050864],
+    [35.790794, 139.051071],
+    [35.790122, 139.050957],
+    [35.789560, 139.050822],
 ];
+
+// 座標リストからピンデータを自動生成
+export const debugPins: PinData[] = debugCoordinates.map((coords, index) => {
+    const [lat, lng] = coords;
+    const num = index + 1;
+    return {
+        id: `debug-pin-${String(num).padStart(4, '0')}`,
+        title: `デバッグピン ${num}`,
+        coordinates: coords,
+        type: 'debug',
+        description: `緯度: ${lat}, 経度: ${lng}`,
+    };
+});
