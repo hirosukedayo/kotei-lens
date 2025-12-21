@@ -17,6 +17,7 @@ interface LakeModelProps {
   waterScale?: [number, number, number];
   waterPosition?: [number, number, number];
   wireframe?: boolean;
+  waterLevelOffset?: number;
 }
 
 // ベースパスを動的に取得
@@ -45,6 +46,7 @@ export default function LakeModel({
   waterScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
   wireframe = false,
+  waterLevelOffset = 0,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Group>(null);
@@ -431,7 +433,7 @@ export default function LakeModel({
       // 初期位置を上に設定して、そこから下がるようにする
       // スケールに応じて初期位置を調整（スケールが大きくなっても相対的な位置を維持）
       // WATER_INITIAL_OFFSET（terrain-config.tsで設定）を基準に、スケールに応じて調整
-      const initialWaterOffset = WATER_INITIAL_OFFSET * TERRAIN_SCALE_FACTOR; // スケールに応じて調整
+      const initialWaterOffset = (WATER_INITIAL_OFFSET + waterLevelOffset) * TERRAIN_SCALE_FACTOR; // スケールとオフセットに応じて調整
       let waterY = initialWaterOffset; // 初期位置は上から
 
       if (globalWaterDrainStartTime.value) {
