@@ -84,6 +84,7 @@ export default function Scene3D({
   const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
+  const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -200,8 +201,11 @@ export default function Scene3D({
         gl={{ ...getRendererConfig(renderer), alpha: true }}
       >
         <Suspense fallback={null}>
-          {/* カメラの初期位置を明示的に設定 */}
-          <CameraPositionSetter initialCameraConfig={initialCameraConfig} />
+          {/* カメラの初期位置を明示的に設定（動的高さ調整対応） */}
+          <CameraPositionSetter
+            initialCameraConfig={initialCameraConfig}
+            heightOffset={cameraHeightOffset}
+          />
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ、かつ許可済み） */}
@@ -622,6 +626,48 @@ export default function Scene3D({
               線画: {isWireframe ? 'ON' : 'OFF'}
             </button>
           </div>
+
+          {/* カメラ高度調整スライダー */}
+          <div style={{ width: '100%' }}>
+            <div
+              style={{
+                color: 'white',
+                fontSize: '12px',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <PiCubeFocusFill style={{ transform: 'rotate(90deg)', color: '#48bb78' }} /> カメラ高度: {cameraHeightOffset > 0 ? `+${cameraHeightOffset}` : cameraHeightOffset}m
+              </div>
+              <button
+                type="button"
+                onClick={() => setCameraHeightOffset(0)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                Reset
+              </button>
+            </div>
+            <input
+              type="range"
+              min="-5"
+              max="20"
+              step="0.5"
+              value={cameraHeightOffset}
+              onChange={(e) => setCameraHeightOffset(Number(e.target.value))}
+              style={{ width: '100%', height: '4px', accentColor: '#48bb78' }}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -646,13 +692,26 @@ function FovAdjuster({ fov }: { fov: number }) {
 // 地形の高さに合わせてカメラの高さを調整
 function CameraPositionSetter({
   initialCameraConfig,
+  heightOffset = 0,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
+  heightOffset?: number;
 }) {
   const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
   const frameCount = React.useRef(0);
   const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
+  const baseTerrainHeightRef = React.useRef<number | null>(null);
+
+  // 高さオフセットが変更されたときにカメラ位置を更新
+  useEffect(() => {
+    if (baseTerrainHeightRef.current !== null) {
+      const cameraX = initialCameraConfig.position[0];
+      const cameraZ = initialCameraConfig.position[2];
+      const newY = baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset;
+      camera.position.set(cameraX, newY, cameraZ);
+    }
+  }, [heightOffset, initialCameraConfig.position, camera]);
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
   useFrame(() => {
@@ -759,7 +818,8 @@ function CameraPositionSetter({
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
-        finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET;
+        baseTerrainHeightRef.current = terrainHeight; // 基準となる地形高さを保存
+        finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset;
 
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
@@ -1182,9 +1242,9 @@ function PinMarker({
     if (groupRef.current && pinHeight !== null) {
       // 3D空間上の位置を基準に距離を計算
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
-      // 二乗距離で判定（50m = 2500m^2）
+      // 二乗距離で判定（200m = 40000m^2）
       const distSq = camera.position.distanceToSquared(pinPosition);
-      groupRef.current.visible = distSq >= 2500;
+      groupRef.current.visible = distSq >= 40000;
     }
   });
 
