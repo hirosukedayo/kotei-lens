@@ -28,8 +28,8 @@ export const TERRAIN_ORIGINAL_CENTER = {
 // カメラとピンの地表からの高さオフセット（メートル単位）
 // カメラとピンは地形の高さにこの値を加算した位置に配置されます
 // 例: 10 = 地形の高さ+10m、5 = 地形の高さ+5m
-export const CAMERA_HEIGHT_OFFSET = 10; // カメラの地表からの高さ
-export const PIN_HEIGHT_OFFSET = 10; // ピンの地表からの高さ
+export const CAMERA_HEIGHT_OFFSET = 1.7; // カメラの地表からの高さ
+export const PIN_HEIGHT_OFFSET = 1.7; // ピンの地表からの高さ
 
 // 水面の初期位置オフセット（メートル単位）
 // 水面の初期位置は waterPosition + (WATER_INITIAL_OFFSET * TERRAIN_SCALE_FACTOR) で計算されます

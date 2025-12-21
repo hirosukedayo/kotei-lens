@@ -206,10 +206,9 @@ export default function LakeModel({
         gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
         setGltf(loadedGltf);
         setIsLoaded(true);
-        // アニメーション開始時間を設定（まだ設定されていない場合のみ）
-        if (globalWaterDrainStartTime.value === null) {
-          globalWaterDrainStartTime.value = Date.now();
-        }
+        // if (globalWaterDrainStartTime.value === null) {
+        //   globalWaterDrainStartTime.value = Date.now();
+        // }
       })
       .catch((error) => {
         console.error('glTFファイルの読み込みに失敗:', error);
@@ -329,11 +328,10 @@ export default function LakeModel({
       clonedWaterRef.current = cloned; // refにも保持（後方互換性のため）
       setClonedWater(cloned); // Reactの状態として設定
 
-      // アニメーション開始時間を設定（まだ設定されていない場合のみ）
-      if (globalWaterDrainStartTime.value === null) {
-        globalWaterDrainStartTime.value = Date.now();
-        console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
-      }
+      // if (globalWaterDrainStartTime.value === null) {
+      //   globalWaterDrainStartTime.value = Date.now();
+      //   console.log('[LakeModel] ✅ アニメーション開始時間を設定しました');
+      // }
 
       console.log('[LakeModel] ✅ 水面オブジェクトをクローンしました:', {
         clonedObject: cloned,

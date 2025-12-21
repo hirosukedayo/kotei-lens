@@ -1099,6 +1099,17 @@ function PinMarker({
     }
   });
 
+  // カメラとの距離を計算して表示・非表示を切り替え（50m未満は非表示）
+  useFrame(({ camera }) => {
+    if (groupRef.current && pinHeight !== null) {
+      // 3D空間上の位置を基準に距離を計算
+      const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
+      // 二乗距離で判定（50m = 2500m^2）
+      const distSq = camera.position.distanceToSquared(pinPosition);
+      groupRef.current.visible = distSq >= 2500;
+    }
+  });
+
   // 高さが計算されるまで表示しない
   if (pinHeight === null) {
     return null;
