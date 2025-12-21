@@ -1248,9 +1248,10 @@ function PinMarker({
     if (groupRef.current && pinHeight !== null) {
       // 3D空間上の位置を基準に距離を計算
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
-      // 二乗距離で判定（200m = 40000m^2）
+      // 二乗距離で判定（1m = 1m^2）
+      // ユーザー要望により 200m -> 1m に変更
       const distSq = camera.position.distanceToSquared(pinPosition);
-      groupRef.current.visible = distSq >= 40000;
+      groupRef.current.visible = distSq >= 1;
     }
   });
 
