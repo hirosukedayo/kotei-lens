@@ -16,13 +16,35 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
     const [scale, setScale] = useState(1.0);
     const [offsetLat, setOffsetLat] = useState(0);
     const [offsetLng, setOffsetLng] = useState(0);
+
+    // ロード状態管理
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingError, setLoadingError] = useState<string | null>(null);
+
     const [bounds, setBounds] = useState<LatLngBoundsExpression>(initialBounds);
 
     useEffect(() => {
         if (!initialBounds) return;
 
-        const baseBounds = L.latLngBounds(initialBounds);
+        // initialBounds を確実に LatLngBounds オブジェクトに変換
+        // (LatLngBoundsExpression は [ [lat,lng], [lat,lng] ] の配列の可能性があるため)
+        // L.latLngBounds(initialBounds) だと型定義によっては配列を直接受け付けない場合があるため、
+        // 念のため any キャストするか、配列であることを確認するが、
+        // 通常 L.latLngBounds は配列を受け付ける。エラーが出る場合は型定義の問題。
+        // ここでは安全のため、一旦 any で通すか、L.latLngBounds のオーバーロードを信頼する。
+        // エラーメッセージ: Argument of type 'LatLngBoundsExpression' is not assignable to parameter of type 'LatLngExpression[]'.
+        // これは initialBounds が LatLngBounds オブジェクトの場合に配列メソッドがないと言われている。
+        // 対処: initialBounds が配列かオブジェクトかで分岐するか、L.latLngBounds でラップする。
+        // L.latLngBounds(initialBounds as any) で回避するのが手っ取り早いが、より安全に書く。
+
+        let baseBounds: L.LatLngBounds;
+        if (initialBounds instanceof L.LatLngBounds) {
+            baseBounds = initialBounds;
+        } else {
+            // 配列の場合
+            baseBounds = L.latLngBounds(initialBounds as L.LatLngTuple[]);
+        }
+
         const center = baseBounds.getCenter();
         const southWest = baseBounds.getSouthWest();
         const northEast = baseBounds.getNorthEast();
@@ -56,6 +78,7 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
     useEffect(() => {
         const loadTexture = async () => {
             setIsLoading(true);
+            setLoadingError(null);
             try {
                 console.log('Loading texture from GLB...');
                 const url = await extractTextureFromGLB(MODEL_PATH);
@@ -63,6 +86,7 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
                 setTextureUrl(url);
             } catch (error) {
                 console.error('Failed to extract texture:', error);
+                setLoadingError(String(error));
             } finally {
                 setIsLoading(false);
             }
@@ -88,28 +112,33 @@ export default function CalibrationOverlay({ initialBounds }: CalibrationOverlay
         alert('設定値をコンソールに出力しました');
     };
 
-    if (isLoading) {
-        return (
-            <div className="absolute top-4 left-4 z-[5000] bg-white p-2 rounded shadow">
-                Loading texture...
-            </div>
-        );
-    }
-
-    if (!textureUrl) return null;
-
     return (
         <>
-            <ImageOverlay
-                url={textureUrl}
-                bounds={bounds}
-                opacity={opacity}
-                zIndex={1000}
-            />
+            {textureUrl && (
+                <ImageOverlay
+                    url={textureUrl}
+                    bounds={bounds}
+                    opacity={opacity}
+                    zIndex={1000}
+                />
+            )}
 
             {/* コントロールパネル */}
             <div className="absolute top-20 right-4 z-[5000] bg-white/90 p-4 rounded-lg shadow-lg w-72 backdrop-blur-sm max-h-[80vh] overflow-y-auto">
                 <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">位置合わせ (Calibration)</h3>
+
+                {/* ステータス表示 */}
+                <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+                    <div className="flex justify-between">
+                        <span className="font-bold">Status:</span>
+                        <span>
+                            {isLoading ? 'Loading...' : loadingError ? 'Error' : 'Texture Ready'}
+                        </span>
+                    </div>
+                    {loadingError && (
+                        <div className="text-red-500 mt-1 break-all">{loadingError}</div>
+                    )}
+                </div>
 
                 <div className="space-y-4">
                     {/* 不透明度 */}
