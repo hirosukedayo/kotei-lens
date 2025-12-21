@@ -927,6 +927,12 @@ function CameraPositionSetter({
     if (frameCount.current >= maxFrames) {
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
+
+      // タイムアウト時も基準高さを設定して、その後の調整を可能にする
+      // finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset なので
+      // terrainHeight = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset
+      baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
+
       console.warn('=== カメラ高さ調整（タイムアウト） ===');
       console.warn('地形との交差が見つかりませんでした。デフォルトの高さを使用します。');
       console.warn('見つかったMesh:', foundMeshes);
