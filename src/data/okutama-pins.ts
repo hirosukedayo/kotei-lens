@@ -174,7 +174,7 @@ export const okutamaPins: PinData[] = [
     description: '峰谷橋近くの駐車場に併設された公衆トイレ。ドライブの休憩に利用されます。',
   },
   {
-    id: 'kawano-chuuzai',
+    id: 'kawano-chuzai',
     title: '川野駐在',
     coordinates: [35.783201, 139.015863],
     type: 'landmark',
