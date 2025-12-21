@@ -293,7 +293,9 @@ export default function OkutamaMap2D({
         />
 
         {/* キャリブレーション用テクスチャオーバーレイ (Devモードのみ) */}
-        {isDevMode && showCalibration && <CalibrationOverlay />}
+        {isDevMode && showCalibration && modelBounds && (
+          <CalibrationOverlay initialBounds={L.latLngBounds(modelBounds)} />
+        )}
 
         {/* devモード時: 3Dモデルの範囲を矩形で表示 */}
         {isDevMode && modelBounds && (

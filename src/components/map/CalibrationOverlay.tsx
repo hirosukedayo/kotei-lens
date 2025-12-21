@@ -4,20 +4,17 @@ import type { LatLngBoundsExpression } from 'leaflet';
 import * as L from 'leaflet';
 import { extractTextureFromGLB } from '../../utils/texture-extractor';
 
-// 仮の表示範囲（地形設定に合わせて調整が必要）
-// 一旦、奥多摩湖全域をカバーするような範囲を設定
-const INITIAL_BOUNDS: LatLngBoundsExpression = [
-    [35.7766, 139.0223], // SouthWest (概算)
-    [35.8033, 139.0712], // NorthEast (概算)
-];
-
 const MODEL_PATH = `${import.meta.env.BASE_URL}models/OkutamaLake_realscale.glb`;
 
-export default function CalibrationOverlay() {
+interface CalibrationOverlayProps {
+    initialBounds: LatLngBoundsExpression;
+}
+
+export default function CalibrationOverlay({ initialBounds }: CalibrationOverlayProps) {
     const [textureUrl, setTextureUrl] = useState<string | null>(null);
     const [opacity, setOpacity] = useState(0.5);
     const [isLoading, setIsLoading] = useState(false);
-    const [bounds, setBounds] = useState<LatLngBoundsExpression>(INITIAL_BOUNDS);
+    const [bounds, setBounds] = useState<LatLngBoundsExpression>(initialBounds);
     const map = useMap();
 
     useEffect(() => {
