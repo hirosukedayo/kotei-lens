@@ -262,6 +262,9 @@ export default function Scene3D({
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
           <PinMarkers3D selectedPin={selectedPin} />
 
+          {/* 画角(FOV)を動的に更新するコンポーネント */}
+          <FovAdjuster fov={fov} />
+
           {/* カメラコントロールは無効化（OrbitControls削除） */}
         </Suspense>
       </Canvas>
@@ -523,6 +526,20 @@ export default function Scene3D({
       )}
     </div>
   );
+}
+
+// 画角(FOV)を動的に更新するためのコンポーネント
+function FovAdjuster({ fov }: { fov: number }) {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+  }, [fov, camera]);
+
+  return null;
 }
 
 // カメラの初期位置を明示的に設定するコンポーネント
