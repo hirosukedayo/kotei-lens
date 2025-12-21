@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLayerGroup } from 'react-icons/fa';
+import { FaMapSigns, FaLayerGroup, FaTools } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
+import CalibrationOverlay from './CalibrationOverlay';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
 import {
@@ -42,6 +43,8 @@ export default function OkutamaMap2D({
   // ローカル歴史タイルの不透明度（UIで調整可能）
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  // キャリブレーションオーバーレイ表示フラグ
+  const [showCalibration, setShowCalibration] = useState<boolean>(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -289,6 +292,9 @@ export default function OkutamaMap2D({
           zIndex={700}
         />
 
+        {/* キャリブレーション用テクスチャオーバーレイ (Devモードのみ) */}
+        {isDevMode && showCalibration && <CalibrationOverlay />}
+
         {/* devモード時: 3Dモデルの範囲を矩形で表示 */}
         {isDevMode && modelBounds && (
           <Polygon
@@ -409,6 +415,41 @@ export default function OkutamaMap2D({
           <PiCubeFocusFill size={64} />
         </button>
       </div>
+
+      {/* キャリブレーション切替ボタン (Devモードのみ) */}
+      {
+        isDevMode && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100px',
+              right: '16px',
+              zIndex: 10000,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowCalibration(!showCalibration)}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 9999,
+                background: showCalibration ? '#3b82f6' : '#ffffff',
+                color: showCalibration ? '#ffffff' : '#111827',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              aria-label="キャリブレーション表示切替"
+            >
+              <FaTools size={24} />
+            </button>
+          </div>
+        )
+      }
 
       {/* 古地図透明度調整スライダー（右下、アイコンベース） */}
       <div
@@ -542,6 +583,6 @@ export default function OkutamaMap2D({
         onSelectPin={handleSelectPin}
         onDeselectPin={onDeselectPin}
       />
-    </div>
+    </div >
   );
 }
