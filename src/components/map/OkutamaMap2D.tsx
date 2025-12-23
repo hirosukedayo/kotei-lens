@@ -63,10 +63,10 @@ export default function OkutamaMap2D({
   // 起動時の自動センタリング・トースト制御が完了したかどうか
   const [hasInitialCenterSet, setHasInitialCenterSet] = useState(false);
 
-  // 画面中心位置（初期値は小河内神社）
+  // 画面中心位置（初期値は奥多摩湖の碑）
   const [center, setCenter] = useState<LatLngExpression>([
-    OGOUCHI_SHRINE.latitude,
-    OGOUCHI_SHRINE.longitude,
+    DEFAULT_START_POSITION.latitude,
+    DEFAULT_START_POSITION.longitude,
   ]);
   const MapRefBinder = () => {
     const map = useMap();
