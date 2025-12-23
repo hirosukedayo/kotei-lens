@@ -73,9 +73,7 @@ export async function extractTextureFromGLB(glbUrl: string): Promise<string> {
                     reject(err);
                 }
             },
-            (progress) => {
-                // console.log('Loading progress:', (progress.loaded / progress.total) * 100 + '%');
-            },
+            undefined,
             (error) => {
                 reject(error);
             }
