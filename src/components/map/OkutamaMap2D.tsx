@@ -8,7 +8,7 @@ import CalibrationOverlay from './CalibrationOverlay';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
 import {
-  OGOUCHI_SHRINE,
+  DEFAULT_START_POSITION,
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
@@ -184,10 +184,10 @@ export default function OkutamaMap2D({
       // エリア内なのでトーストは非表示
       setShowOutsideToast(false);
     } else {
-      // エリア外の場合：小河内神社を中心に設定
-      const shrineCenter: LatLngExpression = [OGOUCHI_SHRINE.latitude, OGOUCHI_SHRINE.longitude];
-      setCenter(shrineCenter);
-      mapRef.current?.flyTo(shrineCenter, 14, { duration: 0.6 });
+      // エリア外の場合：初期位置（奥多摩湖の碑）を中心に設定
+      const startCenter: LatLngExpression = [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
+      setCenter(startCenter);
+      mapRef.current?.flyTo(startCenter, 14, { duration: 0.6 });
       // エリア外トーストを表示
       setShowOutsideToast(true);
     }
