@@ -77,6 +77,11 @@ export interface SensorStatus {
     lastUpdate: number | null;
     error: string | null;
   };
+  camera: {
+    available: boolean;
+    permission: 'granted' | 'denied' | 'prompt' | 'unknown';
+    error: string | null;
+  };
 }
 
 // センサーイベントハンドラー
