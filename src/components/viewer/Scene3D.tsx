@@ -425,12 +425,11 @@ export default function Scene3D({
         </div>
       )}
 
-      {/* パネル表示切替ボタン */}
       <div
         style={{
           position: 'fixed',
-          top: '20px',
-          right: '20px',
+          bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
+          right: '16px',
           zIndex: 1001,
         }}
       >
