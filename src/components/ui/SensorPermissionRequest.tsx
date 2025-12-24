@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import type React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -268,6 +269,7 @@ export default function SensorPermissionRequest({
             </motion.button>
 
             <button
+              type="button"
               onClick={() => setShowDetails(!showDetails)}
               style={{
                 background: 'none',
