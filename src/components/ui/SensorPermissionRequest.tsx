@@ -34,8 +34,8 @@ export default function SensorPermissionRequest({
     // カメラの権限チェック (Permissions API)
     let cameraPerm: 'granted' | 'denied' | 'prompt' | 'unknown' = 'unknown';
     try {
-      // @ts-ignore: permissions query definitions are inconsistent across browsers
-      const result = await navigator.permissions.query({ name: 'camera' });
+      // standard types might not include 'camera' yet
+      const result = await navigator.permissions.query({ name: 'camera' as any });
       if (result.state === 'granted') cameraPerm = 'granted';
       else if (result.state === 'denied') cameraPerm = 'denied';
       else cameraPerm = 'prompt';
