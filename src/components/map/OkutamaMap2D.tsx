@@ -6,7 +6,6 @@ import { FaMapSigns, FaLayerGroup, FaTools } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import CalibrationOverlay from './CalibrationOverlay';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
-import { getSensorManager } from '../../services/sensors/SensorManager';
 import { useSensors } from '../../hooks/useSensors';
 import {
   DEFAULT_START_POSITION,

@@ -3,16 +3,15 @@ import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaTimes, FaQuestion, FaInfoCircle } from 'react-icons/fa';
-import { IoMdClose } from 'react-icons/io';
 
 interface SensorPermissionRequestProps {
   onPermissionsGranted: () => void;
-  onPermissionsDenied: (errors: string[]) => void;
+  onPermissionsDenied?: (errors: string[]) => void;
 }
 
 export default function SensorPermissionRequest({
   onPermissionsGranted,
-  onPermissionsDenied,
+  onPermissionsDenied, // used for future error handling
 }: SensorPermissionRequestProps) {
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>({
     gps: { available: false, permission: 'unknown', lastUpdate: null, error: null },
@@ -84,14 +83,16 @@ export default function SensorPermissionRequest({
         gps: { ...prev.gps, permission: 'granted' },
       }));
     } catch (error) {
+      const errMsg = String(error);
       setSensorStatus((prev) => ({
         ...prev,
         gps: {
           ...prev.gps,
           permission: 'denied',
-          error: { code: 0, message: String(error), timestamp: Date.now() },
+          error: { code: 0, message: errMsg, timestamp: Date.now() },
         },
       }));
+      onPermissionsDenied?.([errMsg]);
     } finally {
       setIsRequesting(false);
     }
@@ -108,10 +109,12 @@ export default function SensorPermissionRequest({
         orientation: { ...prev.orientation, permission },
       }));
     } catch (error) {
+      const errMsg = String(error);
       setSensorStatus((prev) => ({
         ...prev,
-        orientation: { ...prev.orientation, permission: 'denied', error: String(error) },
+        orientation: { ...prev.orientation, permission: 'denied', error: errMsg },
       }));
+      onPermissionsDenied?.([errMsg]);
     } finally {
       setIsRequesting(false);
     }
@@ -128,10 +131,12 @@ export default function SensorPermissionRequest({
         motion: { ...prev.motion, permission },
       }));
     } catch (error) {
+      const errMsg = String(error);
       setSensorStatus((prev) => ({
         ...prev,
-        motion: { ...prev.motion, permission: 'denied', error: String(error) },
+        motion: { ...prev.motion, permission: 'denied', error: errMsg },
       }));
+      onPermissionsDenied?.([errMsg]);
     } finally {
       setIsRequesting(false);
     }
@@ -139,19 +144,6 @@ export default function SensorPermissionRequest({
 
   const skipPermissions = () => {
     onPermissionsGranted();
-  };
-
-  const getStatusIcon = (permission: string, available: boolean) => {
-    if (!available) return <FaTimes className="text-gray-400" />;
-    switch (permission) {
-      case 'granted':
-        return <FaCheck className="text-green-500" />;
-      case 'denied':
-        return <FaTimes className="text-red-500" />;
-      case 'prompt':
-      default:
-        return <FaQuestion className="text-yellow-500" />;
-    }
   };
 
   const containerVariants = {
@@ -162,11 +154,6 @@ export default function SensorPermissionRequest({
       transition: { duration: 0.3, ease: 'easeOut' as const }
     },
     exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 }
   };
 
   return (

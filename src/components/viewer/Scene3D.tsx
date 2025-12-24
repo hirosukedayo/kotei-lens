@@ -144,7 +144,7 @@ export default function Scene3D({
     return () => {
       // クリーンアップはuseSensors内で自動で行われるが、明示的に止める必要があれば記述
     };
-  }, []); // 初回のみ
+  }, [isMobile, startSensors]); // 初回のみ + 依存配列
   // デバイス向き許可のハンドラ
   const handleDeviceOrientationPermission = async () => {
     try {
