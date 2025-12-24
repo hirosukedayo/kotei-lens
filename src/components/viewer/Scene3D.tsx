@@ -34,6 +34,8 @@ import {
 import OrientationCamera from '../ar/OrientationCamera';
 import ARBackground from '../ar/ARBackground';
 import { useSensors } from '../../hooks/useSensors';
+import SensorPermissionRequest from '../ui/SensorPermissionRequest';
+import { getSensorManager } from '../../services/sensors/SensorManager';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -94,21 +96,55 @@ export default function Scene3D({
       console.log('WebGL Support:', support);
       console.log('Recommended Renderer:', recommended);
     });
+    // モバイル判定
+    const checkMobile = () => {
+      const ua = navigator.userAgent;
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      setIsMobile(isMobileDevice);
 
-    // デバイス検出
-    const checkDevice = () => {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-        userAgent
-      );
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const mobile = isMobileDevice || isTouchDevice;
-      setIsMobile(mobile);
+      // PCの場合は常に権限ありとする
+      if (!isMobileDevice) {
+        setPermissionGranted(true);
+      } else {
+        // モバイルの場合、既にキャッシュされているか確認
+        // OkutamaMap2Dからの遷移なら cache: 'granted' のはず
+        // ただしiOSではコンポーネントマウント時に再度ユーザー操作なしで requestPermission すると失敗する可能性があるため
+        // startSensors() 内で OrientationService がキャッシュを見てスキップする仕組みが重要
+        const manager = getSensorManager();
+        const orientationState = manager.orientationService.getPermissionState?.();
+
+        if (orientationState === 'granted') {
+          setPermissionGranted(true);
+        }
+      }
+    };
+    checkMobile();
+
+    // センサー開始
+    const initSensors = async () => {
+      try {
+        await startSensors();
+
+        // startSensorsが成功したということは権限OK
+        if (isMobile) {
+          const manager = getSensorManager();
+          const p = manager.orientationService.getPermissionState?.();
+          if (p === 'granted') {
+            setPermissionGranted(true);
+          }
+        }
+      } catch (e) {
+        console.warn('Auto-start sensors failed (expected if verification needed):', e);
+        // ここでエラーになっても、未許可フラグのままならモーダルが出るのでOK
+      }
     };
 
-    checkDevice();
-  }, []);
+    initSensors();
 
+    return () => {
+      // クリーンアップはuseSensors内で自動で行われるが、明示的に止める必要があれば記述
+    };
+  }, [isMobile, startSensors]); // 初回のみ + 依存配列
   // デバイス向き許可のハンドラ
   const handleDeviceOrientationPermission = async () => {
     try {
@@ -318,42 +354,17 @@ export default function Scene3D({
         onDeselectPin={handleDeselectPin}
       />
 
-      {/* デバイス向き許可ボタン（モバイルのみ） */}
+      {/* デバイス向き許可ボタン（モバイルのみ）- 統一UIに置換 */}
       {isMobile && !permissionGranted && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            padding: '20px',
-            borderRadius: '10px',
-            textAlign: 'center',
+        <SensorPermissionRequest
+          onPermissionsGranted={() => {
+            handleDeviceOrientationPermission();
           }}
-        >
-          <h3 style={{ margin: '0 0 15px 0' }}>デバイス向きの許可が必要です</h3>
-          <p style={{ margin: '0 0 15px 0', fontSize: '14px' }}>
-            AR体験のために、デバイスの向きへのアクセスを許可してください。
-          </p>
-          <button
-            type="button"
-            onClick={handleDeviceOrientationPermission}
-            style={{
-              background: '#2B6CB0',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}
-          >
-            アクセスを許可
-          </button>
-        </div>
+          onPermissionsDenied={(errors: string[]) => {
+            console.error('Permissions denied:', errors);
+            // 拒否された場合でも一応表示は維持するか、あるいは警告を出す
+          }}
+        />
       )}
 
       {/* デバッグボタン（左上） */}
@@ -955,7 +966,7 @@ function FPSCameraControls() {
   const yawRef = React.useRef(0);
 
   React.useEffect(() => {
-    // カメラの初期設定
+    // URLパラメータからの初期位置設定
     camera.rotation.order = 'YXZ';
     camera.rotation.x = 0;
     camera.rotation.y = 0;

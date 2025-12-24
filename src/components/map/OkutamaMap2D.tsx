@@ -5,10 +5,10 @@ import L from 'leaflet';
 import { FaMapSigns, FaLayerGroup, FaTools } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import CalibrationOverlay from './CalibrationOverlay';
-import { getSensorManager } from '../../services/sensors/SensorManager';
+import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
 import {
-  OGOUCHI_SHRINE,
+  DEFAULT_START_POSITION,
   worldToGpsCoordinate,
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
@@ -63,10 +63,10 @@ export default function OkutamaMap2D({
   // 起動時の自動センタリング・トースト制御が完了したかどうか
   const [hasInitialCenterSet, setHasInitialCenterSet] = useState(false);
 
-  // 画面中心位置（初期値は小河内神社）
+  // 画面中心位置（初期値は奥多摩湖の碑）
   const [center, setCenter] = useState<LatLngExpression>([
-    OGOUCHI_SHRINE.latitude,
-    OGOUCHI_SHRINE.longitude,
+    DEFAULT_START_POSITION.latitude,
+    DEFAULT_START_POSITION.longitude,
   ]);
   const MapRefBinder = () => {
     const map = useMap();
@@ -119,35 +119,43 @@ export default function OkutamaMap2D({
       mapRef.current?.flyTo(coords as any, 14, { duration: 0.6 });
     }
   };
-  // 3D切替: クリック時に方位センサーの許可を要求し、許可時のみ遷移
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+
+  // 3D切替: クリック時にセンサー権限を確認
   const handleRequest3DWithPermission = async () => {
-    try {
-      const permission = await getSensorManager().orientationService.requestPermission();
-      if (permission === 'granted') {
-        // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
-        const currentCenter = mapRef.current?.getCenter();
-        if (currentCenter) {
-          const initialPosition: Initial3DPosition = {
-            latitude: currentCenter.lat,
-            longitude: currentCenter.lng,
-            heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
-          };
-          onRequest3D?.(initialPosition);
-        } else {
-          // マップが初期化されていない場合は、stateのcenterを使用
-          const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
-          const initialPosition: Initial3DPosition = {
-            latitude: centerLatLng[0],
-            longitude: centerLatLng[1],
-            heading: sensorData.orientation?.alpha ?? undefined,
-          };
-          onRequest3D?.(initialPosition);
-        }
-      } else {
-        // 許可が得られない場合は何もしない（必要なら通知やシート表示へ）
-      }
-    } catch {
-      // 例外時も遷移しない
+    // 既に許可済みかチェック (キャッシュを利用)
+    const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
+    // const gpsPermission = 'granted'; // GPSは基本的にavailableなら使えることが多いが、ここで厳密にチェックしてもよい
+
+    // 簡易チェック: Orientationが許可済みなら即遷移 (iOS対策)
+    // GPSやMotionは必須ではない、あるいはOrientation許可時に一括で処理される想定
+    if (orientationPermission === 'granted') {
+      transitionTo3D();
+    } else {
+      // 未許可なら統一モーダルを表示
+      setShowPermissionModal(true);
+    }
+  };
+
+  const transitionTo3D = () => {
+    // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
+    const currentCenter = mapRef.current?.getCenter();
+    if (currentCenter) {
+      const initialPosition: Initial3DPosition = {
+        latitude: currentCenter.lat,
+        longitude: currentCenter.lng,
+        heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
+      };
+      onRequest3D?.(initialPosition);
+    } else {
+      // マップが初期化されていない場合は、stateのcenterを使用
+      const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
+      const initialPosition: Initial3DPosition = {
+        latitude: centerLatLng[0],
+        longitude: centerLatLng[1],
+        heading: sensorData.orientation?.alpha ?? undefined,
+      };
+      onRequest3D?.(initialPosition);
     }
   };
   // iOSなどで100vhがアドレスバーで縮まないように調整
@@ -184,10 +192,10 @@ export default function OkutamaMap2D({
       // エリア内なのでトーストは非表示
       setShowOutsideToast(false);
     } else {
-      // エリア外の場合：小河内神社を中心に設定
-      const shrineCenter: LatLngExpression = [OGOUCHI_SHRINE.latitude, OGOUCHI_SHRINE.longitude];
-      setCenter(shrineCenter);
-      mapRef.current?.flyTo(shrineCenter, 14, { duration: 0.6 });
+      // エリア外の場合：初期位置（奥多摩湖の碑）を中心に設定
+      const startCenter: LatLngExpression = [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
+      setCenter(startCenter);
+      mapRef.current?.flyTo(startCenter, 14, { duration: 0.6 });
       // エリア外トーストを表示
       setShowOutsideToast(true);
     }
@@ -591,6 +599,20 @@ export default function OkutamaMap2D({
         onSelectPin={handleSelectPin}
         onDeselectPin={onDeselectPin}
       />
+
+      {/* センサー権限要求モーダル (統一UI) */}
+      {showPermissionModal && (
+        <SensorPermissionRequest
+          onPermissionsGranted={() => {
+            setShowPermissionModal(false);
+            transitionTo3D();
+          }}
+          onPermissionsDenied={() => {
+            setShowPermissionModal(false);
+            // 必要ならトースト表示など
+          }}
+        />
+      )}
     </div >
   );
 }
