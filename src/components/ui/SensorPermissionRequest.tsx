@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaInfoCircle } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaInfoCircle, FaCamera } from 'react-icons/fa';
 
 interface SensorPermissionRequestProps {
   onPermissionsGranted: () => void;
@@ -18,6 +18,7 @@ export default function SensorPermissionRequest({
     gps: { available: false, permission: 'unknown', lastUpdate: null, error: null },
     orientation: { available: false, permission: 'unknown', lastUpdate: null, error: null },
     motion: { available: false, permission: 'unknown', lastUpdate: null, error: null },
+    camera: { available: true, permission: 'unknown', error: null }, // カメラは基本ある前提
   });
 
   const [isRequesting, setIsRequesting] = useState(false);
@@ -29,6 +30,19 @@ export default function SensorPermissionRequest({
   const checkSensorAvailability = useCallback(async () => {
     // OrientationServiceのキャッシュされた状態を確認
     const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
+
+    // カメラの権限チェック (Permissions API)
+    let cameraPerm: 'granted' | 'denied' | 'prompt' | 'unknown' = 'unknown';
+    try {
+      // standard types might not include 'camera' yet
+      const result = await navigator.permissions.query({ name: 'camera' as any });
+      if (result.state === 'granted') cameraPerm = 'granted';
+      else if (result.state === 'denied') cameraPerm = 'denied';
+      else cameraPerm = 'prompt';
+    } catch {
+      // Permissions API not supported for camera or error
+      cameraPerm = 'prompt';
+    }
 
     const newStatus: SensorStatus = {
       gps: {
@@ -45,8 +59,13 @@ export default function SensorPermissionRequest({
       },
       motion: {
         available: sensorManager.motionService.isAvailable(),
-        permission: 'prompt', // Motionは明示的なAPIがない場合が多いが一旦prompt
+        permission: 'prompt',
         lastUpdate: null,
+        error: null,
+      },
+      camera: {
+        available: !!(navigator.mediaDevices?.getUserMedia),
+        permission: cameraPerm,
         error: null,
       },
     };
@@ -63,9 +82,9 @@ export default function SensorPermissionRequest({
     const isGpsOk = !sensorStatus.gps.available || sensorStatus.gps.permission === 'granted';
     const isOrientationOk = !sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted';
     const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
+    const isCameraOk = !sensorStatus.camera.available || sensorStatus.camera.permission === 'granted';
 
-    if (isGpsOk && isOrientationOk && isMotionOk) {
-      // 少し遅延させてアニメーションを見せる余韻を残す
+    if (isGpsOk && isOrientationOk && isMotionOk && isCameraOk) {
       const timer = setTimeout(() => {
         onPermissionsGranted();
       }, 500);
@@ -136,6 +155,33 @@ export default function SensorPermissionRequest({
       setSensorStatus((prev) => ({
         ...prev,
         motion: { ...prev.motion, permission: 'denied', error: errMsg },
+      }));
+      onPermissionsDenied?.([errMsg]);
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    if (!sensorStatus.camera.available) return;
+
+    setIsRequesting(true);
+    try {
+      // 実際にストリームを取得して権限を確認し、すぐに停止する
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
+
+      setSensorStatus((prev) => ({
+        ...prev,
+        camera: { ...prev.camera, permission: 'granted' },
+      }));
+    } catch (error) {
+      const errMsg = String(error);
+      setSensorStatus((prev) => ({
+        ...prev,
+        camera: { ...prev.camera, permission: 'denied', error: errMsg },
       }));
       onPermissionsDenied?.([errMsg]);
     } finally {
@@ -220,6 +266,16 @@ export default function SensorPermissionRequest({
               description="現在地周辺の景色を表示"
               status={sensorStatus.gps}
               onClick={requestGPSPermission}
+              isRequesting={isRequesting}
+            />
+
+            {/* Camera */}
+            <PermissionItem
+              icon={<FaCamera size={20} />}
+              title="カメラ"
+              description="AR背景として使用"
+              status={sensorStatus.camera}
+              onClick={requestCameraPermission}
               isRequesting={isRequesting}
             />
 

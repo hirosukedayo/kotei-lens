@@ -225,7 +225,8 @@ export default function Scene3D({
 
   return (
     <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: 'transparent' }}>
-      {isArBackgroundActive && isMobile && <ARBackground active={true} />}
+      {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
+      {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
       <Canvas
         style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}
         camera={{
