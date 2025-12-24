@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaTimes, FaQuestion, FaInfoCircle } from 'react-icons/fa';
+import { IoMdClose } from 'react-icons/io';
 
 interface SensorPermissionRequestProps {
   onPermissionsGranted: () => void;
@@ -9,6 +12,7 @@ interface SensorPermissionRequestProps {
 
 export default function SensorPermissionRequest({
   onPermissionsGranted,
+  onPermissionsDenied,
 }: SensorPermissionRequestProps) {
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>({
     gps: { available: false, permission: 'unknown', lastUpdate: null, error: null },
@@ -23,6 +27,9 @@ export default function SensorPermissionRequest({
   const sensorManager = getSensorManager();
 
   const checkSensorAvailability = useCallback(async () => {
+    // OrientationServiceのキャッシュされた状態を確認
+    const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
+
     const newStatus: SensorStatus = {
       gps: {
         available: sensorManager.locationService.isAvailable(),
@@ -32,13 +39,13 @@ export default function SensorPermissionRequest({
       },
       orientation: {
         available: sensorManager.orientationService.isAvailable(),
-        permission: 'prompt', // 初期状態
+        permission: orientationPermission === 'granted' ? 'granted' : 'prompt',
         lastUpdate: null,
         error: null,
       },
       motion: {
         available: sensorManager.motionService.isAvailable(),
-        permission: 'prompt', // 初期状態
+        permission: 'prompt', // Motionは明示的なAPIがない場合が多いが一旦prompt
         lastUpdate: null,
         error: null,
       },
@@ -51,15 +58,27 @@ export default function SensorPermissionRequest({
     checkSensorAvailability();
   }, [checkSensorAvailability]);
 
+  // 全許可チェック
+  useEffect(() => {
+    const isGpsOk = !sensorStatus.gps.available || sensorStatus.gps.permission === 'granted';
+    const isOrientationOk = !sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted';
+    const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
+
+    if (isGpsOk && isOrientationOk && isMotionOk) {
+      // 少し遅延させてアニメーションを見せる余韻を残す
+      const timer = setTimeout(() => {
+        onPermissionsGranted();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [sensorStatus, onPermissionsGranted]);
+
   const requestGPSPermission = async () => {
     if (!sensorStatus.gps.available) return;
 
     setIsRequesting(true);
     try {
-      // GeolocationAPIの許可を実際に要求するため、getCurrentPositionを呼び出す
-      // これによりブラウザの位置許可ダイアログが表示される
       await sensorManager.locationService.getCurrentPosition();
-
       setSensorStatus((prev) => ({
         ...prev,
         gps: { ...prev.gps, permission: 'granted' },
@@ -84,8 +103,6 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const permission = await sensorManager.orientationService.requestPermission();
-
-      // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
         orientation: { ...prev.orientation, permission },
@@ -106,8 +123,6 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const permission = await sensorManager.motionService.requestPermission();
-
-      // テストは削除 - useSensorsで実際の利用時に行う
       setSensorStatus((prev) => ({
         ...prev,
         motion: { ...prev.motion, permission },
@@ -122,332 +137,286 @@ export default function SensorPermissionRequest({
     }
   };
 
-  const checkAllPermissions = () => {
-    const grantedCount = [
-      sensorStatus.gps.permission === 'granted',
-      sensorStatus.orientation.permission === 'granted',
-      sensorStatus.motion.permission === 'granted',
-    ].filter(Boolean).length;
-
-    if (grantedCount === 3) {
-      onPermissionsGranted();
-    } else if (grantedCount > 0) {
-      // 部分的に許可されている場合も続行可能
-      onPermissionsGranted();
-    }
-  };
-
   const skipPermissions = () => {
-    onPermissionsGranted(); // 許可なしでも続行
+    onPermissionsGranted();
   };
 
   const getStatusIcon = (permission: string, available: boolean) => {
-    if (!available) return '❌';
+    if (!available) return <FaTimes className="text-gray-400" />;
     switch (permission) {
       case 'granted':
-        return '✅';
+        return <FaCheck className="text-green-500" />;
       case 'denied':
-        return '🚫';
+        return <FaTimes className="text-red-500" />;
       case 'prompt':
-        return '❓';
       default:
-        return '⏳';
+        return <FaQuestion className="text-yellow-500" />;
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.3, ease: 'easeOut' as const }
+    },
+    exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000,
-        fontFamily: 'Noto Sans JP, sans-serif',
-      }}
-    >
-      <div
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '20px',
-          maxWidth: '400px',
-          width: '90%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999, // 最前面
+          fontFamily: 'sans-serif',
         }}
       >
-        <h2
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           style={{
-            color: '#2B6CB0',
-            textAlign: 'center',
-            marginBottom: '20px',
-            fontSize: '24px',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '24px',
+            padding: '32px',
+            maxWidth: '380px',
+            width: '90%',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+            maxHeight: '90vh',
+            overflowY: 'auto',
           }}
         >
-          センサー許可の要求
-        </h2>
-
-        <p
-          style={{
-            color: '#666',
-            textAlign: 'center',
-            marginBottom: '15px',
-            lineHeight: '1.6',
-          }}
-        >
-          各センサーの「許可する」ボタンをタップして、必要な機能を有効にしてください：
-        </p>
-
-        {/* iOS用の簡潔な注意書き */}
-        {/iPhone|iPad|iPod/i.test(navigator.userAgent) && (
-          <div
-            style={{
-              backgroundColor: '#fff3cd',
-              border: '1px solid #ffeaa7',
-              borderRadius: '6px',
-              padding: '10px',
-              marginBottom: '15px',
-              fontSize: '12px',
-              color: '#856404',
-              lineHeight: '1.3',
-            }}
-          >
-            <strong>📱 iOS:</strong> 各「許可する」ボタンを個別タップ。
-            ダイアログが出ない場合はアドレスバー横の🔒から「モーションと画面の向きへのアクセス」を許可に変更。
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <motion.h2
+              style={{
+                margin: '0 0 12px 0',
+                fontSize: '22px',
+                fontWeight: '800',
+                color: '#1a202c',
+                letterSpacing: '-0.02em'
+              }}
+            >
+              センサー許可
+            </motion.h2>
+            <p style={{ margin: 0, fontSize: '14px', color: '#718096', lineHeight: '1.6' }}>
+              没入感のあるAR体験のために、<br />デバイスセンサーの許可をお願いします。
+            </p>
           </div>
-        )}
 
-        <div style={{ marginBottom: '20px' }}>
-          {/* GPS許可セクション */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              marginBottom: '10px',
-            }}
-          >
-            <span style={{ fontSize: '20px', marginRight: '12px' }}>
-              {getStatusIcon(sensorStatus.gps.permission, sensorStatus.gps.available)}
-            </span>
-            <div style={{ flex: 1 }}>
-              <strong>📍 位置情報 (GPS)</strong>
-              <div style={{ fontSize: '12px', color: '#666' }}>現在地の特定とナビゲーション</div>
-            </div>
-            <button
-              type="button"
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
+            {/* GPS */}
+            <PermissionItem
+              icon={<FaMapMarkerAlt size={20} />}
+              title="位置情報"
+              description="現在地周辺の景色を表示"
+              status={sensorStatus.gps}
               onClick={requestGPSPermission}
-              disabled={
-                !sensorStatus.gps.available ||
-                isRequesting ||
-                sensorStatus.gps.permission === 'granted'
-              }
-              style={{
-                backgroundColor: sensorStatus.gps.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                cursor:
-                  !sensorStatus.gps.available ||
-                  isRequesting ||
-                  sensorStatus.gps.permission === 'granted'
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !sensorStatus.gps.available || isRequesting ? 0.6 : 1,
-              }}
-            >
-              {sensorStatus.gps.permission === 'granted' ? '許可済み' : '許可する'}
-            </button>
-          </div>
+              isRequesting={isRequesting}
+            />
 
-          {/* デバイス方位許可セクション */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              marginBottom: '10px',
-            }}
-          >
-            <span style={{ fontSize: '20px', marginRight: '12px' }}>
-              {getStatusIcon(
-                sensorStatus.orientation.permission,
-                sensorStatus.orientation.available
-              )}
-            </span>
-            <div style={{ flex: 1 }}>
-              <strong>🧭 デバイス方位</strong>
-              <div style={{ fontSize: '12px', color: '#666' }}>向いている方向の建物表示</div>
-            </div>
-            <button
-              type="button"
+            {/* Orientation */}
+            <PermissionItem
+              icon={<FaCompass size={20} />}
+              title="デバイスの方位"
+              description="向いている方向の景色と連動"
+              status={sensorStatus.orientation}
               onClick={requestOrientationPermission}
-              disabled={
-                !sensorStatus.orientation.available ||
-                isRequesting ||
-                sensorStatus.orientation.permission === 'granted'
-              }
-              style={{
-                backgroundColor:
-                  sensorStatus.orientation.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                cursor:
-                  !sensorStatus.orientation.available ||
-                  isRequesting ||
-                  sensorStatus.orientation.permission === 'granted'
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !sensorStatus.orientation.available || isRequesting ? 0.6 : 1,
-              }}
-            >
-              {sensorStatus.orientation.permission === 'granted' ? '許可済み' : '許可する'}
-            </button>
-          </div>
+              isRequesting={isRequesting}
+            />
 
-          {/* デバイスモーション許可セクション */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              marginBottom: '15px',
-            }}
-          >
-            <span style={{ fontSize: '20px', marginRight: '12px' }}>
-              {getStatusIcon(sensorStatus.motion.permission, sensorStatus.motion.available)}
-            </span>
-            <div style={{ flex: 1 }}>
-              <strong>📱 デバイスモーション</strong>
-              <div style={{ fontSize: '12px', color: '#666' }}>歩行検知と操作向上</div>
-            </div>
-            <button
-              type="button"
+            {/* Motion */}
+            <PermissionItem
+              icon={<FaWalking size={20} />}
+              title="モーション"
+              description="移動や傾きをより正確に反映"
+              status={sensorStatus.motion}
               onClick={requestMotionPermission}
-              disabled={
-                !sensorStatus.motion.available ||
-                isRequesting ||
-                sensorStatus.motion.permission === 'granted'
-              }
+              isRequesting={isRequesting}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* 全て許可ボタンは自動遷移するため削除、代わりにスキップを目立たないように配置 */}
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={skipPermissions}
+              disabled={isRequesting}
               style={{
-                backgroundColor:
-                  sensorStatus.motion.permission === 'granted' ? '#4CAF50' : '#2B6CB0',
-                color: 'white',
+                width: '100%',
+                padding: '12px',
+                borderRadius: '12px',
                 border: 'none',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                cursor:
-                  !sensorStatus.motion.available ||
-                  isRequesting ||
-                  sensorStatus.motion.permission === 'granted'
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !sensorStatus.motion.available || isRequesting ? 0.6 : 1,
+                backgroundColor: '#EDF2F7',
+                color: '#4A5568',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: isRequesting ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s',
               }}
             >
-              {sensorStatus.motion.permission === 'granted' ? '許可済み' : '許可する'}
+              許可せずに開始
+            </motion.button>
+
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#A0AEC0',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginTop: '8px'
+              }}
+            >
+              <FaInfoCircle /> プライバシーについて
             </button>
           </div>
-        </div>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '10px',
-            justifyContent: 'center',
-            flexDirection: 'column',
-          }}
-        >
-          <button
-            type="button"
-            onClick={checkAllPermissions}
+          <AnimatePresence>
+            {showDetails && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  backgroundColor: '#F7FAFC',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  color: '#718096',
+                  lineHeight: '1.6'
+                }}>
+                  <p style={{ margin: '0 0 8px 0' }}>
+                    データはデバイス内でのみ処理され、外部サーバーには送信されません。
+                    設定からいつでも変更可能です。
+                  </p>
+                  {/iPhone|iPad|iPod/i.test(navigator.userAgent) && (
+                    <p style={{ margin: 0, color: '#D69E2E', fontWeight: 'bold' }}>
+                      ⚠️ iOSの場合、各項目の「許可」ボタンを直接タップしてください。
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function PermissionItem({
+  icon,
+  title,
+  description,
+  status,
+  onClick,
+  isRequesting
+}: {
+  icon: React.ReactNode,
+  title: string,
+  description: string,
+  status: { available: boolean; permission: string | PermissionState },
+  onClick: () => void,
+  isRequesting: boolean
+}) {
+  const isGranted = status.permission === 'granted';
+  const isDenied = status.permission === 'denied';
+
+  if (!status.available) return null;
+
+  return (
+    <motion.div
+      whileTap={!isGranted && !isDenied ? { scale: 0.98 } : undefined}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '16px',
+        backgroundColor: isGranted ? '#F0FFF4' : '#FFFFFF',
+        borderRadius: '16px',
+        border: isGranted ? '1px solid #C6F6D5' : '1px solid #E2E8F0',
+        cursor: !isGranted && !isDenied ? 'pointer' : 'default',
+        boxShadow: isGranted ? 'none' : '0 2px 4px rgba(0,0,0,0.02)',
+        transition: 'all 0.2s',
+      }}
+      onClick={!isGranted && !isDenied && !isRequesting ? onClick : undefined}
+    >
+      <div style={{
+        width: '40px',
+        height: '40px',
+        borderRadius: '12px',
+        backgroundColor: isGranted ? '#C6F6D5' : '#EBF8FF', // 緑 or 青
+        color: isGranted ? '#2F855A' : '#3182CE',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: '16px',
+        flexShrink: 0
+      }}>
+        {isGranted ? <FaCheck size={18} /> : icon}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{ margin: '0 0 2px 0', fontSize: '15px', fontWeight: '700', color: isGranted ? '#22543D' : '#2D3748' }}>
+          {title}
+        </h3>
+        <p style={{ margin: 0, fontSize: '12px', color: isGranted ? '#48BB78' : '#718096', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {isGranted ? '許可済み' : description}
+        </p>
+      </div>
+
+      <div style={{ marginLeft: '12px' }}>
+        {isGranted ? (
+          // チェックマークのみ
+          null
+        ) : isDenied ? (
+          <span style={{ fontSize: '12px', color: '#E53E3E', fontWeight: 'bold' }}>拒否</span>
+        ) : (
+          <motion.div
             style={{
-              backgroundColor: '#4CAF50',
+              padding: '6px 16px',
+              backgroundColor: '#3182CE',
               color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-            }}
-          >
-            アプリを開始
-          </button>
-
-          <button
-            type="button"
-            onClick={skipPermissions}
-            disabled={isRequesting}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#666',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-              padding: '8px 16px',
-              fontSize: '14px',
-              cursor: isRequesting ? 'not-allowed' : 'pointer',
-              opacity: isRequesting ? 0.7 : 1,
-            }}
-          >
-            センサーなしで続行
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowDetails(!showDetails)}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#2B6CB0',
-              border: 'none',
+              borderRadius: '20px',
               fontSize: '12px',
-              cursor: 'pointer',
-              textDecoration: 'underline',
+              fontWeight: '600',
+              boxShadow: '0 4px 6px rgba(49, 130, 206, 0.3)',
             }}
           >
-            {showDetails ? '詳細を隠す' : '詳細情報を表示'}
-          </button>
-        </div>
-
-        {showDetails && (
-          <div
-            style={{
-              marginTop: '20px',
-              padding: '15px',
-              backgroundColor: '#f9f9f9',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#666',
-            }}
-          >
-            <h4 style={{ margin: '0 0 10px 0' }}>プライバシーについて</h4>
-            <ul style={{ margin: 0, paddingLeft: '20px' }}>
-              <li>位置情報はデバイス内でのみ処理され、外部に送信されません</li>
-              <li>センサーデータは3D表示の向上のみに使用されます</li>
-              <li>いつでも設定から許可を取り消すことができます</li>
-            </ul>
-          </div>
+            許可
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
