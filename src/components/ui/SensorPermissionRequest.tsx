@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaTimes, FaQuestion, FaInfoCircle } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaInfoCircle } from 'react-icons/fa';
 
 interface SensorPermissionRequestProps {
   onPermissionsGranted: () => void;
