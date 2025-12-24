@@ -228,7 +228,7 @@ export default function Scene3D({
       {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
       {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
       <Canvas
-        style={{ width: '100%', height: '100%', margin: 0, padding: 0 }}
+        style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
           position: initialCameraConfig.position,
           fov: fov,
@@ -255,6 +255,7 @@ export default function Scene3D({
           )}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
+
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
           {(!isArBackgroundActive || !isMobile) && (
             <Sky
@@ -265,8 +266,11 @@ export default function Scene3D({
             />
           )}
 
-          {/* 環境マップ（反射などに使用） */}
-          <Environment preset="sunset" />
+          {/* ARモード時は背景を確実に透明にする */}
+          {isArBackgroundActive && isMobile && <SceneBackgroundCleaner />}
+
+          {/* 環境マップ（反射などに使用）- 背景には表示しない */}
+          <Environment preset="sunset" background={false} />
 
           {/* 環境光を強化 */}
           <ambientLight intensity={0.6} color="#ffffff" />
@@ -684,6 +688,19 @@ export default function Scene3D({
       )}
     </div>
   );
+}
+
+// シーンの背景をクリアするコンポーネント
+function SceneBackgroundCleaner() {
+  const { scene } = useThree();
+  useEffect(() => {
+    const originalBackground = scene.background;
+    scene.background = null; // 背景を透明に
+    return () => {
+      scene.background = originalBackground;
+    };
+  }, [scene]);
+  return null;
 }
 
 // 画角(FOV)を動的に更新するためのコンポーネント

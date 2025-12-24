@@ -52,7 +52,7 @@ export default function ARBackground({ active = true }: ARBackgroundProps) {
             style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: -1,
+                zIndex: 0,
                 overflow: 'hidden',
                 backgroundColor: '#000',
             }}
