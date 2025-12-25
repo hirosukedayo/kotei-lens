@@ -30,6 +30,57 @@ const getBasePath = () => {
 // glTFファイルの読み込み結果をキャッシュ（グローバル）
 const gltfCache = new Map<string, { gltf: GLTF | null; promise: Promise<GLTF> }>();
 
+// プリロード用の関数をエクスポート
+// eslint-disable-next-line react-refresh/only-export-components
+export const preloadLakeModel = () => {
+  const basePath = getBasePath();
+  const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
+
+  // 既にキャッシュがあれば何もしない（あるいはそのPromiseを返す）
+  if (gltfCache.has(gltfPath)) {
+    console.log('[LakeModel] Preload: Already cached or loading.');
+    return;
+  }
+
+  console.log('[LakeModel] Preload: Starting preload...');
+  // 実際にロードを開始
+  loadGltfModel(gltfPath);
+};
+
+// 実際のロード処理（内部用）
+const loadGltfModel = (path: string): Promise<GLTF> => {
+  console.log('[LakeModel] Loading GLTF:', path);
+  const gltfLoader = new GLTFLoader();
+
+  const loadPromise = new Promise<GLTF>((resolve, reject) => {
+    gltfLoader.load(
+      path,
+      (loadedGltf) => {
+        console.log('[LakeModel] ✅ GLTF loaded successfully');
+        resolve(loadedGltf);
+      },
+      undefined, // progress is handled in component if needed, but for preload we skip it
+      (error) => {
+        console.error('[LakeModel] ❌ Failed to load GLTF:', error);
+        reject(error);
+      }
+    );
+  });
+
+  // キャッシュにセット
+  gltfCache.set(path, { gltf: null, promise: loadPromise });
+
+  // 完了時にキャッシュ更新
+  loadPromise.then(gltf => {
+    gltfCache.set(path, { gltf, promise: loadPromise });
+  }).catch(() => {
+    // エラー時はキャッシュ削除してリトライできるようにする？
+    gltfCache.delete(path);
+  });
+
+  return loadPromise;
+};
+
 // 水面アニメーション開始時間をグローバルに保持（コンポーネント再マウント時も保持）
 const globalWaterDrainStartTime = { value: null as number | null };
 
@@ -59,7 +110,7 @@ export function LakeModel({
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gltf, setGltf] = useState<GLTF | null>(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  // const [loadingProgress, setLoadingProgress] = useState(0);
   const terrainBottomYRef = useRef<number | null>(null); // 地形の一番下のY座標（スケール適用後、ワールド座標）
   const { scene } = useThree(); // シーンへの参照を取得
   const waterGroupRef = useRef<THREE.Group | null>(null); // 水面用のGroup（シーンに直接追加）
@@ -109,135 +160,40 @@ export function LakeModel({
   // glTFファイルの読み込み（キャッシュを使用）
   useEffect(() => {
     const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
+    console.log('[LakeModel] Component mounted, checking cache for:', gltfPath);
 
-    console.log('[LakeModel] glTFファイル読み込み開始:', gltfPath);
-
-    // キャッシュをチェック
     const cached = gltfCache.get(gltfPath);
 
+    // 1. キャッシュ済み
     if (cached?.gltf) {
-      // キャッシュから即座に設定
-      console.log('[LakeModel] ✅ キャッシュからglTFを取得');
       setGltf(cached.gltf);
       setIsLoaded(true);
       return;
     }
 
-    // 読み込み中のPromiseがある場合は待機
-    if (cached?.promise) {
-      console.log('[LakeModel] ⏳ 既存の読み込みPromiseを待機中...');
-      cached.promise
-        .then((loadedGltf) => {
-          setGltf(loadedGltf);
-          setIsLoaded(true);
-        })
-        .catch((error) => {
-          console.error('glTFファイルの読み込みに失敗:', error);
-          setError('glTFファイルの読み込みに失敗しました');
-        });
-      return;
+    // 2. ロード中 or 未ロード
+    let promise = cached?.promise;
+    if (!promise) {
+      // 未ロードなら開始
+      promise = loadGltfModel(gltfPath);
     }
 
-    // 新規読み込み
-    console.log('[LakeModel] 📥 新規にglTFファイルを読み込み中...');
-    const gltfLoader = new GLTFLoader();
-
-    // モバイル用の読み込み設定
-    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-      navigator.userAgent.toLowerCase()
-    );
-
-    const loadPromise = new Promise<GLTF>((resolve, reject) => {
-      gltfLoader.load(
-        gltfPath,
-        (loadedGltf) => {
-          console.log('[LakeModel] ✅ glTFファイルが正常に読み込まれました');
-
-          if (!isMobile) {
-            // PCでのみ詳細ログを出力
-            console.log('glTF情報:', {
-              scene: loadedGltf.scene,
-              animations: loadedGltf.animations,
-              cameras: loadedGltf.cameras,
-              asset: loadedGltf.asset,
-            });
-
-            // シーンの詳細情報を出力
-            console.log('シーンの子オブジェクト:', loadedGltf.scene.children);
-            loadedGltf.scene.traverse((child) => {
-              console.log('オブジェクト:', child.name, child.type);
-            });
-
-            // バウンディングボックスを計算してログ出力
-            const box = new THREE.Box3().setFromObject(loadedGltf.scene);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-
-            console.log('=== モデルのバウンディングボックス ===');
-            console.log('最小値 (min):', {
-              x: box.min.x,
-              y: box.min.y,
-              z: box.min.z,
-            });
-            console.log('最大値 (max):', {
-              x: box.max.x,
-              y: box.max.y,
-              z: box.max.z,
-            });
-            console.log('中心点 (center):', {
-              x: center.x,
-              y: center.y,
-              z: center.z,
-            });
-            console.log('サイズ (size):', {
-              x: size.x,
-              y: size.y,
-              z: size.z,
-            });
-            console.log('=====================================');
-          }
-
-          resolve(loadedGltf);
-        },
-        (progress) => {
-          const percentage = (progress.loaded / progress.total) * 100;
-          setLoadingProgress(percentage);
-
-          // モバイルでの読み込みが遅い場合の警告
-          if (isMobile && percentage < 10 && progress.total > 0) {
-            console.warn(
-              'モバイルでの読み込みが遅い可能性があります。ファイルサイズ:',
-              (progress.total / 1024 / 1024).toFixed(1),
-              'MB'
-            );
-          }
-        },
-        (error) => {
-          console.error('glTFファイルの読み込みに失敗:', error);
-          reject(error);
-        }
-      );
-    });
-
-    // キャッシュにPromiseを保存
-    gltfCache.set(gltfPath, { gltf: null, promise: loadPromise });
-
-    // Promiseが解決したらキャッシュを更新
-    loadPromise
+    // Promiseの結果を待つ
+    promise
       .then((loadedGltf) => {
-        gltfCache.set(gltfPath, { gltf: loadedGltf, promise: loadPromise });
-        setGltf(loadedGltf);
-        setIsLoaded(true);
-        // if (globalWaterDrainStartTime.value === null) {
-        //   globalWaterDrainStartTime.value = Date.now();
-        // }
+        if (isMounted) {
+          setGltf(loadedGltf);
+          setIsLoaded(true);
+        }
       })
-      .catch((error) => {
-        console.error('glTFファイルの読み込みに失敗:', error);
-        setError('glTFファイルの読み込みに失敗しました');
-        gltfCache.delete(gltfPath); // エラー時はキャッシュを削除
+      .catch(() => {
+        if (isMounted) setError('モデルの読み込みに失敗しました');
       });
+
+    let isMounted = true;
+    return () => { isMounted = false; };
   }, [basePath]);
+
 
   // 地形オブジェクトを一度だけクローンして保持（useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
@@ -792,13 +748,7 @@ export function LakeModel({
         </mesh>
       )}
 
-      {/* ローディング進捗表示（モバイル用） */}
-      {!isLoaded && loadingProgress > 0 && (
-        <mesh position={[0, 5, 0]}>
-          <planeGeometry args={[20, 2]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.7} />
-        </mesh>
-      )}
+
     </group>
   );
 }

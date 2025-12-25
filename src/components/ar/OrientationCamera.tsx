@@ -56,8 +56,28 @@ export default function OrientationCamera({
     const { alpha, beta, gamma } = deviceOrientation;
     if (alpha === null || beta === null || gamma === null) return;
 
+    // alphaの計算: iOSでは webkitCompassHeading を優先使用
+    // webkitCompassHeading: 北が0, 時計回り (0=N, 90=E)
+    // alpha (standard): 北が0?, 反時計回り?
+    // Three.js (Euler YXZ): Y軸回転は反時計回りが正
+    // なので、時計回りの webkitCompassHeading を使う場合、符号を反転させるか、360から引く
+    let alphaValue = alpha;
+
+    // 型安全にアクセス
+    const deviceAuth = deviceOrientation as any;
+    if (typeof deviceAuth.webkitCompassHeading === 'number' && deviceAuth.webkitCompassHeading >= 0) {
+      // iOSの場合: 時計回りの値を反時計回りのラジアンに変換
+      // 補正値 (manualHeadingOffset) も適用
+      // カメラのY回転は、風景（北）に対してデバイスがどっちを向いているか。
+      // デバイスが東(90度)を向いたら、カメラは西(-90度)に回す必要がある？
+      // DeviceOrientationControlsの実装詳細に依存するが、
+      // 一般的に alpha は z軸回転（反時計）として扱われる。
+      // webkitCompassHeading (0~360 CW) -> alpha (0~360 CCW)
+      alphaValue = 360 - deviceAuth.webkitCompassHeading;
+    }
+
     // 手動補正を alpha に適用
-    const alphaRad = THREE.MathUtils.degToRad(alpha + manualHeadingOffset);
+    const alphaRad = THREE.MathUtils.degToRad(alphaValue + manualHeadingOffset);
     const betaRad = THREE.MathUtils.degToRad(beta);
     const gammaRad = THREE.MathUtils.degToRad(gamma);
     const orientRad = screenOrientation.current;
