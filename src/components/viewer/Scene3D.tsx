@@ -19,8 +19,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaSlash } from 'react-icons/fa';
-import { PiCubeFocusFill } from 'react-icons/pi';
+import { FaMapSigns, FaCompass, FaEye, FaEyeSlash } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -545,7 +544,7 @@ export default function Scene3D({
           }}
           title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
         >
-          {isControlsVisible ? <FaSlash /> : <PiCubeFocusFill />}
+          {isControlsVisible ? <FaEyeSlash /> : <FaEye />}
         </button>
       </div>
 
@@ -587,7 +586,7 @@ export default function Scene3D({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <PiCubeFocusFill /> 画角 (FOV): {fov}°
+                <FaEye /> 画角 (FOV): {fov}°
               </div>
               <button
                 type="button"
@@ -628,7 +627,7 @@ export default function Scene3D({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <PiCubeFocusFill style={{ transform: 'rotate(180deg)', color: '#3182ce' }} /> 水面高度: {waterLevelOffset > 0 ? `+${waterLevelOffset}` : waterLevelOffset}m
+                <FaEye style={{ transform: 'rotate(180deg)', color: '#3182ce' }} /> 水面高度: {waterLevelOffset > 0 ? `+${waterLevelOffset}` : waterLevelOffset}m
               </div>
               <button
                 type="button"
@@ -710,7 +709,7 @@ export default function Scene3D({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <PiCubeFocusFill style={{ transform: 'rotate(90deg)', color: '#48bb78' }} /> カメラ高度: {cameraHeightOffset > 0 ? `+${cameraHeightOffset}` : cameraHeightOffset}m
+                <FaEye style={{ transform: 'rotate(90deg)', color: '#48bb78' }} /> カメラ高度: {cameraHeightOffset > 0 ? `+${cameraHeightOffset}` : cameraHeightOffset}m
               </div>
               <button
                 type="button"
