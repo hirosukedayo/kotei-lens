@@ -15,6 +15,7 @@ import {
 } from '../../utils/coordinate-converter';
 import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../../config/terrain-config';
 import { Toast } from '../ui/Toast';
+import { preloadLakeModel } from '../3d/LakeModel';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
 import type { PinData } from '../../types/pins';
@@ -126,6 +127,9 @@ export default function OkutamaMap2D({
 
   // 3D切替: クリック時にセンサー権限を確認
   const handleRequest3DWithPermission = async () => {
+    // 3Dボタンを押した直後にモデルのプリロードを開始（キャリブレーション等の待ち時間を有効活用）
+    preloadLakeModel();
+
     // 既に許可済みかチェック (キャッシュを利用)
     const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
     // const gpsPermission = 'granted'; // GPSは基本的にavailableなら使えることが多いが、ここで厳密にチェックしてもよい
