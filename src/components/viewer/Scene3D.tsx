@@ -19,7 +19,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaSlash } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import {
   TERRAIN_SCALE_FACTOR,
@@ -37,6 +37,7 @@ import { useSensors } from '../../hooks/useSensors';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
+import CompassCalibration from '../ui/CompassCalibration';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -84,10 +85,20 @@ export default function Scene3D({
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
+  // 初期位置決定後かつ権限許可後にキャリブレーションを行う
+  const [isCalibrated, setIsCalibrated] = useState(false);
+
   const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+
+  useEffect(() => {
+    // PCの場合はキャリブレーション不要
+    if (!isMobile) {
+      setIsCalibrated(true);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     detectWebGLSupport().then((support) => {
@@ -231,6 +242,17 @@ export default function Scene3D({
 
       {/* ローディング画面 */}
       <LoadingScreen />
+
+      {/* 方位キャリブレーション画面 */}
+      {isMobile && permissionGranted && !isCalibrated && (
+        <CompassCalibration
+          onCalibrationComplete={(offset) => {
+            setManualHeadingOffset(offset);
+            setIsCalibrated(true);
+          }}
+          initialOffset={manualHeadingOffset}
+        />
+      )}
 
       <Canvas
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
@@ -438,8 +460,37 @@ export default function Scene3D({
           bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
           right: '16px',
           zIndex: 1001,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
         }}
       >
+        {/* キャリブレーション再実行ボタン */}
+        {isMobile && permissionGranted && (
+          <button
+            type="button"
+            onClick={() => setIsCalibrated(false)}
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white',
+              width: '40px',
+              height: '40px',
+              borderRadius: '20px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.3s ease',
+            }}
+            title="方位を再調整"
+          >
+            <FaCompass />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setIsControlsVisible(!isControlsVisible)}
@@ -460,7 +511,7 @@ export default function Scene3D({
           }}
           title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
         >
-          <FaCompass style={{ transform: isControlsVisible ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+          {isControlsVisible ? <FaSlash /> : <PiCubeFocusFill />}
         </button>
       </div>
 
@@ -485,46 +536,9 @@ export default function Scene3D({
             border: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          {/* 方位補正スライダー */}
-          <div style={{ width: '100%' }}>
-            <div
-              style={{
-                color: 'white',
-                fontSize: '12px',
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <FaCompass /> 方位補正: {manualHeadingOffset}°
-              </div>
-              <button
-                type="button"
-                onClick={() => setManualHeadingOffset(0)}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                }}
-              >
-                Reset
-              </button>
-            </div>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              value={manualHeadingOffset}
-              onChange={(e) => setManualHeadingOffset(Number(e.target.value))}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
+          {/* 方位補正スライダーはキャリブレーション画面に移動したため削除 */}
+
+          {/* 画角(FOV)スライダー */}
 
           {/* 画角(FOV)スライダー */}
           <div style={{ width: '100%' }}>
