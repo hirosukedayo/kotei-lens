@@ -97,17 +97,12 @@ export class LocationService {
       console.log('Starting GPS watchPosition with options:', this.options);
       this.watchId = navigator.geolocation.watchPosition(
         (position) => {
-          console.log('GPS position received:', position);
           const gpsPosition = this.convertPosition(position);
           this.lastPosition = gpsPosition;
-          console.log('GPS callbacks to execute:', this.callbacks.length);
-          console.log('GPS position converted:', gpsPosition);
 
           for (let i = 0; i < this.callbacks.length; i++) {
-            console.log(`Executing GPS callback ${i + 1}/${this.callbacks.length}`);
             try {
               this.callbacks[i](gpsPosition);
-              console.log(`GPS callback ${i + 1} executed successfully`);
             } catch (error) {
               console.error(`GPS callback ${i + 1} failed:`, error);
             }
@@ -198,9 +193,9 @@ export class LocationService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.toRadians(pos1.latitude)) *
-        Math.cos(this.toRadians(pos2.latitude)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(this.toRadians(pos2.latitude)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
