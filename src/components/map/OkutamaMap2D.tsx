@@ -27,6 +27,7 @@ export interface Initial3DPosition {
   latitude: number;
   longitude: number;
   heading?: number; // デバイスの方位角（度、0-360、北が0）
+  headingOffset?: number; // キャリブレーション時の (Compass - Alpha) 差分
 }
 
 type OkutamaMap2DProps = {
@@ -143,6 +144,7 @@ export default function OkutamaMap2D({
       if (isMobile) {
         setIsCalibrating(true);
       } else {
+        // PCなどは即座に遷移（ヘディングオフセットなし）
         transitionTo3D();
       }
     } else {
@@ -151,14 +153,19 @@ export default function OkutamaMap2D({
     }
   };
 
-  const transitionTo3D = () => {
+  const transitionTo3D = (headingOffset?: number) => {
     // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
     const currentCenter = mapRef.current?.getCenter();
+    const commonProps = {
+      heading: sensorData.orientation?.alpha ?? undefined,
+      headingOffset: headingOffset,
+    };
+
     if (currentCenter) {
       const initialPosition: Initial3DPosition = {
         latitude: currentCenter.lat,
         longitude: currentCenter.lng,
-        heading: sensorData.orientation?.alpha ?? undefined, // デバイスの方位角（0-360度、北が0）
+        ...commonProps,
       };
       onRequest3D?.(initialPosition);
     } else {
@@ -167,10 +174,28 @@ export default function OkutamaMap2D({
       const initialPosition: Initial3DPosition = {
         latitude: centerLatLng[0],
         longitude: centerLatLng[1],
-        heading: sensorData.orientation?.alpha ?? undefined,
+        ...commonProps,
       };
       onRequest3D?.(initialPosition);
     }
+  };
+
+  // キャリブレーション完了時のハンドラ
+  const handleCalibrationComplete = (manualOffset: number) => {
+    setIsCalibrating(false);
+
+    // キャリブレーション時点での 方位（絶対）とAlpha（相対）の差分を計算
+    // offset = Compass - Alpha
+    // これにより、3Dモードでは (CurrentAlpha + offset) = CurrentCompass となる
+    const compass = (sensorData.compassHeading ?? 0) + manualOffset;
+    const alpha = sensorData.orientation?.alpha ?? 0;
+
+    let offset = compass - alpha;
+    // 正規化 (0-360)
+    while (offset < 0) offset += 360;
+    offset = offset % 360;
+
+    transitionTo3D(offset);
   };
   // iOSなどで100vhがアドレスバーで縮まないように調整
   useEffect(() => {
@@ -619,7 +644,14 @@ export default function OkutamaMap2D({
         <SensorPermissionRequest
           onPermissionsGranted={() => {
             setShowPermissionModal(false);
-            transitionTo3D();
+            // モバイル判定を再度行う
+            const ua = navigator.userAgent;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            if (isMobile) {
+              setIsCalibrating(true);
+            } else {
+              transitionTo3D();
+            }
           }}
           onPermissionsDenied={() => {
             setShowPermissionModal(false);
@@ -631,10 +663,7 @@ export default function OkutamaMap2D({
       {/* 3D遷移前キャリブレーション (Auto Mode Only) */}
       {isCalibrating && (
         <CompassCalibration
-          onCalibrationComplete={() => {
-            setIsCalibrating(false);
-            transitionTo3D();
-          }}
+          onCalibrationComplete={handleCalibrationComplete}
           onClose={() => setIsCalibrating(false)}
           initialOffset={0}
           orientation={sensorData.orientation}
