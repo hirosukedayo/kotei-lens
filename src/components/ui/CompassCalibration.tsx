@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaCheck, FaHandPointer, FaTimes, FaUndo, FaArrowLeft } from 'react-icons/fa';
-import { useSensors } from '../../hooks/useSensors';
+import type { DeviceOrientation } from '../../types/sensors';
 
 interface CompassCalibrationProps {
     onCalibrationComplete: (offset: number) => void;
     onClose?: () => void;
     initialOffset?: number;
+    orientation: DeviceOrientation | null;
+    compassHeading: number | null;
 }
 
 type CalibrationStep = 'intro' | 'horizontal' | 'manual' | 'complete';
@@ -15,8 +17,10 @@ export default function CompassCalibration({
     onCalibrationComplete,
     onClose,
     initialOffset = 0,
+    orientation,
+    compassHeading,
 }: CompassCalibrationProps) {
-    const { sensorData } = useSensors();
+    // const { sensorData } = useSensors(); // 親からデータを受け取るため削除
     const [step, setStep] = useState<CalibrationStep>('horizontal');
     const [manualOffset, setManualOffset] = useState(initialOffset);
     const [isHorizontal, setIsHorizontal] = useState(false);
@@ -29,13 +33,20 @@ export default function CompassCalibration({
     const stabilityTimerRef = useRef<number>(0);
 
     // コンパスリングの回転用（現在のheading）
-    const currentHeading = sensorData.compassHeading || 0;
+    const currentHeading = compassHeading || 0;
 
     useEffect(() => {
         if (step !== 'horizontal') return;
-        if (!sensorData.orientation) return;
+        // Debug logging
+        console.log('[CompassCalibration] Orientation Check:', {
+            orientation,
+            beta: orientation?.beta,
+            gamma: orientation?.gamma,
+        });
 
-        const { beta, gamma } = sensorData.orientation;
+        if (!orientation) return;
+
+        const { beta, gamma } = orientation;
         if (beta === null || gamma === null) return;
 
         const isFlat = Math.abs(beta) < HORIZONTAL_THRESHOLD && Math.abs(gamma) < HORIZONTAL_THRESHOLD;
@@ -60,7 +71,7 @@ export default function CompassCalibration({
             stabilityTimerRef.current = Math.max(0, stabilityTimerRef.current - dt);
             setStabilityProgress((prev) => Math.max(0, prev - (dt / STABILITY_DURATION) * 100));
         }
-    }, [sensorData.orientation, step, manualOffset]);
+    }, [orientation, step, manualOffset]);
 
     const handleManualComplete = () => {
         onCalibrationComplete(manualOffset);
@@ -279,7 +290,7 @@ export default function CompassCalibration({
                                         <div style={{ position: 'absolute', width: '1px', height: '100%', background: 'rgba(255,255,255,0.1)' }} />
 
                                         {/* バブル */}
-                                        {sensorData.orientation && (
+                                        {orientation && (
                                             <motion.div
                                                 style={{
                                                     position: 'absolute',
@@ -290,8 +301,8 @@ export default function CompassCalibration({
                                                     boxShadow: '0 0 10px rgba(0,0,0,0.3)',
                                                 }}
                                                 animate={{
-                                                    x: Math.max(-60, Math.min(60, (sensorData.orientation.gamma || 0) * 2)),
-                                                    y: Math.max(-60, Math.min(60, (sensorData.orientation.beta || 0) * 2)),
+                                                    x: Math.max(-60, Math.min(60, (orientation.gamma || 0) * 2)),
+                                                    y: Math.max(-60, Math.min(60, (orientation.beta || 0) * 2)),
                                                 }}
                                                 transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                                             />
