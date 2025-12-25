@@ -111,9 +111,26 @@ export class OrientationService {
 
   // コンパス方位を取得（北を0度とする）
   public getCompassHeading(orientation: DeviceOrientation): number | null {
+    // iOS: webkitCompassHeading を優先（時計回り、磁北基準）
+    if (typeof orientation.webkitCompassHeading === 'number' && orientation.webkitCompassHeading >= 0) {
+      // 磁気偏角補正を適用（西偏の場合はマイナス値として扱われることが多いが、ここでは値を加算している＝西偏分だけ時計回りにずらす＝真北は磁北より東？）
+      // 日本（西偏）の場合：磁北は真北より西にある。
+      // コンパスが磁北(0)を指しているとき、真北は東(+7度)にある。
+      // なので、真北方位 = 磁北方位 + 7度。
+      // つまり加算で正しい。
+      let heading = orientation.webkitCompassHeading + this.magneticDeclination;
+
+      // 0-360度の範囲に正規化
+      if (heading < 0) heading += 360;
+      if (heading >= 360) heading -= 360;
+
+      return heading;
+    }
+
     if (orientation.alpha === null) return null;
 
-    // 磁気偏角補正を適用
+    // Android / PC: absolute alpha など
+    // W3C仕様ではalphaは反時計回りだが、実装依存が大きい
     let heading = orientation.alpha + this.magneticDeclination;
 
     // 0-360度の範囲に正規化
