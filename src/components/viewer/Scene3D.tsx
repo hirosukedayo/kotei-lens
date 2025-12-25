@@ -110,7 +110,6 @@ export default function Scene3D({
       return () => clearTimeout(timer);
     }
   }, [loadProgress, isReady]);
-
   useEffect(() => {
     // PCの場合はキャリブレーション不要
     if (!isMobile) {
