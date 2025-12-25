@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCheck, FaCompass, FaHandPointer } from 'react-icons/fa';
+import { FaCheck, FaHandPointer, FaTimes, FaUndo, FaArrowLeft } from 'react-icons/fa';
 import { useSensors } from '../../hooks/useSensors';
 
 interface CompassCalibrationProps {
     onCalibrationComplete: (offset: number) => void;
-    // onCancel is currently unused but kept for future extensibility (optional)
-    // To satisfy linter, we can omit it or prefix with underscore if destructuring
-    // Removing it from interface if not intended to use now
+    onClose?: () => void;
     initialOffset?: number;
 }
 
@@ -15,6 +13,7 @@ type CalibrationStep = 'intro' | 'horizontal' | 'manual' | 'complete';
 
 export default function CompassCalibration({
     onCalibrationComplete,
+    onClose,
     initialOffset = 0,
 }: CompassCalibrationProps) {
     const { sensorData } = useSensors();
@@ -23,24 +22,20 @@ export default function CompassCalibration({
     const [isHorizontal, setIsHorizontal] = useState(false);
     const [stabilityProgress, setStabilityProgress] = useState(0);
 
-    // 水平判定の閾値（度）
     const HORIZONTAL_THRESHOLD = 5;
-    // 安定化に必要な時間（ミリ秒）
     const STABILITY_DURATION = 1500;
 
     const lastTimeRef = useRef<number>(Date.now());
     const stabilityTimerRef = useRef<number>(0);
 
-    // スマートフォンが水平かどうかを判定
+    // コンパスリングの回転用（現在のheading）
+    const currentHeading = sensorData.compassHeading || 0;
+
     useEffect(() => {
         if (step !== 'horizontal') return;
         if (!sensorData.orientation) return;
 
         const { beta, gamma } = sensorData.orientation;
-        // beta: 前後の傾き, gamma: 左右の傾き (-90~90)
-        // 完全に水平なら beta=0, gamma=0
-
-        // nullチェック
         if (beta === null || gamma === null) return;
 
         const isFlat = Math.abs(beta) < HORIZONTAL_THRESHOLD && Math.abs(gamma) < HORIZONTAL_THRESHOLD;
@@ -56,27 +51,7 @@ export default function CompassCalibration({
             setStabilityProgress(progress);
 
             if (stabilityTimerRef.current >= STABILITY_DURATION) {
-                // 水平状態で安定 -> 現在のコンパスヘディングを基準(オフセット0)として完了へ
-                // ただし、ここでは「自動取得」なので、現在のヘディングが正しいと仮定するなら
-                // オフセットは「真北(0) - 現在のコンパス値」ではなく、
-                // 地図の向きと合わせるためのオフセット。
-                // 自動モードでは「今は正しい向きを向いている」というよりは
-                // 「コンパスの値をそのまま信じる（オフセット0）」あるいは
-                // 「特定のランドマークに向いていると仮定して補正する」などが考えられるが
-                // 通常の電子コンパスキャリブレーション(8の字)ではなく、ここでは
-                // 「水平にすることでコンパス精度を上げる」のが目的で、
-                // 完了時は現在の方位をそのまま採用する(=オフセットそのまま、あるいはリセット)。
-
-                // ここでは「自動調整完了」として、オフセットを0（センサー値を信頼）にするか、
-                // あるいは現在の値を基準にするかだが、
-                // 「方位補正」の文脈では「地図がずれているのを直す」ので、
-                // 自動モードは「センサー精度が良い状態を作る」ステップで、
-                // 完了後に手動調整へ移行するか、そのまま完了とするか。
-
-                // プランに従い、「安定したら自動で方位を取得」 -> オフセット0（センサー生値）で完了とする
                 if (manualOffset !== 0) {
-                    // 既存のオフセットがある場合、それをリセットするか維持するか？
-                    // 「自動調整」＝センサーリセットと捉える
                     setManualOffset(0);
                 }
                 setStep('complete');
@@ -92,146 +67,83 @@ export default function CompassCalibration({
     };
 
     const handleAutoComplete = () => {
-        // 自動完了時はオフセット0（または現在のセンサー値を正とするなら0）
         onCalibrationComplete(0);
     };
 
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                zIndex: 9999,
-                background: 'rgba(0, 0, 0, 0.85)',
-                backdropFilter: 'blur(10px)',
-                color: 'white',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '20px',
-            }}
-        >
-            <AnimatePresence mode='wait'>
-                {step === 'horizontal' && (
-                    <motion.div
-                        key="horizontal"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        style={{ textAlign: 'center', width: '100%', maxWidth: '400px' }}
-                    >
-                        <FaCompass size={50} color={isHorizontal ? '#48bb78' : '#e53e3e'} style={{ marginBottom: '20px' }} />
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '10px', fontWeight: 'bold' }}>方位の調整</h2>
-                        <p style={{ marginBottom: '30px', opacity: 0.8 }}>
-                            正確な方位を取得するため、<br />端末を水平に持ってください。
-                        </p>
-
-                        {/* 水準器ビジュアル */}
-                        <div
-                            style={{
-                                width: '200px',
-                                height: '200px',
-                                borderRadius: '50%',
-                                border: `2px solid ${isHorizontal ? '#48bb78' : 'rgba(255,255,255,0.3)'}`,
-                                position: 'relative',
-                                margin: '0 auto 30px',
-                                background: 'rgba(255,255,255,0.05)',
-                                transition: 'border-color 0.3s',
-                            }}
-                        >
-                            {/* 中心マーカー */}
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    width: '10px',
-                                    height: '10px',
-                                    background: 'rgba(255,255,255,0.5)',
-                                    borderRadius: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                }}
-                            />
-
-                            {/* バブル */}
-                            {sensorData.orientation && (
-                                <motion.div
-                                    style={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        left: '50%',
-                                        width: '40px',
-                                        height: '40px',
-                                        background: isHorizontal ? '#48bb78' : '#e53e3e',
-                                        borderRadius: '50%',
-                                        boxShadow: '0 0 15px rgba(0,0,0,0.5)',
-                                    }}
-                                    animate={{
-                                        x: Math.max(-90, Math.min(90, (sensorData.orientation.gamma || 0) * 3)) - 20, // センシティビティ調整
-                                        y: Math.max(-90, Math.min(90, (sensorData.orientation.beta || 0) * 3)) - 20,
-                                    }}
-                                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                                />
-                            )}
-                        </div>
-
-                        {/* 進捗バー */}
-                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginBottom: '20px' }}>
-                            <motion.div
-                                style={{ height: '100%', background: '#48bb78' }}
-                                animate={{ width: `${stabilityProgress}%` }}
-                            />
-                        </div>
-
-                        <p style={{ fontSize: '0.9rem', marginBottom: '30px', height: '20px' }}>
-                            {isHorizontal ? 'そのまま保持してください...' : '水平にしてください'}
-                        </p>
-
+        <>
+            {/* Manual Mode: Bottom Panel Only */}
+            {step === 'manual' && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: 0,
+                        left: 0,
+                        width: '100vw',
+                        // 上部は透明にして3Dを見せる
+                        height: 'auto',
+                        pointerEvents: 'none', // 背景へのクリックを阻害しない？いや、スライダー操作必要
+                        zIndex: 9999,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-end',
+                    }}
+                >
+                    {/* Close / Return Button - Top Right of screen (but outside panel) */}
+                    <div style={{ position: 'fixed', top: '20px', right: '20px', pointerEvents: 'auto' }}>
                         <button
                             type="button"
-                            onClick={() => setStep('manual')}
+                            onClick={() => setStep('horizontal')}
                             style={{
-                                background: 'transparent',
-                                border: '1px solid rgba(255,255,255,0.3)',
+                                background: 'rgba(0,0,0,0.6)',
                                 color: 'white',
-                                padding: '10px 20px',
-                                borderRadius: '30px',
-                                fontSize: '0.9rem',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '44px',
+                                height: '44px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backdropFilter: 'blur(4px)',
                                 cursor: 'pointer',
                             }}
                         >
-                            手動で調整する
+                            <FaArrowLeft />
                         </button>
-                    </motion.div>
-                )}
+                    </div>
 
-                {step === 'manual' && (
                     <motion.div
-                        key="manual"
-                        initial={{ opacity: 0, x: 50 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -50 }}
-                        style={{ textAlign: 'center', width: '100%', maxWidth: '400px' }}
+                        initial={{ y: 200 }}
+                        animate={{ y: 0 }}
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            backdropFilter: 'blur(10px)',
+                            borderTopLeftRadius: '20px',
+                            borderTopRightRadius: '20px',
+                            padding: '20px',
+                            color: 'white',
+                            pointerEvents: 'auto',
+                            paddingBottom: '40px', // iPhone Home bar area
+                        }}
                     >
-                        <FaHandPointer size={40} style={{ marginBottom: '20px' }} />
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '10px', fontWeight: 'bold' }}>手動方位調整</h2>
-                        <p style={{ marginBottom: '30px', opacity: 0.8 }}>
-                            スライダーを動かして、<br />風景と地図が重なるように調整してください。
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '15px', gap: '8px' }}>
+                            <FaHandPointer size={18} />
+                            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0 }}>手動方位調整</h2>
+                        </div>
+
+                        <p style={{ fontSize: '0.9rem', textAlign: 'center', opacity: 0.8, marginBottom: '20px' }}>
+                            風景と地図が重なるようにスライダーを調整
                         </p>
 
-                        <div style={{ marginBottom: '40px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ marginBottom: '25px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
                                 <span>補正値: {manualOffset}°</span>
                                 <button
                                     type="button"
                                     onClick={() => setManualOffset(0)}
-                                    style={{ background: 'none', border: 'none', color: '#48bb78', cursor: 'pointer', fontSize: '0.9rem' }}
+                                    style={{ background: 'none', border: 'none', color: '#48bb78', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                 >
-                                    リセット
+                                    <FaUndo size={12} /> リセット
                                 </button>
                             </div>
                             <input
@@ -240,88 +152,232 @@ export default function CompassCalibration({
                                 max="180"
                                 value={manualOffset}
                                 onChange={(e) => setManualOffset(Number(e.target.value))}
-                                style={{ width: '100%', height: '6px', accentColor: '#48bb78' }}
+                                style={{ width: '100%', height: '8px', accentColor: '#48bb78', cursor: 'pointer' }}
                             />
-                            <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '10px' }}>
-                                ※背景の3Dシーンを見ながら調整できます
-                            </p>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
-                            <button
-                                type="button"
-                                onClick={() => setStep('horizontal')}
-                                style={{
-                                    background: 'transparent',
-                                    border: '1px solid rgba(255,255,255,0.3)',
-                                    color: 'white',
-                                    padding: '12px 24px',
-                                    borderRadius: '30px',
-                                    fontSize: '1rem',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                自動に戻る
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleManualComplete}
-                                style={{
-                                    background: '#48bb78',
-                                    border: 'none',
-                                    color: 'white',
-                                    padding: '12px 40px',
-                                    borderRadius: '30px',
-                                    fontSize: '1rem',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 15px rgba(72, 187, 120, 0.4)',
-                                }}
-                            >
-                                完了
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-
-                {step === 'complete' && (
-                    <motion.div
-                        key="complete"
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        style={{ textAlign: 'center' }}
-                    >
-                        <div style={{
-                            width: '80px', height: '80px', background: '#48bb78', borderRadius: '50%',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px'
-                        }}>
-                            <FaCheck size={40} color="white" />
-                        </div>
-                        <h2 style={{ fontSize: '1.5rem', marginBottom: '10px', fontWeight: 'bold' }}>調整完了</h2>
-                        <p style={{ opacity: 0.8 }}>3Dモードを開始します</p>
-
-                        {/* 自動遷移用に見えないボタン等を置くか、useEffectで遷移させるのが良いが、
-                    ここではユーザー確認としてボタンを置く */}
                         <button
                             type="button"
-                            onClick={handleAutoComplete}
+                            onClick={handleManualComplete}
                             style={{
-                                marginTop: '30px',
-                                background: 'white',
-                                color: '#1a202c',
+                                width: '100%',
+                                background: '#48bb78',
                                 border: 'none',
-                                padding: '12px 40px',
+                                color: 'white',
+                                padding: '14px',
                                 borderRadius: '30px',
                                 fontSize: '1rem',
                                 fontWeight: 'bold',
                                 cursor: 'pointer',
+                                boxShadow: '0 4px 10px rgba(72, 187, 120, 0.4)',
                             }}
                         >
-                            OK
+                            決定
                         </button>
                     </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                </div>
+            )}
+
+            {/* Full Overlay for Horizontal/Complete steps */}
+            {step !== 'manual' && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        zIndex: 9999,
+                        background: 'rgba(0, 0, 0, 0.85)',
+                        backdropFilter: 'blur(10px)',
+                        color: 'white',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '20px',
+                    }}
+                >
+                    {/* 閉じるボタン (再調整時のみ表示などを想定、または常に表示) */}
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            style={{
+                                position: 'absolute',
+                                top: '20px',
+                                right: '20px',
+                                background: 'rgba(255,255,255,0.1)',
+                                border: 'none',
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: '40px',
+                                height: '40px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <FaTimes size={18} />
+                        </button>
+                    )}
+
+                    <AnimatePresence mode='wait'>
+                        {step === 'horizontal' && (
+                            <motion.div
+                                key="horizontal"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                style={{ textAlign: 'center', width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                            >
+                                <h2 style={{ fontSize: '1.4rem', marginBottom: '10px', fontWeight: 'bold' }}>方位の調整</h2>
+                                <p style={{ marginBottom: '30px', opacity: 0.8, fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                    端末を水平に維持すると、<br />自動的に方位を検出します。
+                                </p>
+
+                                <div style={{ position: 'relative', width: '220px', height: '220px', marginBottom: '30px' }}>
+                                    {/* 外側のコンパスリング（回転） */}
+                                    <motion.div
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: '50%',
+                                            border: '2px dashed rgba(255,255,255,0.2)',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}
+                                        animate={{ rotate: isHorizontal ? -currentHeading : 0 }}
+                                        transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+                                    >
+                                        {/* 北を示すマーク */}
+                                        <div style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', width: '12px', height: '12px', background: '#e53e3e', borderRadius: '50%' }} />
+                                        <div style={{ position: 'absolute', top: '10px', fontSize: '0.8rem', fontWeight: 'bold', color: '#e53e3e' }}>N</div>
+                                    </motion.div>
+
+                                    {/* 水準器サークル */}
+                                    <div
+                                        style={{
+                                            width: '140px',
+                                            height: '140px',
+                                            borderRadius: '50%',
+                                            border: `2px solid ${isHorizontal ? '#48bb78' : 'rgba(255,255,255,0.4)'} `,
+                                            position: 'absolute',
+                                            top: '50%',
+                                            left: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            transition: 'border-color 0.3s',
+                                        }}
+                                    >
+                                        {/* 十字ライン */}
+                                        <div style={{ position: 'absolute', width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                                        <div style={{ position: 'absolute', width: '1px', height: '100%', background: 'rgba(255,255,255,0.1)' }} />
+
+                                        {/* バブル */}
+                                        {sensorData.orientation && (
+                                            <motion.div
+                                                style={{
+                                                    position: 'absolute',
+                                                    width: '30px',
+                                                    height: '30px',
+                                                    background: isHorizontal ? '#48bb78' : '#e53e3e',
+                                                    borderRadius: '50%',
+                                                    boxShadow: '0 0 10px rgba(0,0,0,0.3)',
+                                                }}
+                                                animate={{
+                                                    x: Math.max(-60, Math.min(60, (sensorData.orientation.gamma || 0) * 2)),
+                                                    y: Math.max(-60, Math.min(60, (sensorData.orientation.beta || 0) * 2)),
+                                                }}
+                                                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Stability Progress */}
+                                {isHorizontal ? (
+                                    <div style={{ width: '80%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden', marginBottom: '10px' }}>
+                                        <motion.div
+                                            style={{ height: '100%', background: '#48bb78' }}
+                                            animate={{ width: `${stabilityProgress}% ` }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div style={{ height: '4px', marginBottom: '10px' }} />
+                                )}
+
+                                <p style={{ fontSize: '0.9rem', marginBottom: '30px', color: isHorizontal ? '#48bb78' : '#e2e8f0', minHeight: '1.5em' }}>
+                                    {isHorizontal ? '調整中...そのまま保持' : '水平にしてください'}
+                                </p>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('manual')}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.1)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        color: 'white',
+                                        padding: '12px 24px',
+                                        borderRadius: '30px',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    <FaHandPointer /> 手動で微調整する
+                                </button>
+                            </motion.div>
+                        )}
+
+                        {step === 'complete' && (
+                            <motion.div
+                                key="complete"
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                            >
+                                <div style={{
+                                    width: '90px', height: '90px', background: '#48bb78', borderRadius: '50%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px',
+                                    boxShadow: '0 10px 25px rgba(72,187,120,0.3)'
+                                }}>
+                                    <FaCheck size={45} color="white" />
+                                </div>
+                                <h2 style={{ fontSize: '1.6rem', marginBottom: '10px', fontWeight: 'bold' }}>調整完了</h2>
+                                <p style={{ opacity: 0.8, marginBottom: '40px' }}>
+                                    正確な方位が設定されました
+                                </p>
+
+                                <button
+                                    type="button"
+                                    onClick={handleAutoComplete}
+                                    style={{
+                                        background: 'white',
+                                        color: '#2F855A',
+                                        border: 'none',
+                                        padding: '14px 50px',
+                                        borderRadius: '30px',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 5px 15px rgba(0,0,0,0.2)'
+                                    }}
+                                >
+                                    3Dモードを開始
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+        </>
     );
 }
