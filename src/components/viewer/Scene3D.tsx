@@ -313,6 +313,7 @@ export default function Scene3D({
               deviceOrientation={sensorData.orientation}
               arMode={true}
               manualHeadingOffset={manualHeadingOffset}
+              baseHeadingOffset={initialPosition?.headingOffset ?? 0}
             />
           )}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
