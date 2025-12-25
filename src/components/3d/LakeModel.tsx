@@ -1,5 +1,6 @@
+
 import type React from 'react';
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -35,7 +36,7 @@ const globalWaterDrainStartTime = { value: null as number | null };
 // 水面の現在位置をグローバルに保持（コンポーネント再マウント時も保持）
 const globalWaterPosition = { value: null as { x: number; y: number; z: number } | null };
 
-export default function LakeModel({
+export function LakeModel({
   position = [0, 0, 0],
   scale = [1, 1, 1],
   rotation = [0, 0, 0],
@@ -77,18 +78,28 @@ export default function LakeModel({
 
   // レンダリング回数を追跡
   renderCountRef.current += 1;
-  console.log(`[LakeModel] レンダリング #${renderCountRef.current}`, {
-    visible,
-    showTerrain,
-    isLoaded,
-    hasClonedTerrain: !!clonedTerrain,
-    terrainRefCurrent: !!terrainRef.current,
-    terrainScale,
-  });
+  // console.log(`[LakeModel] レンダリング #${ renderCountRef.current } `, {
+  //   position,
+  //   visible,
+  //   showTerrain,
+  //   showWater,
+  //   terrainScale,
+  //   hasGltf: !!gltf,
+  //   hasTerrain: !!terrainRef.current,
+  //   hasWater: !!waterRef.current,
+  // });
+  // console.log(`[LakeModel] レンダリング #${ renderCountRef.current } `, {
+  //   visible,
+  //   showTerrain,
+  //   isLoaded,
+  //   hasClonedTerrain: !!clonedTerrain,
+  //   terrainRefCurrent: !!terrainRef.current,
+  //   terrainScale,
+  // });
 
   // glTFファイルの読み込み（キャッシュを使用）
   useEffect(() => {
-    const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
+    const gltfPath = `${basePath} models / OkutamaLake_realscale.glb`;
 
     console.log('[LakeModel] glTFファイル読み込み開始:', gltfPath);
 
@@ -743,20 +754,7 @@ export default function LakeModel({
 
   // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
   const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrain;
-  console.log(`[LakeModel] 地形レンダリング判定 #${renderCountRef.current}`, {
-    shouldRenderTerrain,
-    showTerrain,
-    isLoaded,
-    hasClonedTerrain: !!clonedTerrain,
-    terrainObject: clonedTerrain
-      ? {
-        name: clonedTerrain.name,
-        type: clonedTerrain.type,
-        uuid: clonedTerrain.uuid,
-      }
-      : null,
-    renderCount: renderCountRef.current,
-  });
+
 
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
@@ -764,39 +762,15 @@ export default function LakeModel({
       {shouldRenderTerrain && clonedTerrain && (
         <primitive
           ref={(ref: THREE.Group | null) => {
-            console.log(`[LakeModel] primitive refコールバック #${renderCountRef.current}`, {
-              previousRef: !!terrainRef.current,
-              newRef: !!ref,
-              timestamp: Date.now(),
-            });
             if (ref) {
               (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
-              console.log(`[LakeModel] ✅ terrainRefが設定されました #${renderCountRef.current}`);
-            } else {
-              console.log(`[LakeModel] ⚠️ terrainRefがnullになりました #${renderCountRef.current}`);
             }
           }}
           object={clonedTerrain}
           scale={stableTerrainScale}
         />
       )}
-      {!shouldRenderTerrain &&
-        (() => {
-          console.log(`[LakeModel] ❌ 地形はレンダリングされません #${renderCountRef.current}`, {
-            shouldRenderTerrain,
-            hasClonedTerrain: !!clonedTerrain,
-            showTerrain,
-            isLoaded,
-            reason: !showTerrain
-              ? 'showTerrain=false'
-              : !isLoaded
-                ? 'isLoaded=false'
-                : !clonedTerrain
-                  ? 'clonedTerrain=null'
-                  : 'unknown',
-          });
-          return null;
-        })()}
+
 
       {/* 水面の表示はuseEffectでシーンに直接追加するため、ここでは何もレンダリングしない */}
 
@@ -818,3 +792,6 @@ export default function LakeModel({
     </group>
   );
 }
+
+const MemoizedLakeModel = memo(LakeModel);
+export default MemoizedLakeModel;
