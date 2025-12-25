@@ -754,6 +754,7 @@ export function LakeModel({
 
   // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
   const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrain;
+  console.log('[LakeModel] Render Check:', { shouldRenderTerrain, showTerrain, isLoaded, hasClonedTerrain: !!clonedTerrain });
 
 
   return (
