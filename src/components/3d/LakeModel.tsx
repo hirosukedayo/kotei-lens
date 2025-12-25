@@ -99,7 +99,7 @@ export function LakeModel({
 
   // glTFファイルの読み込み（キャッシュを使用）
   useEffect(() => {
-    const gltfPath = `${basePath} models / OkutamaLake_realscale.glb`;
+    const gltfPath = `${basePath}models/OkutamaLake_realscale.glb`;
 
     console.log('[LakeModel] glTFファイル読み込み開始:', gltfPath);
 
