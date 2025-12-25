@@ -1,4 +1,4 @@
-import { Environment, Sky, Text, Billboard } from '@react-three/drei';
+import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
@@ -36,6 +36,7 @@ import ARBackground from '../ar/ARBackground';
 import { useSensors } from '../../hooks/useSensors';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { getSensorManager } from '../../services/sensors/SensorManager';
+import LoadingScreen from '../ui/LoadingScreen';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -227,6 +228,10 @@ export default function Scene3D({
     <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: 'transparent' }}>
       {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
       {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
+
+      {/* ローディング画面 */}
+      <LoadingScreen />
+
       <Canvas
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
@@ -239,6 +244,8 @@ export default function Scene3D({
       >
         <Suspense fallback={null}>
           {/* カメラの初期位置を明示的に設定（動的高さ調整対応） */}
+          {/* ローディング完了まで位置設定を行わないように制御可能だが、CameraPositionSetter内部でメッシュ検出を行っているので */}
+          {/* 基本的にはそのままで良いが、念のため遅延させるフラグを渡すことも検討 */}
           <CameraPositionSetter
             initialCameraConfig={initialCameraConfig}
             heightOffset={cameraHeightOffset}
@@ -742,8 +749,12 @@ function CameraPositionSetter({
   }, [heightOffset, initialCameraConfig.position, camera]);
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
+  // useProgressフックを使用してロード状態を監視
+  const { active, progress } = useProgress();
+
   useFrame(() => {
-    if (hasSetPosition.current) return;
+    // 位置が設定済み、またはロードがまだアクティブな場合、または進捗が100%未満の場合はスキップ
+    if (hasSetPosition.current || active || progress < 100) return;
 
     frameCount.current += 1;
     const cameraX = initialCameraConfig.position[0];
