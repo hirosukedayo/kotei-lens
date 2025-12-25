@@ -278,6 +278,8 @@ export default function Scene3D({
           // シンプルにウィンドウを閉じる＝キャリブレーション完了（現状維持）とみなす
           onClose={() => setIsCalibrated(true)}
           initialOffset={manualHeadingOffset}
+          orientation={sensorData.orientation}
+          compassHeading={sensorData.compassHeading}
         />
       )}
 

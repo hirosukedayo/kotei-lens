@@ -13,6 +13,7 @@
     - [x] `walkthrough.md` の作成 (日本語)
 - [x] プルリクエストの作成 [PR #123](https://github.com/hirosukedayo/kotei-lens/pull/123)
 - [x] デバッグ用PRの作成 [PR #124](https://github.com/hirosukedayo/kotei-lens/pull/124)
+- [x] GLTFパス修正PRの作成 [PR #125](https://github.com/hirosukedayo/kotei-lens/pull/125)
 
 ## 次のステップ
 - [ ] ユーザーによる手動検証
