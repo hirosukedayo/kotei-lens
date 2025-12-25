@@ -9,6 +9,7 @@ interface CompassCalibrationProps {
     initialOffset?: number;
     orientation: DeviceOrientation | null;
     compassHeading: number | null;
+    allowManualAdjustment?: boolean;
 }
 
 type CalibrationStep = 'intro' | 'horizontal' | 'manual' | 'complete';
@@ -19,6 +20,7 @@ export default function CompassCalibration({
     initialOffset = 0,
     orientation,
     compassHeading,
+    allowManualAdjustment = true,
 }: CompassCalibrationProps) {
     // const { sensorData } = useSensors(); // 親からデータを受け取るため削除
     const [step, setStep] = useState<CalibrationStep>('horizontal');
@@ -357,25 +359,27 @@ export default function CompassCalibration({
                                     {isHorizontal ? '調整中...そのまま保持' : '水平にしてください'}
                                 </p>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('manual')}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.1)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        color: 'white',
-                                        padding: '12px 24px',
-                                        borderRadius: '30px',
-                                        fontSize: '0.9rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s',
-                                    }}
-                                >
-                                    <FaHandPointer /> 手動で微調整する
-                                </button>
+                                {allowManualAdjustment && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('manual')}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.1)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            color: 'white',
+                                            padding: '12px 24px',
+                                            borderRadius: '30px',
+                                            fontSize: '0.9rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            transition: 'all 0.2s',
+                                        }}
+                                    >
+                                        <FaHandPointer /> 手動で微調整する
+                                    </button>
+                                )}
                             </motion.div>
                         )}
 

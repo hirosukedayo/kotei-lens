@@ -7,6 +7,7 @@ import { PiCubeFocusFill } from 'react-icons/pi';
 import CalibrationOverlay from './CalibrationOverlay';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
+import CompassCalibration from '../ui/CompassCalibration';
 import {
   DEFAULT_START_POSITION,
   worldToGpsCoordinate,
@@ -58,6 +59,8 @@ export default function OkutamaMap2D({
   const { isDevMode } = useDevModeStore();
   // エリア外トースト表示フラグ
   const [showOutsideToast, setShowOutsideToast] = useState(false);
+  // 3Dモード前のキャリブレーション中かどうか
+  const [isCalibrating, setIsCalibrating] = useState(false);
 
 
   // 起動時の自動センタリング・トースト制御が完了したかどうか
@@ -130,7 +133,14 @@ export default function OkutamaMap2D({
     // 簡易チェック: Orientationが許可済みなら即遷移 (iOS対策)
     // GPSやMotionは必須ではない、あるいはOrientation許可時に一括で処理される想定
     if (orientationPermission === 'granted') {
-      transitionTo3D();
+      // モバイルの場合はキャリブレーション（水平安定化）を挟む
+      const ua = navigator.userAgent;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      if (isMobile) {
+        setIsCalibrating(true);
+      } else {
+        transitionTo3D();
+      }
     } else {
       // 未許可なら統一モーダルを表示
       setShowPermissionModal(true);
@@ -611,6 +621,21 @@ export default function OkutamaMap2D({
             setShowPermissionModal(false);
             // 必要ならトースト表示など
           }}
+        />
+      )}
+
+      {/* 3D遷移前キャリブレーション (Auto Mode Only) */}
+      {isCalibrating && (
+        <CompassCalibration
+          onCalibrationComplete={() => {
+            setIsCalibrating(false);
+            transitionTo3D();
+          }}
+          onClose={() => setIsCalibrating(false)}
+          initialOffset={0}
+          orientation={sensorData.orientation}
+          compassHeading={sensorData.compassHeading}
+          allowManualAdjustment={false} // 2Dマップ上では手動調整（風景合わせ）はできないので隠す
         />
       )}
     </div >
