@@ -35,7 +35,6 @@ export default function CompassCalibration({
     // コンパスリングの回転用（現在のheading）
     const currentHeading = compassHeading || 0;
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: Debug logging only
     useEffect(() => {
         if (step !== 'horizontal') return;
         // Debug logging
@@ -43,7 +42,6 @@ export default function CompassCalibration({
             orientation,
             beta: orientation?.beta,
             gamma: orientation?.gamma,
-            isHorizontal
         });
 
         if (!orientation) return;
