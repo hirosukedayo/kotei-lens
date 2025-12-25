@@ -32,17 +32,48 @@ export default function CompassCalibration({
     const lastTimeRef = useRef<number>(Date.now());
     const stabilityTimerRef = useRef<number>(0);
 
-    // コンパスリングの回転用（現在のheading）
-    const currentHeading = compassHeading || 0;
+
+
+    // 表示用の累積回転角度（360度境界での逆回転を防ぐため）
+    const lastDisplayHeadingRef = useRef(0);
+    const [displayHeading, setDisplayHeading] = useState(0);
+
+    // compassHeadingが変わったら、最短経路で回転するように補正値を計算
+    useEffect(() => {
+        if (compassHeading === null) return;
+
+        // 現在の表示角度（の360剰余をとったものに近い値）
+        const currentDisplay = lastDisplayHeadingRef.current;
+
+        // 目標角度 (-compassHeading) ※コンパス盤面は逆回転させる
+        // ただし、displayHeadingは累積値なので、目標値も累積値に対応させる必要がある
+
+        // 直感的に: 盤面は「北」が上なので、デバイスが東(90度)を向いたら、盤面は-90度回転してNを左にする。
+        // 目標角度
+        const targetRotation = -compassHeading;
+
+        // 現在の回転角度（正規化なし）
+        const currentRotation = currentDisplay;
+
+        // 差分を計算 (-180 ~ 180)
+        let delta = targetRotation - currentRotation;
+
+        // 360度の倍数で補正して最短パスを見つける
+        // delta を -180 ~ 180 の範囲に収める
+        while (delta <= -180) delta += 360;
+        while (delta > 180) delta -= 360;
+
+        const nextRotation = currentRotation + delta;
+        lastDisplayHeadingRef.current = nextRotation;
+        setDisplayHeading(nextRotation);
+
+    }, [compassHeading]);
 
     useEffect(() => {
         if (step !== 'horizontal') return;
         // Debug logging
-        console.log('[CompassCalibration] Orientation Check:', {
-            orientation,
-            beta: orientation?.beta,
-            gamma: orientation?.gamma,
-        });
+        // Debug logging
+        // console.log('[CompassCalibration] Orientation Check:', { ... });
 
         if (!orientation) return;
 
@@ -261,7 +292,7 @@ export default function CompassCalibration({
                                             left: 0,
                                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                                         }}
-                                        animate={{ rotate: isHorizontal ? -currentHeading : 0 }}
+                                        animate={{ rotate: isHorizontal ? displayHeading : 0 }}
                                         transition={{ type: 'spring', stiffness: 50, damping: 15 }}
                                     >
                                         {/* 北を示すマーク */}
