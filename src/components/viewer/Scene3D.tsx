@@ -93,6 +93,24 @@ export default function Scene3D({
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
 
+  // 描画準備完了フラグ
+  const [isReady, setIsReady] = useState(false);
+
+
+  // Failsafe: progressが100%になってもisReadyにならない場合の強制解除
+  // CameraPositionSetterが失敗している可能性があるため
+  const { progress: loadProgress } = useProgress();
+
+  useEffect(() => {
+    if (loadProgress === 100 && !isReady) {
+      const timer = setTimeout(() => {
+        console.warn('Force setting isReady to true due to timeout');
+        setIsReady(true);
+      }, 5000); // 5秒後に強制解除
+      return () => clearTimeout(timer);
+    }
+  }, [loadProgress, isReady]);
+
   useEffect(() => {
     // PCの場合はキャリブレーション不要
     if (!isMobile) {
@@ -241,15 +259,19 @@ export default function Scene3D({
       {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
 
       {/* ローディング画面 */}
-      <LoadingScreen />
+      <LoadingScreen isReady={isReady} />
 
       {/* 方位キャリブレーション画面 */}
-      {isMobile && permissionGranted && !isCalibrated && (
+      {isMobile && permissionGranted && !isCalibrated && isReady && (
         <CompassCalibration
           onCalibrationComplete={(offset) => {
             setManualHeadingOffset(offset);
             setIsCalibrated(true);
           }}
+          // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
+          // または、再調整ボタンから呼ばれた場合の分岐が必要だが、
+          // シンプルにウィンドウを閉じる＝キャリブレーション完了（現状維持）とみなす
+          onClose={() => setIsCalibrated(true)}
           initialOffset={manualHeadingOffset}
         />
       )}
@@ -271,6 +293,10 @@ export default function Scene3D({
           <CameraPositionSetter
             initialCameraConfig={initialCameraConfig}
             heightOffset={cameraHeightOffset}
+            onReady={() => {
+              // 少し遅延させてからReadyにする（描画安定待ち）
+              setTimeout(() => setIsReady(true), 500);
+            }}
           />
           {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
@@ -742,9 +768,11 @@ function FovAdjuster({ fov }: { fov: number }) {
 function CameraPositionSetter({
   initialCameraConfig,
   heightOffset = 0,
+  onReady,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
   heightOffset?: number;
+  onReady?: () => void;
 }) {
   const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
@@ -764,11 +792,16 @@ function CameraPositionSetter({
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
   // useProgressフックを使用してロード状態を監視
-  const { active, progress } = useProgress();
+  const { progress } = useProgress();
 
   useFrame(() => {
-    // 位置が設定済み、またはロードがまだアクティブな場合、または進捗が100%未満の場合はスキップ
-    if (hasSetPosition.current || active || progress < 100) return;
+    // 位置が設定済みならスキップ
+    if (hasSetPosition.current) return;
+
+    // ロード完了チェック: progressが100%なら処理を開始する
+    // activeはずっとtrueのままになるケースがあるため(texture decoding等)、
+    // progressが100になったらフレームカウントを開始する
+    if (progress < 100) return;
 
     frameCount.current += 1;
     const cameraX = initialCameraConfig.position[0];
@@ -971,6 +1004,17 @@ function CameraPositionSetter({
         console.log('見つかったMeshの数:', foundMeshes.length);
         if (foundMeshes.length > 0) {
           console.log('見つかったMesh:', foundMeshes);
+        }
+        console.log('Camera position set to:', cameraX, finalCameraY, cameraZ);
+        hasSetPosition.current = true;
+        if (onReady) onReady();
+      } else {
+        // 地形が見つからない場合も、一定フレーム経過したら強制的にセット
+        if (frameCount.current > 300) {
+          camera.position.set(cameraX, finalCameraY + 100, cameraZ); // 安全のため少し高く
+          hasSetPosition.current = true;
+          if (onReady) onReady();
+          console.warn('Terrain not found, forcing camera position');
         }
       }
     }
