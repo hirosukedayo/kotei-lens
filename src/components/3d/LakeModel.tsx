@@ -1,6 +1,6 @@
 
 import type React from 'react';
-import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
+import { useEffect, useState, useRef, memo, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';

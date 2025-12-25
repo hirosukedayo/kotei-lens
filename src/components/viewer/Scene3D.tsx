@@ -86,6 +86,7 @@ export default function Scene3D({
 
   // センサーフックの使用
   const { sensorData, startSensors } = useSensors();
+  const terrainPosition = useTerrainPosition();
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
@@ -347,7 +348,7 @@ export default function Scene3D({
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
           {/* 地形の中心点を[0, 0, 0]に配置するため、positionをTERRAIN_SCALE_FACTORに応じて動的に計算 */}
           <LakeModel
-            position={useTerrainPosition()}
+            position={terrainPosition}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
             visible={true}

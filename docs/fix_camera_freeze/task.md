@@ -11,7 +11,7 @@
     - [x] `LakeModel.tsx`: エクスポートとインポートのバリデーション修正
 - [x] 手動検証 (ドキュメント作成)
     - [x] `walkthrough.md` の作成 (日本語)
-- [/] プルリクエストの作成 [待ち]
+- [x] プルリクエストの作成 [PR #123](https://github.com/hirosukedayo/kotei-lens/pull/123)
 
 ## 次のステップ
 - [ ] ユーザーによる手動検証
