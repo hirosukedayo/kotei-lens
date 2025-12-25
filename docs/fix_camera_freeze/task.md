@@ -12,6 +12,7 @@
 - [x] 手動検証 (ドキュメント作成)
     - [x] `walkthrough.md` の作成 (日本語)
 - [x] プルリクエストの作成 [PR #123](https://github.com/hirosukedayo/kotei-lens/pull/123)
+- [x] デバッグ用PRの作成 [PR #124](https://github.com/hirosukedayo/kotei-lens/pull/124)
 
 ## 次のステップ
 - [ ] ユーザーによる手動検証
@@ -19,7 +20,8 @@
     - [x] 1秒ごとのGPSログが大量に出る問題を報告
 - [ ] トラブルシューティング: 地形消失とログの調査
     - [x] `LocationService.ts` の過剰なログを削除
-    - [ ] `LakeModel.tsx` のレンダリング条件を確認 (デバッグログ追加済み)
+    - [x] `LakeModel.tsx` のレンダリング条件を確認 (デバッグログ追加済み)
+    - [x] `LakeModel.tsx` のGLTFパスのTypo修正 (`models /` -> `models/`)
     - [ ] 修正と検証
     - [ ] `Scene3D.tsx` の `CameraPositionSetter` との整合性確認
     - [ ] 修正と検証
