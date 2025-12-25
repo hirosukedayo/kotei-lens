@@ -48,18 +48,23 @@ interface Scene3DProps {
 
 // 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
 // position = -terrainCenterScaled + offset = -(terrainOriginalCenter * scale) + offset
-const calculateTerrainPosition = (): [number, number, number] => {
-  const scale = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR;
-  const terrainCenterScaled = {
-    x: TERRAIN_ORIGINAL_CENTER.x * scale,
-    y: TERRAIN_ORIGINAL_CENTER.y * scale,
-    z: TERRAIN_ORIGINAL_CENTER.z * scale,
-  };
-  return [
-    -terrainCenterScaled.x + TERRAIN_CENTER_OFFSET[0],
-    -terrainCenterScaled.y + TERRAIN_CENTER_OFFSET[1],
-    -terrainCenterScaled.z + TERRAIN_CENTER_OFFSET[2],
-  ];
+// 地形の位置補正値を計算（スケール適用後の中心を原点に配置するため）
+// position = -terrainCenterScaled + offset = -(terrainOriginalCenter * scale) + offset
+// メモ化されていないと毎回新しい配列を返してしまい、LakeModelの再レンダリングを引き起こす
+const useTerrainPosition = (): [number, number, number] => {
+  return useMemo(() => {
+    const scale = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR;
+    const terrainCenterScaled = {
+      x: TERRAIN_ORIGINAL_CENTER.x * scale,
+      y: TERRAIN_ORIGINAL_CENTER.y * scale,
+      z: TERRAIN_ORIGINAL_CENTER.z * scale,
+    };
+    return [
+      -terrainCenterScaled.x + TERRAIN_CENTER_OFFSET[0],
+      -terrainCenterScaled.y + TERRAIN_CENTER_OFFSET[1],
+      -terrainCenterScaled.z + TERRAIN_CENTER_OFFSET[2],
+    ];
+  }, []);
 };
 
 // 3Dシーンコンポーネント
@@ -81,6 +86,7 @@ export default function Scene3D({
 
   // センサーフックの使用
   const { sensorData, startSensors } = useSensors();
+  const terrainPosition = useTerrainPosition();
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
@@ -342,7 +348,7 @@ export default function Scene3D({
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
           {/* 地形の中心点を[0, 0, 0]に配置するため、positionをTERRAIN_SCALE_FACTORに応じて動的に計算 */}
           <LakeModel
-            position={calculateTerrainPosition()}
+            position={terrainPosition}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
             visible={true}
@@ -803,99 +809,91 @@ function CameraPositionSetter({
     if (progress < 100) return;
 
     frameCount.current += 1;
+
+    // 負荷軽減: 30フレームに1回だけ処理を実行（約0.5秒ごと）
+    // ただし、最初の数フレームは即座に実行して早期発見を試みる
+    if (frameCount.current > 10 && frameCount.current % 30 !== 0) return;
+
     const cameraX = initialCameraConfig.position[0];
     const cameraZ = initialCameraConfig.position[2];
     let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
 
-    // シーン内の地形オブジェクトを検索
-    // 地形はGroup内のprimitiveとして配置されているため、実際のMeshを再帰的に検索
+    // 高速化: まず名前で検索（これが最も速い）
+    // LakeModel側で 'Displacement.001' という名前のオブジェクトを扱っている
     let terrainMesh: THREE.Mesh | null = null;
-    const foundMeshes: Array<{
-      name: string;
-      size: { x: number; y: number; z: number };
-      type: string;
-      hasGeometry: boolean;
-    }> = [];
+    const knownTerrainName = 'Displacement.001';
 
-    // スケールに応じてサイズ判定を調整
-    const baseSizeLimit = 100;
-    const maxSizeLimit = 10000;
-    const maxHeightLimit = 1000;
-    const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2; // スケールに応じて調整（余裕を持たせる）
+    // シーンから直接取得を試みる
+    const namedMesh = scene.getObjectByName(knownTerrainName);
+    if (namedMesh && namedMesh instanceof THREE.Mesh) {
+      terrainMesh = namedMesh;
+    }
 
-    scene.traverse((child) => {
-      // GroupやObject3Dではなく、実際のMeshを探す
-      if (child instanceof THREE.Mesh && child.geometry) {
-        const box = new THREE.Box3().setFromObject(child);
-        const size = box.getSize(new THREE.Vector3());
-        const meshName = child.name || '(無名)';
-        foundMeshes.push({
-          name: meshName,
-          size: { x: size.x, y: size.y, z: size.z },
-          type: child.type,
-          hasGeometry: child.geometry !== null,
-        });
+    // 名前で見つからない場合のみ、高負荷な全探索を行う（ただし頻度は低い）
+    if (!terrainMesh) {
+      // スケールに応じてサイズ判定を調整
+      const baseSizeLimit = 100;
+      const maxSizeLimit = 10000;
+      const maxHeightLimit = 1000;
+      const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2;
 
-        // 地形のMeshを探す（名前で判定、または適切なサイズのMesh）
-        // バウンディングボックスを除外するため、サイズ制限を追加
-        if (!terrainMesh) {
-          if (meshName === 'Displacement.001' || meshName === 'Displacement') {
+      scene.traverse((child) => {
+        if (terrainMesh) return; // 既に見つかっていればスキップ
+
+        // GroupやObject3Dではなく、実際のMeshを探す
+        if (child instanceof THREE.Mesh && child.geometry) {
+          // 名前チェック（バックアップ）
+          if (child.name === 'Displacement' || child.name === knownTerrainName) {
             terrainMesh = child;
-          } else if (
+            return;
+          }
+
+          // バウンディングボックス計算は重いので、名前チェックで弾かれた場合のみ行う
+          const box = new THREE.Box3().setFromObject(child);
+          const size = box.getSize(new THREE.Vector3());
+
+          if (
             size.x > baseSizeLimit &&
             size.z > baseSizeLimit &&
             size.x < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
             size.z < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
             size.y < scaledMaxHeightLimit
           ) {
-            // スケールに応じてサイズ制限を調整
-            // これにより、異常に大きなバウンディングボックスを除外しつつ、スケールが大きくなった地形も検出可能
             terrainMesh = child;
           }
         }
-      }
-    });
+      });
+    }
 
     if (terrainMesh) {
-      // 地形オブジェクトの情報を取得
       const mesh = terrainMesh as THREE.Mesh;
-      const terrainBox = new THREE.Box3().setFromObject(mesh);
-      const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-      const terrainSize = terrainBox.getSize(new THREE.Vector3());
-      const terrainWorldPosition = new THREE.Vector3();
-      mesh.getWorldPosition(terrainWorldPosition);
-      const terrainName = mesh.name || '(無名)';
 
       // 高い位置から下方向にレイを飛ばして地形との交差を計算
       // 地形のバウンディングボックスの最大Y座標を取得し、その上からレイを飛ばす
-      // スケールに応じてオフセットを調整
+      const terrainBox = new THREE.Box3().setFromObject(mesh);
       const terrainMaxY = terrainBox.max.y;
-      const rayStartY = terrainMaxY + 1000 * TERRAIN_SCALE_FACTOR; // スケールに応じてレイの開始位置を調整
+      const rayStartY = terrainMaxY + 1000 * TERRAIN_SCALE_FACTOR;
       const rayStart = new THREE.Vector3(cameraX, rayStartY, cameraZ);
       const rayDirection = new THREE.Vector3(0, -1, 0);
 
       raycaster.set(rayStart, rayDirection);
 
       // 地形のMeshの実際のジオメトリと交差するように、再帰的検索を無効化
-      // 第2引数をfalseにして、このMesh自体のみを対象とする
       let intersects = raycaster.intersectObject(mesh, false);
 
       // 交差が見つからない場合、子要素を再帰的に検索
       if (intersects.length === 0 && mesh.children.length > 0) {
-        // 子要素の中から実際のMeshを探す
+        // 子要素のMeshに対してRaycasting
         const childMeshes: THREE.Mesh[] = [];
         mesh.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.geometry) {
-            childMeshes.push(child);
-          }
+          if (child instanceof THREE.Mesh && child.geometry) childMeshes.push(child);
         });
 
-        // 子要素のMeshに対してRaycastingを実行
         for (const childMesh of childMeshes) {
           const childIntersects = raycaster.intersectObject(childMesh, false);
           if (childIntersects.length > 0) {
             intersects = childIntersects;
-            break; // 最初に見つかった交差点を使用
+            break;
           }
         }
       }
@@ -903,140 +901,44 @@ function CameraPositionSetter({
       if (intersects.length > 0) {
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
-        baseTerrainHeightRef.current = terrainHeight; // 基準となる地形高さを保存
+        baseTerrainHeightRef.current = terrainHeight;
         finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset;
 
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
 
         console.log('=== カメラ高さを地形に合わせて調整（成功） ===');
-        console.log('フレーム数:', frameCount.current);
-        console.log('カメラ位置（X, Z）:', cameraX.toFixed(2), cameraZ.toFixed(2));
-        console.log('地形オブジェクト:', terrainName);
-        console.log('地形のローカル位置:', {
-          x: mesh.position.x.toFixed(2),
-          y: mesh.position.y.toFixed(2),
-          z: mesh.position.z.toFixed(2),
-        });
-        console.log('地形のワールド位置:', {
-          x: terrainWorldPosition.x.toFixed(2),
-          y: terrainWorldPosition.y.toFixed(2),
-          z: terrainWorldPosition.z.toFixed(2),
-        });
-        console.log('地形のバウンディングボックス中心:', {
-          x: terrainCenter.x.toFixed(2),
-          y: terrainCenter.y.toFixed(2),
-          z: terrainCenter.z.toFixed(2),
-        });
-        console.log('地形のサイズ:', {
-          x: terrainSize.x.toFixed(2),
-          y: terrainSize.y.toFixed(2),
-          z: terrainSize.z.toFixed(2),
-        });
-        console.log('レイの開始位置:', {
-          x: rayStart.x.toFixed(2),
-          y: rayStart.y.toFixed(2),
-          z: rayStart.z.toFixed(2),
-        });
-        console.log('レイの方向:', {
-          x: rayDirection.x.toFixed(2),
-          y: rayDirection.y.toFixed(2),
-          z: rayDirection.z.toFixed(2),
-        });
-        console.log('交差点の数:', intersects.length);
-        console.log('最初の交差点:', {
-          point: {
-            x: firstIntersect.point.x.toFixed(2),
-            y: firstIntersect.point.y.toFixed(2),
-            z: firstIntersect.point.z.toFixed(2),
-          },
-          distance: firstIntersect.distance.toFixed(2),
-        });
-        console.log('地形の高さ（交差点のY座標）:', terrainHeight.toFixed(2), 'm');
+        console.log('地形の高さ:', terrainHeight.toFixed(2), 'm');
         console.log('調整後のカメラ高さ:', finalCameraY.toFixed(2), 'm');
-        console.log('デフォルトの高さ:', initialCameraConfig.position[1].toFixed(2), 'm');
-        console.log('=====================================');
+
+        if (onReady) onReady();
         return;
       }
-
-      // 交差が見つからない場合のログ（初回のみ）
-      if (frameCount.current === 1) {
-        console.log('=== カメラ高さ調整（交差なし） ===');
-        console.log('地形オブジェクト:', terrainName);
-        console.log('地形のローカル位置:', {
-          x: mesh.position.x.toFixed(2),
-          y: mesh.position.y.toFixed(2),
-          z: mesh.position.z.toFixed(2),
-        });
-        console.log('地形のワールド位置:', {
-          x: terrainWorldPosition.x.toFixed(2),
-          y: terrainWorldPosition.y.toFixed(2),
-          z: terrainWorldPosition.z.toFixed(2),
-        });
-        console.log('地形のバウンディングボックス中心:', {
-          x: terrainCenter.x.toFixed(2),
-          y: terrainCenter.y.toFixed(2),
-          z: terrainCenter.z.toFixed(2),
-        });
-        console.log('地形のサイズ:', {
-          x: terrainSize.x.toFixed(2),
-          y: terrainSize.y.toFixed(2),
-          z: terrainSize.z.toFixed(2),
-        });
-        console.log('レイの開始位置:', {
-          x: rayStart.x.toFixed(2),
-          y: rayStart.y.toFixed(2),
-          z: rayStart.z.toFixed(2),
-        });
-        console.log('レイの方向:', {
-          x: rayDirection.x.toFixed(2),
-          y: rayDirection.y.toFixed(2),
-          z: rayDirection.z.toFixed(2),
-        });
-        console.log('交差点の数:', 0);
-      }
     } else {
-      // 地形が見つからない場合のログ（10フレームごと）
-      if (frameCount.current === 1 || frameCount.current % 10 === 0) {
-        console.log('=== カメラ高さ調整（地形検索中） ===');
-        console.log('フレーム数:', frameCount.current);
-        console.log('見つかったMeshの数:', foundMeshes.length);
-        if (foundMeshes.length > 0) {
-          console.log('見つかったMesh:', foundMeshes);
-        }
-        console.log('Camera position set to:', cameraX, finalCameraY, cameraZ);
+      // 地形が見つからない場合のログ（頻度を下げる）
+      if (frameCount.current % 60 === 0) {
+        console.log('=== カメラ高さ調整（地形検索中） ===', frameCount.current);
+      }
+
+      // タイムアウト前でも、一定時間経過したら強制的にセットしてReadyにする
+      // そうしないとローディングが終わらない
+      if (frameCount.current > 150 && !hasSetPosition.current) {
+        console.warn('Terrain not found, forcing camera position and ready state');
+        camera.position.set(cameraX, finalCameraY + 100, cameraZ);
         hasSetPosition.current = true;
         if (onReady) onReady();
-      } else {
-        // 地形が見つからない場合も、一定フレーム経過したら強制的にセット
-        if (frameCount.current > 300) {
-          camera.position.set(cameraX, finalCameraY + 100, cameraZ); // 安全のため少し高く
-          hasSetPosition.current = true;
-          if (onReady) onReady();
-          console.warn('Terrain not found, forcing camera position');
-        }
       }
     }
 
-    // タイムアウト処理
-    const maxFrames = 100;
+    // 最終タイムアウト処理
+    const maxFrames = 300; // 5秒程度（60fps想定）→ 10秒程度に延長
     if (frameCount.current >= maxFrames) {
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
-
-      // タイムアウト時も基準高さを設定して、その後の調整を可能にする
-      // finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset なので
-      // terrainHeight = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset
       baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
 
       console.warn('=== カメラ高さ調整（タイムアウト） ===');
-      console.warn('地形との交差が見つかりませんでした。デフォルトの高さを使用します。');
-      console.warn('見つかったMesh:', foundMeshes);
-      console.warn('最終的なカメラ位置:', [
-        cameraX.toFixed(2),
-        finalCameraY.toFixed(2),
-        cameraZ.toFixed(2),
-      ]);
+      if (onReady) onReady();
     }
   });
 

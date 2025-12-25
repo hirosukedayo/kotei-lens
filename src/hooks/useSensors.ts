@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { getSensorManager } from '../services/sensors/SensorManager';
 import type { DeviceMotion, DeviceOrientation, GPSPosition } from '../types/sensors';
 
@@ -63,9 +63,16 @@ export function useSensors() {
   );
 
   // センサー開始
+  const isActiveRef = useRef(false);
+
+  // isActiveのstate同期用
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+
   const startSensors = useCallback(async () => {
-    if (isActive) {
-      console.log('センサーは既にアクティブです');
+    if (isActiveRef.current) {
+      // 既にアクティブならログを出さずに終了（無限ループ防止）
       return;
     }
 
@@ -80,68 +87,55 @@ export function useSensors() {
 
       // GPS開始
       if (sensorManager.locationService.isAvailable()) {
-        console.log('GPS開始を試行中...');
         try {
           sensorManager.locationService.startWatching(handleGPSUpdate, handleGPSError);
-          console.log('GPS監視開始完了');
           startedCount++;
         } catch (gpsError) {
           console.error('GPS開始エラー:', gpsError);
         }
-      } else {
-        console.warn('GPS未対応');
       }
 
       // 方位センサー開始
       if (sensorManager.orientationService.isAvailable()) {
-        console.log('方位センサー開始を試行中...');
         try {
           await sensorManager.orientationService.startTracking(handleOrientationUpdate);
-          console.log('方位センサー開始完了');
           startedCount++;
         } catch (orientationError) {
           console.error('方位センサー開始エラー:', orientationError);
         }
-      } else {
-        console.warn('方位センサー未対応');
       }
 
       // モーションセンサー開始
       if (sensorManager.motionService.isAvailable()) {
-        console.log('モーションセンサー開始を試行中...');
         try {
           await sensorManager.motionService.startTracking(handleMotionUpdate);
-          console.log('モーションセンサー開始完了');
           startedCount++;
         } catch (motionError) {
           console.error('モーションセンサー開始エラー:', motionError);
         }
-      } else {
-        console.warn('モーションセンサー未対応');
       }
 
       setIsActive(true);
+      isActiveRef.current = true;
       console.log(`センサー開始完了: ${startedCount}個のセンサーが開始されました`);
 
-      // 5秒後にデータ受信状況をチェック
+      // 5秒後にデータ受信状況をチェック (StateではなくManagerから直接最新値を取得)
       setTimeout(() => {
+        const status = sensorManager.getStatus();
         console.log('5秒後のセンサーデータ状況:', {
-          gps: sensorData.gps ? '取得済み' : '未取得',
-          orientation: sensorData.orientation ? '取得済み' : '未取得',
-          motion: sensorData.motion ? '取得済み' : '未取得',
+          gps: status.location.watching ? '監視中' : '停止',
+          orientation: status.orientation.tracking ? '監視中' : '停止',
         });
       }, 5000);
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }
   }, [
-    isActive,
     sensorManager,
     handleGPSUpdate,
     handleGPSError,
     handleOrientationUpdate,
     handleMotionUpdate,
-    sensorData,
   ]);
 
   // センサー停止
