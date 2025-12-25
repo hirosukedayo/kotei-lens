@@ -76,6 +76,15 @@ export function LakeModel({
     [terrainScaleX, terrainScaleY, terrainScaleZ]
   );
 
+  // waterScaleの参照を安定化
+  const waterScaleX = waterScale[0];
+  const waterScaleY = waterScale[1];
+  const waterScaleZ = waterScale[2];
+  const stableWaterScale = useMemo(
+    () => [waterScaleX, waterScaleY, waterScaleZ] as [number, number, number],
+    [waterScaleX, waterScaleY, waterScaleZ]
+  );
+
   // レンダリング回数を追跡
   renderCountRef.current += 1;
   // console.log(`[LakeModel] レンダリング #${ renderCountRef.current } `, {
@@ -369,7 +378,7 @@ export function LakeModel({
       if (waterGroupRef.current?.parent) {
         waterGroupRef.current.parent.remove(waterGroupRef.current);
         waterGroupRef.current = null;
-        console.log('[LakeModel] ✅ 水面をシーンから削除しました');
+        // console.log('[LakeModel] ✅ 水面をシーンから削除しました');
       }
       return;
     }
@@ -381,19 +390,19 @@ export function LakeModel({
       waterGroupRef.current = waterGroup;
 
       // clonedWaterをGroupに追加
-      clonedWater.scale.set(waterScale[0], waterScale[1], waterScale[2]);
+      clonedWater.scale.set(stableWaterScale[0], stableWaterScale[1], stableWaterScale[2]);
       waterGroup.add(clonedWater);
 
       // Groupをシーンに追加
       scene.add(waterGroup);
 
-      console.log('[LakeModel] ✅ 水面をシーンに追加しました', {
-        waterGroupUuid: waterGroup.uuid,
-        clonedWaterUuid: clonedWater.uuid,
-      });
+      // console.log('[LakeModel] ✅ 水面をシーンに追加しました', {
+      //   waterGroupUuid: waterGroup.uuid,
+      //   clonedWaterUuid: clonedWater.uuid,
+      // });
     } else {
       // 既存のGroupのスケールを更新
-      waterGroupRef.current.scale.set(waterScale[0], waterScale[1], waterScale[2]);
+      waterGroupRef.current.scale.set(stableWaterScale[0], stableWaterScale[1], stableWaterScale[2]);
     }
 
     // クリーンアップ関数：コンポーネントがアンマウントされる際にシーンから削除
@@ -401,10 +410,10 @@ export function LakeModel({
       if (waterGroupRef.current?.parent) {
         waterGroupRef.current.parent.remove(waterGroupRef.current);
         waterGroupRef.current = null;
-        console.log('[LakeModel] ✅ 水面をシーンから削除しました（クリーンアップ）');
+        // console.log('[LakeModel] ✅ 水面をシーンから削除しました（クリーンアップ）');
       }
     };
-  }, [clonedWater, showWater, isLoaded, waterScale, scene]);
+  }, [clonedWater, showWater, isLoaded, stableWaterScale, scene]);
 
   // 地形のバウンディングボックスを出力（デバッグ用、useEffectで実行）
   // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない（無限ループを防ぐ）
@@ -412,29 +421,29 @@ export function LakeModel({
   useEffect(() => {
     if (!clonedTerrain) return;
 
-    const terrainBox = new THREE.Box3().setFromObject(clonedTerrain);
-    const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
-    const terrainSize = terrainBox.getSize(new THREE.Vector3());
+    // const terrainBox = new THREE.Box3().setFromObject(clonedTerrain);
+    // const terrainCenter = terrainBox.getCenter(new THREE.Vector3());
+    // const terrainSize = terrainBox.getSize(new THREE.Vector3());
 
-    console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
-    console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
-    console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
-    console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
-    console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
+    // console.log('=== 地形のバウンディングボックス（terrainScale適用前） ===');
+    // console.log('最小値:', { x: terrainBox.min.x, y: terrainBox.min.y, z: terrainBox.min.z });
+    // console.log('最大値:', { x: terrainBox.max.x, y: terrainBox.max.y, z: terrainBox.max.z });
+    // console.log('中心点:', { x: terrainCenter.x, y: terrainCenter.y, z: terrainCenter.z });
+    // console.log('サイズ:', { x: terrainSize.x, y: terrainSize.y, z: terrainSize.z });
 
     // terrainScale適用後の中心を計算
     // スケールは原点を中心に適用されるため、中心点もスケール倍される
-    const scale = terrainScale[0]; // x, y, z は同じ値と仮定
-    const terrainCenterScaled = {
-      x: terrainCenter.x * scale,
-      y: terrainCenter.y * scale,
-      z: terrainCenter.z * scale,
-    };
-    console.log('terrainScale:', terrainScale);
-    console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
-    console.log('=====================================');
+    // const scale = terrainScale[0]; // x, y, z は同じ値と仮定
+    // const terrainCenterScaled = {
+    //   x: terrainCenter.x * scale,
+    //   y: terrainCenter.y * scale,
+    //   z: terrainCenter.z * scale,
+    // };
+    // console.log('terrainScale:', terrainScale);
+    // console.log('terrainScale適用後の中心（推定）:', terrainCenterScaled);
+    // console.log('=====================================');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [terrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
+  }, [stableTerrainScale]); // clonedTerrainは一度設定されたら変わらないため、依存配列に含めない
 
   // アニメーション（水面の干上がり）
   useFrame(() => {
@@ -754,7 +763,7 @@ export function LakeModel({
 
   // 地形レンダリング判定（即時実行関数を削除して直接JSXを返す）
   const shouldRenderTerrain = showTerrain && isLoaded && clonedTerrain;
-  console.log('[LakeModel] Render Check:', { shouldRenderTerrain, showTerrain, isLoaded, hasClonedTerrain: !!clonedTerrain });
+  // console.log('[LakeModel] Render Check:', { shouldRenderTerrain, showTerrain, isLoaded, hasClonedTerrain: !!clonedTerrain });
 
 
   return (
