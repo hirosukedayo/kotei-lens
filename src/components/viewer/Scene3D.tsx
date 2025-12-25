@@ -520,7 +520,7 @@ export default function Scene3D({
             }}
             title="方位を再調整"
           >
-            <FaCompass />
+            <FaCompass size={20} />
           </button>
         )}
 
@@ -544,7 +544,7 @@ export default function Scene3D({
           }}
           title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
         >
-          {isControlsVisible ? <FaEyeSlash /> : <FaEye />}
+          {isControlsVisible ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
         </button>
       </div>
 
