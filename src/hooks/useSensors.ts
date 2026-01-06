@@ -98,7 +98,9 @@ export function useSensors() {
       // 方位センサー開始
       if (sensorManager.orientationService.isAvailable()) {
         try {
-          await sensorManager.orientationService.startTracking(handleOrientationUpdate);
+          // 初回ロード時は自動で権限リクエストを行わない（iOS対策）
+          // ユーザーが3Dボタンを押したときに明示的にリクエストするフローにする
+          await sensorManager.orientationService.startTracking(handleOrientationUpdate, false);
           startedCount++;
         } catch (orientationError) {
           console.error('方位センサー開始エラー:', orientationError);

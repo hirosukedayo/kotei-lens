@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLayerGroup, FaTools } from 'react-icons/fa';
+import { FaMapSigns, FaLayerGroup, FaTools, FaLocationArrow } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import CalibrationOverlay from './CalibrationOverlay';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
@@ -506,7 +506,7 @@ export default function OkutamaMap2D({
         )
       }
 
-      {/* 古地図透明度調整スライダー（右下、アイコンベース） */}
+      {/* 古地図透明度調整スライダー（右下、アイコンベース） & 現在地ボタン */}
       <div
         style={{
           position: 'absolute',
@@ -516,23 +516,52 @@ export default function OkutamaMap2D({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',
-          gap: '8px',
+          gap: '16px', // ボタンとスライダーの間隔を広げる
         }}
       >
+        {/* 現在地へ戻るボタン */}
+        {sensorData.gps && (
+          <button
+            type="button"
+            onClick={() => {
+              if (sensorData.gps) {
+                mapRef.current?.flyTo([sensorData.gps.latitude, sensorData.gps.longitude], 16, { duration: 1.0 });
+              }
+            }}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 9999,
+              background: '#ffffff',
+              color: '#3b82f6',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            aria-label="現在地へ戻る"
+          >
+            <FaLocationArrow size={24} />
+          </button>
+        )}
+
+        {/* 透明度スライダー */}
         <div
           style={{
             background: '#ffffff',
-            padding: '8px 12px',
-            borderRadius: '12px',
+            padding: '12px 16px', // パディングを増やして大きくする
+            borderRadius: '16px',
             boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
             border: '1px solid #e5e7eb',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            minWidth: '160px',
+            gap: '12px',
+            minWidth: '200px', // 幅を少し広げる
           }}
         >
-          <FaLayerGroup size={18} color="#6b7280" />
+          <FaLayerGroup size={20} color="#6b7280" />
           <input
             type="range"
             min="0"
@@ -542,11 +571,12 @@ export default function OkutamaMap2D({
             onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
             style={{
               flex: 1,
-              height: '6px',
-              borderRadius: '3px',
+              height: '8px', // スライダーの高さを増やす
+              borderRadius: '4px',
               background: '#e5e7eb',
               outline: 'none',
               cursor: 'pointer',
+              accentColor: '#3b82f6', // モダンなブラウザ用のアクティブカラー
             }}
             aria-label="古地図の透明度"
           />

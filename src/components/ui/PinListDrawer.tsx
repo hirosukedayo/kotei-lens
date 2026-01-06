@@ -1,5 +1,4 @@
-import type React from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Drawer } from 'vaul';
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
@@ -23,6 +22,13 @@ export default function PinListDrawer({
   onDeselectPin,
 }: PinListDrawerProps) {
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+
+  // 選択されたピンが変更されたら詳細モードに切り替える
+  React.useEffect(() => {
+    if (selectedPin) {
+      setSheetMode('pin-detail');
+    }
+  }, [selectedPin]);
 
   const handleTogglePinSelection = (pin: PinData, e: React.MouseEvent) => {
     // 右矢印部分をクリックした場合は詳細表示
