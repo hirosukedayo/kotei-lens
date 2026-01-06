@@ -134,25 +134,25 @@ export default function CompassCalibration({
                     }}
                 >
                     {/* Close / Return Button - Top Right of screen (but outside panel) */}
-                    <div style={{ position: 'fixed', top: '20px', right: '20px', pointerEvents: 'auto' }}>
+                    <div style={{ position: 'fixed', top: '16px', right: '16px', pointerEvents: 'auto', zIndex: 30001 }}>
                         <button
                             type="button"
                             onClick={() => setStep('horizontal')}
                             style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 9999,
                                 background: 'rgba(0,0,0,0.6)',
                                 color: 'white',
                                 border: 'none',
-                                borderRadius: '50%',
-                                width: '44px',
-                                height: '44px',
+                                backdropFilter: 'blur(4px)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                backdropFilter: 'blur(4px)',
                                 cursor: 'pointer',
                             }}
                         >
-                            <FaArrowLeft />
+                            <FaArrowLeft size={22} />
                         </button>
                     </div>
 
@@ -244,27 +244,26 @@ export default function CompassCalibration({
                 >
                     {/* 閉じるボタン (再調整時のみ表示などを想定、または常に表示) */}
                     {onClose && (
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            style={{
-                                position: 'absolute',
-                                top: '20px',
-                                right: '20px',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: 'none',
-                                color: 'white',
-                                borderRadius: '50%',
-                                width: '40px',
-                                height: '40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <FaTimes size={18} />
-                        </button>
+                        <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 30001 }}>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                style={{
+                                    width: 56,
+                                    height: 56,
+                                    borderRadius: 9999,
+                                    background: 'rgba(255,255,255,0.1)',
+                                    color: 'white',
+                                    border: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <FaTimes size={24} />
+                            </button>
+                        </div>
                     )}
 
                     <AnimatePresence mode='wait'>
