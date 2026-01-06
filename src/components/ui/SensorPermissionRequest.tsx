@@ -127,10 +127,27 @@ export default function SensorPermissionRequest({
     setIsRequesting(true);
     try {
       const permission = await sensorManager.orientationService.requestPermission();
-      setSensorStatus((prev) => ({
-        ...prev,
-        orientation: { ...prev.orientation, permission },
-      }));
+
+      // Update orientation status
+      const newStatus = {
+        ...sensorStatus,
+        orientation: { ...sensorStatus.orientation, permission },
+      };
+
+      // iOSではOrientationとMotionの権限が連動することが多い
+      // Orientationが許可されたら、Motionも自動的にリクエスト(確認)してみる
+      if (permission === 'granted' && sensorStatus.motion.available && sensorStatus.motion.permission !== 'granted') {
+        try {
+          // ユーザーインタラクション内なので、ここでもリクエスト可能
+          const motionPermission = await sensorManager.motionService.requestPermission();
+          newStatus.motion = { ...newStatus.motion, permission: motionPermission };
+          console.log('Auto-requested motion permission result:', motionPermission);
+        } catch (e) {
+          console.warn('Auto-request motion permission failed:', e);
+        }
+      }
+
+      setSensorStatus(newStatus);
     } catch (error) {
       const errMsg = String(error);
       setSensorStatus((prev) => ({
@@ -205,6 +222,12 @@ export default function SensorPermissionRequest({
     },
     exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
   };
+
+  // 一部でも許可されているかチェック
+  const hasSomePermission =
+    sensorStatus.orientation.permission === 'granted' ||
+    sensorStatus.camera.permission === 'granted' ||
+    sensorStatus.motion.permission === 'granted';
 
   return (
     <AnimatePresence>
@@ -316,15 +339,15 @@ export default function SensorPermissionRequest({
                 padding: '12px',
                 borderRadius: '12px',
                 border: 'none',
-                backgroundColor: '#EDF2F7',
-                color: '#4A5568',
+                backgroundColor: hasSomePermission ? '#3182CE' : '#EDF2F7',
+                color: hasSomePermission ? 'white' : '#4A5568',
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: isRequesting ? 'not-allowed' : 'pointer',
                 transition: 'background-color 0.2s',
               }}
             >
-              許可せずに開始
+              {hasSomePermission ? '開始する' : '許可せずに開始'}
             </motion.button>
 
             <button
