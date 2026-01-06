@@ -70,13 +70,15 @@ export function useSensors() {
     isActiveRef.current = isActive;
   }, [isActive]);
 
-  const startSensors = useCallback(async () => {
-    if (isActiveRef.current) {
+  const startSensors = useCallback(async (force = false, autoRequest = false) => {
+    if (isActiveRef.current && !force) {
       // 既にアクティブならログを出さずに終了（無限ループ防止）
       return;
     }
 
     console.log('センサー開始を試行中...', {
+      force,
+      autoRequest,
       gpsAvailable: sensorManager.locationService.isAvailable(),
       orientationAvailable: sensorManager.orientationService.isAvailable(),
       motionAvailable: sensorManager.motionService.isAvailable(),
@@ -98,9 +100,9 @@ export function useSensors() {
       // 方位センサー開始
       if (sensorManager.orientationService.isAvailable()) {
         try {
-          // 初回ロード時は自動で権限リクエストを行わない（iOS対策）
-          // ユーザーが3Dボタンを押したときに明示的にリクエストするフローにする
-          await sensorManager.orientationService.startTracking(handleOrientationUpdate, false);
+          // autoRequest引数を利用。forceRestart時は通常trueを渡す想定だが、
+          // 初回ロード時は false を渡す。
+          await sensorManager.orientationService.startTracking(handleOrientationUpdate, autoRequest);
           startedCount++;
         } catch (orientationError) {
           console.error('方位センサー開始エラー:', orientationError);

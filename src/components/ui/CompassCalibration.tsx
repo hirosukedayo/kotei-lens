@@ -127,7 +127,7 @@ export default function CompassCalibration({
                         // 上部は透明にして3Dを見せる
                         height: 'auto',
                         pointerEvents: 'none', // 背景へのクリックを阻害しない？いや、スライダー操作必要
-                        zIndex: 9999,
+                        zIndex: 30000,
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
@@ -231,7 +231,7 @@ export default function CompassCalibration({
                         left: 0,
                         width: '100vw',
                         height: '100vh',
-                        zIndex: 9999,
+                        zIndex: 30000,
                         background: 'rgba(0, 0, 0, 0.85)',
                         backdropFilter: 'blur(10px)',
                         color: 'white',
