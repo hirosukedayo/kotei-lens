@@ -382,37 +382,36 @@ export default function Scene3D({
       </Canvas>
 
       {/* 左下：ピン一覧（アイコン） - コントロール表示時のみ表示 */}
-      {isControlsVisible && (
-        <div
+      {/* 左下：ピン一覧（アイコン） - 常に表示 */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '16px',
+          bottom: '80px',
+          zIndex: 10000,
+        }}
+      >
+        <button
+          type="button"
+          aria-label="ピン一覧"
+          onClick={() => setSheetOpen(true)}
           style={{
-            position: 'fixed',
-            left: '16px',
-            bottom: '80px',
-            zIndex: 10000,
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
           }}
         >
-          <button
-            type="button"
-            aria-label="ピン一覧"
-            onClick={() => setSheetOpen(true)}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 9999,
-              background: '#ffffff',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <FaMapSigns size={22} />
-          </button>
-        </div>
-      )}
+          <FaMapSigns size={22} />
+        </button>
+      </div>
 
       {/* ピンリストDrawer */}
       <PinListDrawer
@@ -436,7 +435,7 @@ export default function Scene3D({
         />
       )}
 
-      {/* デバッグボタン（左上） */}
+      {/* 左上：デバッグ & コントロール表示ボタン */}
       {isMobile && permissionGranted && (
         <div
           style={{
@@ -444,8 +443,13 @@ export default function Scene3D({
             top: '16px',
             left: '16px',
             zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            alignItems: 'flex-start',
           }}
         >
+          {/* Debug Info Toggle */}
           <button
             type="button"
             onClick={() => setShowDebug(!showDebug)}
@@ -453,12 +457,34 @@ export default function Scene3D({
               background: 'rgba(0,0,0,0.5)',
               color: 'white',
               border: 'none',
-              padding: '5px 10px',
-              borderRadius: '5px',
+              padding: '6px 12px',
+              borderRadius: '20px',
               fontSize: '12px',
+              backdropFilter: 'blur(4px)',
             }}
           >
             {showDebug ? 'Debug OFF' : 'Debug ON'}
+          </button>
+
+          {/* UI Controls Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsControlsVisible(!isControlsVisible)}
+            style={{
+              background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.5)',
+              color: 'white',
+              border: isControlsVisible ? '1px solid #60a5fa' : 'none',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            {isControlsVisible ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+            <span>{isControlsVisible ? 'UI非表示' : 'UI表示'}</span>
           </button>
         </div>
       )}
@@ -468,7 +494,7 @@ export default function Scene3D({
         <div
           style={{
             position: 'fixed',
-            top: '50px',
+            top: '90px', // ボタンの下に移動
             left: '16px',
             zIndex: 1000,
             background: 'rgba(0, 0, 0, 0.7)',
@@ -529,34 +555,6 @@ export default function Scene3D({
             <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => setIsControlsVisible(!isControlsVisible)}
-          style={{
-            background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(10px)',
-            border: isControlsVisible ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.2)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            transition: 'all 0.3s ease',
-            minWidth: '60px',
-            gap: '4px',
-          }}
-          title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
-        >
-          {isControlsVisible ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
-            {isControlsVisible ? '非表示' : '表示'}
-          </span>
-        </button>
       </div>
 
       {/* 手動補正 & FOVスライダーコンテナ */}
