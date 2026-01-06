@@ -435,7 +435,7 @@ export default function Scene3D({
         />
       )}
 
-      {/* 左上：デバッグ & コントロール表示ボタン */}
+      {/* 左上：コントロール表示ボタン（機能を集約） */}
       {isMobile && permissionGranted && (
         <div
           style={{
@@ -443,30 +443,8 @@ export default function Scene3D({
             top: '16px',
             left: '16px',
             zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            alignItems: 'flex-start',
           }}
         >
-          {/* Debug Info Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowDebug(!showDebug)}
-            style={{
-              background: 'rgba(0,0,0,0.5)',
-              color: 'white',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            {showDebug ? 'Debug OFF' : 'Debug ON'}
-          </button>
-
-          {/* UI Controls Toggle */}
           <button
             type="button"
             onClick={() => setIsControlsVisible(!isControlsVisible)}
@@ -474,27 +452,29 @@ export default function Scene3D({
               background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.5)',
               color: 'white',
               border: isControlsVisible ? '1px solid #60a5fa' : 'none',
-              padding: '6px 12px',
-              borderRadius: '20px',
+              padding: '8px 16px',
+              borderRadius: '24px',
               fontSize: '12px',
               backdropFilter: 'blur(4px)',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
             }}
           >
-            {isControlsVisible ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-            <span>{isControlsVisible ? 'UI非表示' : 'UI表示'}</span>
+            {isControlsVisible ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+            <span style={{ fontWeight: 'bold' }}>{isControlsVisible ? '非表示' : '設定・調整'}</span>
           </button>
         </div>
       )}
 
-      {/* デバッグパネル */}
+      {/* デバッグパネル (表示条件を追加：コントロールが表示されている時、またはDebugがONの時？ -> 集約するならコントロール表示時のみにするか、あるいはオーバーレイは独立させるか) */}
+      {/* ユーザーの意図は「ボタンを一つにする」なので、オーバーレイ自体の表示は独立していてもいいが、切り替えスイッチはパネル内に入れる */}
       {showDebug && sensorData.orientation && (
         <div
           style={{
             position: 'fixed',
-            top: '90px', // ボタンの下に移動
+            top: '60px', // ボタンの下
             left: '16px',
             zIndex: 1000,
             background: 'rgba(0, 0, 0, 0.7)',
@@ -571,13 +551,33 @@ export default function Scene3D({
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(8px)',
-            padding: '16px',
+            background: 'rgba(0,0,0,0.8)', // 少し濃くする
+            backdropFilter: 'blur(12px)',
+            padding: '20px',
             borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           }}
         >
+          {/* Debug Info Toggle in Panel */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setShowDebug(!showDebug)}
+              style={{
+                background: showDebug ? '#48bb78' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '12px',
+                fontSize: '11px',
+                cursor: 'pointer',
+              }}
+            >
+              デバッグ情報: {showDebug ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
           {/* 方位補正スライダーはキャリブレーション画面に移動したため削除 */}
 
           {/* 画角(FOV)スライダー */}
