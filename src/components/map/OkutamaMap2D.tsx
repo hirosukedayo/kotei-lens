@@ -673,19 +673,29 @@ export default function OkutamaMap2D({
       {showPermissionModal && (
         <SensorPermissionRequest
           onPermissionsGranted={() => {
+            console.log('Permissions granted callback triggered'); // Debug log
             setShowPermissionModal(false);
+
             // モバイル判定を再度行う
             const ua = navigator.userAgent;
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+
             if (isMobile) {
+              console.log('Mobile detected, starting calibration'); // Debug log
               setIsCalibrating(true);
             } else {
+              console.log('Desktop detected, transitioning to 3D directly'); // Debug log
               transitionTo3D();
             }
           }}
-          onPermissionsDenied={() => {
+          onPermissionsDenied={(errors) => {
+            console.warn('Permissions denied or partially failed:', errors);
             setShowPermissionModal(false);
-            // 必要ならトースト表示など
+            // 拒否されても、ユーザーが「許可せずに開始」を選んだ場合などはここに来る可能性がある
+            // あるいは明示的な拒否。
+            // ここでは「機能制限付きで開始しますか？」等の確認を出してもいいが
+            // 一旦、ユーザーが意図して閉じた/拒否したなら何もしない（3Dには行かない）のが基本
+            // ただし「許可せずに開始」ボタンは onPermissionsGranted を呼ぶ実装になっているので注意
           }}
         />
       )}
