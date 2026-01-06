@@ -34,7 +34,7 @@ export default function LoadingScreen({ isReady = false }: LoadingScreenProps) {
                         alignItems: 'center',
                         justifyContent: 'center',
                         background: 'rgba(0, 0, 0, 1.0)', // 完全不透明にして裏のフリーズを隠す
-                        zIndex: 9999,
+                        zIndex: 100000,
                         color: 'white',
                     }}
                 >
