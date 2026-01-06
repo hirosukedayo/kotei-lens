@@ -84,8 +84,11 @@ export default function SensorPermissionRequest({
     const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
     const isCameraOk = !sensorStatus.camera.available || sensorStatus.camera.permission === 'granted';
 
+    console.log('Permission check:', { isGpsOk, isOrientationOk, isMotionOk, isCameraOk });
+
     if (isGpsOk && isOrientationOk && isMotionOk && isCameraOk) {
       const timer = setTimeout(() => {
+        console.log('All permissions granted, auto-proceeding');
         onPermissionsGranted();
       }, 500);
       return () => clearTimeout(timer);
@@ -220,7 +223,7 @@ export default function SensorPermissionRequest({
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 9999, // 最前面
+          zIndex: 20000, // 最前面 (Map UIは10000なのでそれより上にする)
           fontFamily: 'sans-serif',
         }}
       >
