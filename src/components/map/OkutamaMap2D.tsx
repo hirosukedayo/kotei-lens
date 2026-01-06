@@ -682,7 +682,11 @@ export default function OkutamaMap2D({
 
             if (isMobile) {
               console.log('Mobile detected, starting calibration'); // Debug log
-              setIsCalibrating(true);
+              // 許可直後にセンサーを強制再開（リスナーをアタッチするため）
+              // force=true, autoRequest=true
+              startSensors(true, true).then(() => {
+                setIsCalibrating(true);
+              });
             } else {
               console.log('Desktop detected, transitioning to 3D directly'); // Debug log
               transitionTo3D();

@@ -223,11 +223,13 @@ export default function SensorPermissionRequest({
     exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
   };
 
-  // 一部でも許可されているかチェック
-  const hasSomePermission =
-    sensorStatus.orientation.permission === 'granted' ||
-    sensorStatus.camera.permission === 'granted' ||
-    sensorStatus.motion.permission === 'granted';
+  // 全て許可されているかチェック（利用可能なものに限る）
+  const isAllGranted =
+    (!sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted') &&
+    (!sensorStatus.camera.available || sensorStatus.camera.permission === 'granted') &&
+    (!sensorStatus.motion.available || sensorStatus.motion.permission === 'granted') &&
+    // GPSは必須とみなすか？一旦含める
+    (!sensorStatus.gps.available || sensorStatus.gps.permission === 'granted');
 
   return (
     <AnimatePresence>
@@ -339,15 +341,15 @@ export default function SensorPermissionRequest({
                 padding: '12px',
                 borderRadius: '12px',
                 border: 'none',
-                backgroundColor: hasSomePermission ? '#3182CE' : '#EDF2F7',
-                color: hasSomePermission ? 'white' : '#4A5568',
+                backgroundColor: isAllGranted ? '#3182CE' : '#EDF2F7',
+                color: isAllGranted ? 'white' : '#4A5568',
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: isRequesting ? 'not-allowed' : 'pointer',
                 transition: 'background-color 0.2s',
               }}
             >
-              {hasSomePermission ? '開始する' : '許可せずに開始'}
+              {isAllGranted ? '開始する' : '許可せずに開始'}
             </motion.button>
 
             <button
