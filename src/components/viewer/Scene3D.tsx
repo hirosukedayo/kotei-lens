@@ -94,7 +94,7 @@ export default function Scene3D({
   const [isCalibrated, setIsCalibrated] = useState(false);
 
   const [isWireframe, setIsWireframe] = useState(false);
-  const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
 
@@ -381,36 +381,38 @@ export default function Scene3D({
         </Suspense>
       </Canvas>
 
-      {/* 左下：ピン一覧（アイコン） */}
-      <div
-        style={{
-          position: 'fixed',
-          left: '16px',
-          bottom: '80px',
-          zIndex: 10000,
-        }}
-      >
-        <button
-          type="button"
-          aria-label="ピン一覧"
-          onClick={() => setSheetOpen(true)}
+      {/* 左下：ピン一覧（アイコン） - コントロール表示時のみ表示 */}
+      {isControlsVisible && (
+        <div
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
+            position: 'fixed',
+            left: '16px',
+            bottom: '80px',
+            zIndex: 10000,
           }}
         >
-          <FaMapSigns size={22} />
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-label="ピン一覧"
+            onClick={() => setSheetOpen(true)}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 9999,
+              background: '#ffffff',
+              color: '#111827',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <FaMapSigns size={22} />
+          </button>
+        </div>
+      )}
 
       {/* ピンリストDrawer */}
       <PinListDrawer
@@ -495,7 +497,8 @@ export default function Scene3D({
           zIndex: 1001,
           display: 'flex',
           flexDirection: 'column',
-          gap: '10px',
+          alignItems: 'flex-end',
+          gap: '12px',
         }}
       >
         {/* キャリブレーション再実行ボタン */}
@@ -508,21 +511,22 @@ export default function Scene3D({
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255,255,255,0.2)',
               color: 'white',
-              width: '40px',
-              height: '40px',
-              minHeight: '40px',
-              padding: 0,
-              borderRadius: '20px',
+              padding: '8px 16px',
+              borderRadius: '24px',
               display: 'flex',
-              justifyContent: 'center',
+              flexDirection: 'column',
               alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
               transition: 'all 0.3s ease',
+              minWidth: '60px',
+              gap: '4px',
             }}
             title="方位を再調整"
           >
             <FaCompass size={20} />
+            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
           </button>
         )}
 
@@ -530,25 +534,28 @@ export default function Scene3D({
           type="button"
           onClick={() => setIsControlsVisible(!isControlsVisible)}
           style={{
-            background: 'rgba(0,0,0,0.6)',
+            background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.2)',
+            border: isControlsVisible ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.2)',
             color: 'white',
-            width: '40px',
-            height: '40px',
-            minHeight: '40px',
-            padding: 0,
-            borderRadius: '20px',
+            padding: '8px 16px',
+            borderRadius: '24px',
             display: 'flex',
-            justifyContent: 'center',
+            flexDirection: 'column',
             alignItems: 'center',
+            justifyContent: 'center',
             cursor: 'pointer',
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
             transition: 'all 0.3s ease',
+            minWidth: '60px',
+            gap: '4px',
           }}
           title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
         >
           {isControlsVisible ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
+            {isControlsVisible ? '非表示' : '表示'}
+          </span>
         </button>
       </div>
 

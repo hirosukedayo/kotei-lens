@@ -54,7 +54,7 @@ export class OrientationService {
   }
 
   // 方位追跡開始
-  public async startTracking(callback: OrientationCallback): Promise<void> {
+  public async startTracking(callback: OrientationCallback, autoRequestPermission = true): Promise<void> {
     if (!this.isAvailable()) {
       throw new Error('Device orientation is not supported');
     }
@@ -63,6 +63,13 @@ export class OrientationService {
     // 注意: requestPermissionはユーザー操作が必要な場合があるため、
     // 未許可状態でここを呼ぶと失敗する可能性がある (特にiOSの自動開始時)
     if (this.permissionState !== 'granted') {
+      // 自動リクエストが許可されていない場合は、権限がないことをログに残して終了
+      // これにより、ページの読み込み時などに勝手にプロンプトを出そうとしてエラーになるのを防ぐ
+      if (!autoRequestPermission) {
+        console.warn('Orientation tracking skipped: Permission not granted and autoRequestPermission is false.');
+        return;
+      }
+
       const permission = await this.requestPermission();
       if (permission !== 'granted') {
         throw new Error('Device orientation permission denied');
