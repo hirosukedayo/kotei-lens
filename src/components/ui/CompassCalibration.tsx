@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCheck, FaHandPointer, FaTimes, FaUndo, FaArrowLeft } from 'react-icons/fa';
+import { FaCheck, FaHandPointer, FaUndo, FaArrowLeft } from 'react-icons/fa';
+import { IoCloseOutline } from 'react-icons/io5';
 import type { DeviceOrientation } from '../../types/sensors';
 
 interface CompassCalibrationProps {
@@ -261,7 +262,7 @@ export default function CompassCalibration({
                                     cursor: 'pointer',
                                 }}
                             >
-                                <FaTimes size={24} />
+                                <IoCloseOutline size={30} />
                             </button>
                         </div>
                     )}
