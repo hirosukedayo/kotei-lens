@@ -382,37 +382,36 @@ export default function Scene3D({
       </Canvas>
 
       {/* 左下：ピン一覧（アイコン） - コントロール表示時のみ表示 */}
-      {isControlsVisible && (
-        <div
+      {/* 左下：ピン一覧（アイコン） - 常に表示 */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '16px',
+          bottom: '80px',
+          zIndex: 10000,
+        }}
+      >
+        <button
+          type="button"
+          aria-label="ピン一覧"
+          onClick={() => setSheetOpen(true)}
           style={{
-            position: 'fixed',
-            left: '16px',
-            bottom: '80px',
-            zIndex: 10000,
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
           }}
         >
-          <button
-            type="button"
-            aria-label="ピン一覧"
-            onClick={() => setSheetOpen(true)}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 9999,
-              background: '#ffffff',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <FaMapSigns size={22} />
-          </button>
-        </div>
-      )}
+          <FaMapSigns size={22} />
+        </button>
+      </div>
 
       {/* ピンリストDrawer */}
       <PinListDrawer
@@ -436,7 +435,7 @@ export default function Scene3D({
         />
       )}
 
-      {/* デバッグボタン（左上） */}
+      {/* 左上：コントロール表示ボタン（機能を集約） */}
       {isMobile && permissionGranted && (
         <div
           style={{
@@ -448,27 +447,34 @@ export default function Scene3D({
         >
           <button
             type="button"
-            onClick={() => setShowDebug(!showDebug)}
+            onClick={() => setIsControlsVisible(!isControlsVisible)}
             style={{
-              background: 'rgba(0,0,0,0.5)',
+              background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.5)',
               color: 'white',
-              border: 'none',
-              padding: '5px 10px',
-              borderRadius: '5px',
+              border: isControlsVisible ? '1px solid #60a5fa' : 'none',
+              padding: '8px 16px',
+              borderRadius: '24px',
               fontSize: '12px',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
             }}
           >
-            {showDebug ? 'Debug OFF' : 'Debug ON'}
+            {isControlsVisible ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+            <span style={{ fontWeight: 'bold' }}>{isControlsVisible ? '非表示' : '設定・調整'}</span>
           </button>
         </div>
       )}
 
-      {/* デバッグパネル */}
+      {/* デバッグパネル (表示条件を追加：コントロールが表示されている時、またはDebugがONの時？ -> 集約するならコントロール表示時のみにするか、あるいはオーバーレイは独立させるか) */}
+      {/* ユーザーの意図は「ボタンを一つにする」なので、オーバーレイ自体の表示は独立していてもいいが、切り替えスイッチはパネル内に入れる */}
       {showDebug && sensorData.orientation && (
         <div
           style={{
             position: 'fixed',
-            top: '50px',
+            top: '60px', // ボタンの下
             left: '16px',
             zIndex: 1000,
             background: 'rgba(0, 0, 0, 0.7)',
@@ -529,34 +535,6 @@ export default function Scene3D({
             <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => setIsControlsVisible(!isControlsVisible)}
-          style={{
-            background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(10px)',
-            border: isControlsVisible ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.2)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            transition: 'all 0.3s ease',
-            minWidth: '60px',
-            gap: '4px',
-          }}
-          title={isControlsVisible ? 'コントロールを隠す' : 'コントロールを表示'}
-        >
-          {isControlsVisible ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
-          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
-            {isControlsVisible ? '非表示' : '表示'}
-          </span>
-        </button>
       </div>
 
       {/* 手動補正 & FOVスライダーコンテナ */}
@@ -573,13 +551,33 @@ export default function Scene3D({
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(8px)',
-            padding: '16px',
+            background: 'rgba(0,0,0,0.8)', // 少し濃くする
+            backdropFilter: 'blur(12px)',
+            padding: '20px',
             borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           }}
         >
+          {/* Debug Info Toggle in Panel */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setShowDebug(!showDebug)}
+              style={{
+                background: showDebug ? '#48bb78' : 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '12px',
+                fontSize: '11px',
+                cursor: 'pointer',
+              }}
+            >
+              デバッグ情報: {showDebug ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
           {/* 方位補正スライダーはキャリブレーション画面に移動したため削除 */}
 
           {/* 画角(FOV)スライダー */}
