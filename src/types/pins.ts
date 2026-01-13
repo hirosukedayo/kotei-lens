@@ -6,6 +6,7 @@ export type PinType =
   | 'cultural'
   | 'viewpoint'
   | 'restaurant'
+  | 'interview'
   | 'debug';
 
 export interface PinData {
