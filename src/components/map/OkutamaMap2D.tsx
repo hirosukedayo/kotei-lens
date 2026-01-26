@@ -242,7 +242,7 @@ export default function OkutamaMap2D({
   }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
-  const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
+  const localTilesUrl = `${tilesBase}tiles/{z}/{x}/{y}.png`;
 
   // 固定の表示範囲（緯度経度）。
   // 体験エリア + 小河内神社 + その周辺を十分に含むよう、以前よりかなり広めに設定
@@ -339,7 +339,7 @@ export default function OkutamaMap2D({
         <TileLayer
           url={localTilesUrl}
           noWrap
-          tms
+          /* tms */
           minZoom={12}
           maxZoom={20}
           opacity={overlayOpacity}
