@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaLayerGroup, FaTools, FaLocationArrow } from 'react-icons/fa';
@@ -79,6 +79,16 @@ export default function OkutamaMap2D({
       if (mapRef.current) return;
       mapRef.current = map;
     }, [map]);
+    return null;
+  };
+
+  // デバッグ用: クリックした座標をコンソールに表示
+  const MapClickLogger = () => {
+    useMapEvents({
+      click(e) {
+        console.log(`Clicked Coordinate: [${e.latlng.lat}, ${e.latlng.lng}]`);
+      },
+    });
     return null;
   };
 
@@ -242,7 +252,7 @@ export default function OkutamaMap2D({
   }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
-  const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
+  const localTilesUrl = `${tilesBase}tiles/{z}/{x}/{y}.png`;
 
   // 固定の表示範囲（緯度経度）。
   // 体験エリア + 小河内神社 + その周辺を十分に含むよう、以前よりかなり広めに設定
@@ -331,6 +341,7 @@ export default function OkutamaMap2D({
       >
         <MapRefBinder />
         {/* ベース: OSM */}
+        <MapClickLogger />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -339,7 +350,7 @@ export default function OkutamaMap2D({
         <TileLayer
           url={localTilesUrl}
           noWrap
-          tms
+          /* tms */
           minZoom={12}
           maxZoom={20}
           opacity={overlayOpacity}
