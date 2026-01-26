@@ -142,5 +142,3 @@ vite.config.ts.timestamp-*
 .cert/
 .DS_Store
 
-# Large Map Tiles
-public/tiles/
