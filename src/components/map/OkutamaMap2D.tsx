@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaLayerGroup, FaTools, FaLocationArrow } from 'react-icons/fa';
@@ -79,6 +79,16 @@ export default function OkutamaMap2D({
       if (mapRef.current) return;
       mapRef.current = map;
     }, [map]);
+    return null;
+  };
+
+  // デバッグ用: クリックした座標をコンソールに表示
+  const MapClickLogger = () => {
+    useMapEvents({
+      click(e) {
+        console.log(`Clicked Coordinate: [${e.latlng.lat}, ${e.latlng.lng}]`);
+      },
+    });
     return null;
   };
 
@@ -331,6 +341,7 @@ export default function OkutamaMap2D({
       >
         <MapRefBinder />
         {/* ベース: OSM */}
+        <MapClickLogger />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
