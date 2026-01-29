@@ -1,4 +1,4 @@
-import { Environment, Sky, Text, Billboard, useProgress, OrbitControls } from '@react-three/drei';
+import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
