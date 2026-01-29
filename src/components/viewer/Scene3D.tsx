@@ -377,11 +377,12 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
-          {/* テスト用ワイヤーフレームモデル - 少し低く配置 */}
+          {/* テスト用ワイヤーフレームモデル - カメラ追従 (-20m) */}
           <WireframeModel
-            position={[TERRAIN_CENTER_OFFSET[0], TERRAIN_CENTER_OFFSET[1] - 400, TERRAIN_CENTER_OFFSET[2]]}
             scale={[0.01, 0.01, 0.01]}
             rotation={[0, Math.PI / 2, 0]}
+            followCamera={true}
+            yOffset={-20}
           />
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}

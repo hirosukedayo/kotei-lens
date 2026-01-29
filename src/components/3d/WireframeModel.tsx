@@ -1,6 +1,7 @@
+import { useThree, useFrame } from '@react-three/fiber';
 import { useFBX } from '@react-three/drei';
 import type React from 'react';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 interface WireframeModelProps {
@@ -8,6 +9,8 @@ interface WireframeModelProps {
     scale?: [number, number, number];
     rotation?: [number, number, number];
     visible?: boolean;
+    followCamera?: boolean;
+    yOffset?: number;
 }
 
 // Get base path dynamically
@@ -20,9 +23,13 @@ export default function WireframeModel({
     scale = [1, 1, 1],
     rotation = [0, 0, 0],
     visible = true,
+    followCamera = false,
+    yOffset = -20,
 }: WireframeModelProps) {
     const basePath = getBasePath();
     const fbx = useFBX(`${basePath}models/Wireframe_test.fbx`);
+    const groupRef = useRef<THREE.Group>(null);
+    const { camera } = useThree();
 
     const { solid, wire } = useMemo(() => {
         // 1. ベースとなるクローンを作成し、センタリング
@@ -67,8 +74,19 @@ export default function WireframeModel({
         return { solid: solidClone, wire: wireClone };
     }, [fbx]);
 
+    useFrame(() => {
+        if (followCamera && groupRef.current) {
+            // カメラのX, Z位置に合わせて移動、Yはカメラ高さ + offset
+            groupRef.current.position.set(
+                camera.position.x,
+                camera.position.y + yOffset,
+                camera.position.z
+            );
+        }
+    });
+
     return (
-        <group position={position} scale={scale} rotation={rotation} visible={visible}>
+        <group ref={groupRef} position={position} scale={scale} rotation={rotation} visible={visible}>
             <primitive object={solid} />
             <primitive object={wire} />
         </group>
