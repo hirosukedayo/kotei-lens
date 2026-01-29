@@ -9,6 +9,7 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
+import WireframeModel from '../3d/WireframeModel';
 import {
   gpsToWorldCoordinate,
   SCENE_CENTER,
@@ -305,6 +306,7 @@ export default function Scene3D({
             }}
           />
           {/* PC用キーボード移動コントロール */}
+          {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
           {/* デバイス向きコントロール（モバイルのみ、かつ許可済み） */}
           {isMobile && permissionGranted && sensorData.orientation && (
@@ -315,6 +317,7 @@ export default function Scene3D({
               baseHeadingOffset={initialPosition?.headingOffset ?? 0}
             />
           )}
+          {/* FPSスタイルカメラコントロール（PCのみ） */}
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
 
@@ -337,6 +340,9 @@ export default function Scene3D({
           {/* 環境光を強化 */}
           <ambientLight intensity={0.6} color="#ffffff" />
 
+          {/* 距離フォグ - 遠くを白く/薄くフェードさせる */}
+          <fog attach="fog" args={['#ffffff', 10, 5000]} />
+
           {/* 指向性ライト（太陽光）を追加 */}
           <directionalLight
             position={[1000, 100, 50]}
@@ -353,9 +359,9 @@ export default function Scene3D({
             position={terrainPosition}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
-            visible={true}
+            visible={false}
             showTerrain={true} // 地形を表示
-            showWater={true} // 水面を表示
+            showWater={false} // 水面を表示
             wireframe={isWireframe}
             waterLevelOffset={waterLevelOffset}
             terrainScale={[
@@ -371,13 +377,23 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
+          {/* テスト用ワイヤーフレームモデル - カメラ追従 (-20m) */}
+          <WireframeModel
+            scale={[0.01, 0.01, 0.01]}
+            rotation={[0, Math.PI / 2, 0]}
+            followCamera={true}
+            yOffset={-20}
+          />
+
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
           <PinMarkers3D selectedPin={selectedPin} />
 
           {/* 画角(FOV)を動的に更新するコンポーネント */}
           <FovAdjuster fov={fov} />
 
-          {/* カメラコントロールは無効化（OrbitControls削除） */}
+
+
+          {/* マウス操作用カメラコントロール (削除済み) */}
         </Suspense>
       </Canvas>
 
@@ -1314,6 +1330,7 @@ function PinMarker({
         anchorY="middle"
         outlineWidth={2}
         outlineColor="black"
+        material-fog={false}
       >
         {labelText}
       </Text>
