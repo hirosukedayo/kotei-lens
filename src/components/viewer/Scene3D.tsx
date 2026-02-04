@@ -1,7 +1,7 @@
-import { Environment, Sky, Text, Billboard, useProgress, OrbitControls } from '@react-three/drei';
+import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import React, { useState, useEffect, Suspense, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
 import {
   detectWebGLSupport,
@@ -20,7 +20,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -28,7 +28,6 @@ import {
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
-  PIN_HEIGHT_OFFSET,
   DEFAULT_FOV,
 } from '../../config/terrain-config';
 import OrientationCamera from '../ar/OrientationCamera';
@@ -95,19 +94,13 @@ export default function Scene3D({
   const [isCalibrated, setIsCalibrated] = useState(false);
 
   const [isWireframe, setIsWireframe] = useState(false);
-  const [isControlsVisible, setIsControlsVisible] = useState(false); // デフォルトで非表示
+  const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
 
   // ワイヤーフレーム位置調整用State
   const [wfPos, setWfPos] = useState(() => {
     // ターゲット: 奥多摩ダム (okutama-dam)
-    const targetPin = okutamaPins.find((p) => p.id === 'okutama-dam') || okutamaPins[0];
-    const [lat, lng] = targetPin.coordinates;
-    const worldPos = gpsToWorldCoordinate(
-      { latitude: lat, longitude: lng, altitude: 0 },
-      SCENE_CENTER
-    );
     return { x: 2307, y: -428, z: -489 };
   });
   const [wfScale, setWfScale] = useState(0.005);
@@ -280,7 +273,7 @@ export default function Scene3D({
       position: [worldPos.x, initialY, worldPos.z] as [number, number, number],
       rotation: [0, Math.PI, 0] as [number, number, number], // 南向き (180度回転)
     };
-  }, []);
+  }, [initialPosition]);
 
   if (!webglSupport) {
     return (
@@ -1388,7 +1381,7 @@ function PinMarker({
   title,
   type,
   basePosition,
-  scene,
+  // scene,
   isSelected = false,
   pinGpsPosition,
 }: {
