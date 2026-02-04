@@ -1,7 +1,7 @@
 import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
 import {
   detectWebGLSupport,
@@ -20,7 +20,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -28,7 +28,6 @@ import {
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
-  PIN_HEIGHT_OFFSET,
   DEFAULT_FOV,
 } from '../../config/terrain-config';
 import OrientationCamera from '../ar/OrientationCamera';
@@ -95,9 +94,54 @@ export default function Scene3D({
   const [isCalibrated, setIsCalibrated] = useState(false);
 
   const [isWireframe, setIsWireframe] = useState(false);
-  const [isControlsVisible, setIsControlsVisible] = useState(false);
+  const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+
+  // ワイヤーフレーム位置調整用State
+  const [wfPos, setWfPos] = useState(() => {
+    // ターゲット: 奥多摩ダム (okutama-dam)
+    return { x: 2307, y: -428, z: -489 };
+  });
+  const [wfScale, setWfScale] = useState(0.005);
+  const [wfScaleY, setWfScaleY] = useState(0.01);
+
+  // UIドラッグ移動用State
+  const [uiPosition, setUiPosition] = useState({ x: 20, y: 80 }); // 初期位置 (左上)
+  const [isDraggingUi, setIsDraggingUi] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const handleUiDragStart = (e: React.MouseEvent) => {
+    setIsDraggingUi(true);
+    dragOffsetRef.current = {
+      x: e.clientX - uiPosition.x,
+      y: e.clientY - uiPosition.y
+    };
+  };
+
+  useEffect(() => {
+    const handleUiDragMove = (e: MouseEvent) => {
+      if (isDraggingUi) {
+        setUiPosition({
+          x: e.clientX - dragOffsetRef.current.x,
+          y: e.clientY - dragOffsetRef.current.y
+        });
+      }
+    };
+
+    const handleUiDragEnd = () => {
+      setIsDraggingUi(false);
+    };
+
+    if (isDraggingUi) {
+      window.addEventListener('mousemove', handleUiDragMove);
+      window.addEventListener('mouseup', handleUiDragEnd);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleUiDragMove);
+      window.removeEventListener('mouseup', handleUiDragEnd);
+    };
+  }, [isDraggingUi]);
 
   // 描画準備完了フラグ
   const [isReady, setIsReady] = useState(false);
@@ -192,28 +236,42 @@ export default function Scene3D({
 
   // 初期位置と方位からカメラの初期位置と回転を計算
   const initialCameraConfig = useMemo(() => {
-    if (initialPosition) {
-      // GPS座標を3D座標に変換
-      const worldPos = gpsToWorldCoordinate({
-        latitude: initialPosition.latitude,
-        longitude: initialPosition.longitude,
-        altitude: 0, // 標高は後で地形に合わせて調整
-      });
+    // 通常モード: ユーザー位置（または初期位置）にカメラを配置
+    // 初期位置が指定されていればそれを使用、なければシーン中心（奥多摩駅など）
 
-      // カメラの高さを調整（デフォルト値、地形の高さに合わせて後で調整される）
-      const cameraHeight = worldPos.y + 105.73;
+    // シーン中心 (gpsToWorldCoordinateの第2引数と同じ)
+    const center = SCENE_CENTER;
 
-      // 回転はDeviceOrientationControlsが自動的に制御するため、初期回転は設定しない
-      return {
-        position: [worldPos.x, cameraHeight, worldPos.z] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number],
-      };
-    }
+    // ふれあい館のピンを探す（デフォルト用）
+    // ID: fureaikant-miharashidai (ふれあい館前の見晴台)
+    const fureaiPin = okutamaPins.find(p => p.id === 'fureaikant-miharashidai') || okutamaPins[0];
 
-    // デフォルト位置
+    // 初期位置 (GPS) - useLocationなどから渡される想定
+    // 指定がない場合はふれあい館付近を使用
+    const startGps = initialPosition || {
+      latitude: fureaiPin.coordinates[0],
+      longitude: fureaiPin.coordinates[1],
+      altitude: 0
+    };
+
+    // ワールド座標に変換
+    const worldPos = gpsToWorldCoordinate(
+      {
+        latitude: startGps.latitude,
+        longitude: startGps.longitude,
+        altitude: 0
+      },
+      center
+    );
+
+    // デフォルトの高さ (地形データロード前なので仮決定、後でCameraPositionSetterが地形に合わせて調整)
+    // 地形が見つからない場合のフォールバックとしても機能
+    // ユーザー要望により -350 に設定
+    const initialY = -350;
+
     return {
-      position: [-63.43, 105.73, 1.65] as [number, number, number],
-      rotation: [0, 0, 0] as [number, number, number],
+      position: [worldPos.x, initialY, worldPos.z] as [number, number, number],
+      rotation: [0, Math.PI, 0] as [number, number, number], // 南向き (180度回転)
     };
   }, [initialPosition]);
 
@@ -287,6 +345,7 @@ export default function Scene3D({
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
           position: initialCameraConfig.position,
+          rotation: initialCameraConfig.rotation, // 回転も適用
           fov: fov,
           near: 0.1,
           far: 50000000, // スカイボックスと同じ範囲まで見える
@@ -306,8 +365,8 @@ export default function Scene3D({
             }}
           />
           {/* PC用キーボード移動コントロール */}
-          {/* PC用キーボード移動コントロール */}
           {!isMobile && <PCKeyboardControls />}
+
           {/* デバイス向きコントロール（モバイルのみ、かつ許可済み） */}
           {isMobile && permissionGranted && sensorData.orientation && (
             <OrientationCamera
@@ -317,9 +376,19 @@ export default function Scene3D({
               baseHeadingOffset={initialPosition?.headingOffset ?? 0}
             />
           )}
-          {/* FPSスタイルカメラコントロール（PCのみ） */}
+
           {/* FPSスタイルカメラコントロール（PCのみ） */}
           {!isMobile && <FPSCameraControls />}
+
+          {/* 調整用 OrbitControls (PCのみ) - 無効化 */}
+          {/* {!isMobile && (
+            <OrbitControls
+              makeDefault
+              target={[wfPos.x, wfPos.y, wfPos.z]}
+              enableDamping={true}
+              dampingFactor={0.1}
+            />
+          )} */ }
 
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
           {(!isArBackgroundActive || !isMobile) && (
@@ -377,11 +446,12 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
-          {/* テスト用ワイヤーフレームモデル - カメラ追従 (-20m) */}
+          {/* テスト用ワイヤーフレームモデル - 調整モード */}
           <WireframeModel
-            scale={[0.01, 0.01, 0.01]}
-            rotation={[0, Math.PI / 2, 0]}
-            followCamera={true}
+            position={[wfPos.x, wfPos.y, wfPos.z]}
+            scale={[wfScale, wfScaleY, wfScale]}
+            rotation={[0, 0, 0]}
+            followCamera={false}
             yOffset={-20}
           />
 
@@ -451,118 +521,49 @@ export default function Scene3D({
         />
       )}
 
-      {/* 左上：コントロール表示ボタン（機能を集約） */}
-      {isMobile && permissionGranted && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '16px',
-            left: '16px',
-            zIndex: 1000,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsControlsVisible(!isControlsVisible)}
-            style={{
-              background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.5)',
-              color: 'white',
-              border: isControlsVisible ? '1px solid #60a5fa' : 'none',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              fontSize: '12px',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            }}
-          >
-            {isControlsVisible ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
-            <span style={{ fontWeight: 'bold' }}>{isControlsVisible ? '非表示' : '設定・調整'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* デバッグパネル (表示条件を追加：コントロールが表示されている時、またはDebugがONの時？ -> 集約するならコントロール表示時のみにするか、あるいはオーバーレイは独立させるか) */}
-      {/* ユーザーの意図は「ボタンを一つにする」なので、オーバーレイ自体の表示は独立していてもいいが、切り替えスイッチはパネル内に入れる */}
-      {showDebug && sensorData.orientation && (
-        <div
-          style={{
-            position: 'fixed',
-            top: '60px', // ボタンの下
-            left: '16px',
-            zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: '#00ff00',
-            padding: '10px',
-            borderRadius: '5px',
-            fontSize: '10px',
-            fontFamily: 'monospace',
-            pointerEvents: 'none',
-          }}
-        >
-          <div>Alpha: {sensorData.orientation.alpha?.toFixed(2)}</div>
-          <div>Beta: {sensorData.orientation.beta?.toFixed(2)}</div>
-          <div>Gamma: {sensorData.orientation.gamma?.toFixed(2)}</div>
-          <div>Heading: {sensorData.compassHeading?.toFixed(2) ?? 'N/A'}</div>
-          <div>Offset: {manualHeadingOffset.toFixed(0)}</div>
-          <div>Abs: {sensorData.orientation.absolute ? 'Yes' : 'No'}</div>
-        </div>
-      )}
-
-      <div
+      {/* 左上：コントロール表示ボタン（機能を集約）- PCでも表示 (一時的に非表示) */}
+      {/* <div
         style={{
           position: 'fixed',
-          bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
-          right: '16px',
-          zIndex: 1001,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: '12px',
+          top: '16px',
+          left: '16px',
+          zIndex: 1000,
         }}
       >
-        {/* キャリブレーション再実行ボタン */}
-        {isMobile && permissionGranted && (
-          <button
-            type="button"
-            onClick={() => setIsCalibrated(false)}
-            style={{
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              transition: 'all 0.3s ease',
-              minWidth: '60px',
-              gap: '4px',
-            }}
-            title="方位を再調整"
-          >
-            <FaCompass size={20} />
-            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
-          </button>
-        )}
-      </div>
+        <button
+          type="button"
+          onClick={() => setIsControlsVisible(!isControlsVisible)}
+          style={{
+            background: isControlsVisible ? '#3b82f6' : 'rgba(0,0,0,0.5)',
+            color: 'white',
+            border: isControlsVisible ? '1px solid #60a5fa' : 'none',
+            padding: '8px 16px',
+            borderRadius: '24px',
+            fontSize: '12px',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        >
+          {isControlsVisible ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+          <span style={{ fontWeight: 'bold' }}>{isControlsVisible ? '非表示' : '設定・調整'}</span>
+        </button>
+      </div> */}
 
-      {/* 手動補正 & FOVスライダーコンテナ */}
-      {isMobile && permissionGranted && isControlsVisible && (
+      {/* 手動補正 & ワイヤーフレーム位置調整コンテナ */}
+      {isControlsVisible && (
         <div
           style={{
             position: 'fixed',
-            bottom: '150px', // ピンリストの上
-            left: '50%',
-            transform: 'translateX(-50%)',
+            top: uiPosition.y,
+            left: uiPosition.x,
+            // bottom: '150px', // ピンリストの上 -> 削除
+            // left: '50%', // -> 削除
+            // transform: 'translateX(-50%)', // -> 削除
             width: '90%',
-            maxWidth: '400px',
+            maxWidth: '500px',
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
@@ -573,6 +574,8 @@ export default function Scene3D({
             borderRadius: '24px',
             border: '1px solid rgba(255,255,255,0.15)',
             boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            maxHeight: '60vh',
+            overflowY: 'auto',
           }}
         >
           {/* Debug Info Toggle in Panel */}
@@ -594,9 +597,157 @@ export default function Scene3D({
             </button>
           </div>
 
-          {/* 方位補正スライダーはキャリブレーション画面に移動したため削除 */}
+          <h3
+            onMouseDown={handleUiDragStart}
+            style={{
+              color: 'white',
+              margin: '0 0 10px 0',
+              fontSize: '14px',
+              borderBottom: '1px solid #555',
+              paddingBottom: '5px',
+              cursor: isDraggingUi ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+          >
+            ワイヤーフレーム調整 (ドラッグ移動可)
+          </h3>
 
-          {/* 画角(FOV)スライダー */}
+          {/* ワイヤーフレーム X */}
+          <div style={{ width: '100%' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>X 位置 (東西):</span>
+              <input
+                type="number"
+                value={wfPos.x}
+                onChange={(e) => setWfPos({ ...wfPos, x: Number(e.target.value) })}
+                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
+              />
+            </div>
+            <input
+              type="range"
+              min="2207"
+              max="2407"
+              step="1"
+              value={wfPos.x}
+              onChange={(e) => setWfPos({ ...wfPos, x: Number(e.target.value) })}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* ワイヤーフレーム Z */}
+          <div style={{ width: '100%' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Z 位置 (南北):</span>
+              <input
+                type="number"
+                value={wfPos.z}
+                onChange={(e) => setWfPos({ ...wfPos, z: Number(e.target.value) })}
+                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
+              />
+            </div>
+            <input
+              type="range"
+              min="-589"
+              max="-389"
+              step="1"
+              value={wfPos.z}
+              onChange={(e) => setWfPos({ ...wfPos, z: Number(e.target.value) })}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* ワイヤーフレーム Y (高さ) */}
+          <div style={{ width: '100%' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Y 高さ:</span>
+              <input
+                type="number"
+                value={wfPos.y}
+                onChange={(e) => setWfPos({ ...wfPos, y: Number(e.target.value) })}
+                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
+              />
+            </div>
+            <input
+              type="range"
+              min="-575"
+              max="-375"
+              step="1"
+              value={wfPos.y}
+              onChange={(e) => setWfPos({ ...wfPos, y: Number(e.target.value) })}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* ワイヤーフレーム Scale (XZ) */}
+          <div style={{ width: '100%' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>スケール (XZ):</span>
+              <input
+                type="number"
+                value={wfScale}
+                step="0.0005"
+                onChange={(e) => setWfScale(Number(e.target.value))}
+                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
+              />
+            </div>
+            <input
+              type="range"
+              min="0.001"
+              max="0.02"
+              step="0.0005"
+              value={wfScale}
+              onChange={(e) => setWfScale(Number(e.target.value))}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* ワイヤーフレーム Scale (Y) */}
+          <div style={{ width: '100%' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>スケール (Y):</span>
+              <input
+                type="number"
+                value={wfScaleY}
+                step="0.0005"
+                onChange={(e) => setWfScaleY(Number(e.target.value))}
+                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
+              />
+            </div>
+            <input
+              type="range"
+              min="0.001"
+              max="0.02"
+              step="0.0005"
+              value={wfScaleY}
+              onChange={(e) => setWfScaleY(Number(e.target.value))}
+              style={{ width: '100%', height: '4px' }}
+            />
+          </div>
+
+          {/* パラメータ出力エリア */}
+          <div style={{ background: '#222', padding: '10px', borderRadius: '8px', marginTop: '10px' }}>
+            <div style={{ color: '#aaa', fontSize: '10px', marginBottom: '5px' }}>現在のパラメータ (コピー用):</div>
+            <div style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: '12px', userSelect: 'all', wordBreak: 'break-all' }}>
+              {`position: [${wfPos.x}, ${wfPos.y}, ${wfPos.z}]\nscale: [${wfScale}, ${wfScaleY}, ${wfScale}]`}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                // Reset to user defined target
+                setWfPos({ x: 2307, y: -428, z: -489 });
+                setWfScale(0.005);
+                setWfScaleY(0.01);
+              }}
+              style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#555', color: 'white', border: 'none', cursor: 'pointer' }}
+            >
+              リセット
+            </button>
+          </div>
+
+          <hr style={{ borderColor: '#555', margin: '15px 0' }} />
 
           {/* 画角(FOV)スライダー */}
           <div style={{ width: '100%' }}>
@@ -764,6 +915,77 @@ export default function Scene3D({
           </div>
         </div>
       )}
+
+      {/* デバッグパネル (表示条件を追加：コントロールが表示されている時、またはDebugがONの時？ -> 集約するならコントロール表示時のみにするか、あるいはオーバーレイは独立させるか) */}
+      {/* ユーザーの意図は「ボタンを一つにする」なので、オーバーレイ自体の表示は独立していてもいいが、切り替えスイッチはパネル内に入れる */}
+      {showDebug && sensorData.orientation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '60px', // ボタンの下
+            left: '16px',
+            zIndex: 1000,
+            background: 'rgba(0, 0, 0, 0.7)',
+            color: '#00ff00',
+            padding: '10px',
+            borderRadius: '5px',
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            pointerEvents: 'none',
+          }}
+        >
+          <div>Alpha: {sensorData.orientation.alpha?.toFixed(2)}</div>
+          <div>Beta: {sensorData.orientation.beta?.toFixed(2)}</div>
+          <div>Gamma: {sensorData.orientation.gamma?.toFixed(2)}</div>
+          <div>Heading: {sensorData.compassHeading?.toFixed(2) ?? 'N/A'}</div>
+          <div>Offset: {manualHeadingOffset.toFixed(0)}</div>
+          <div>Abs: {sensorData.orientation.absolute ? 'Yes' : 'No'}</div>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
+          right: '16px',
+          zIndex: 1001,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: '12px',
+        }}
+      >
+        {/* キャリブレーション再実行ボタン */}
+        {isMobile && permissionGranted && (
+          <button
+            type="button"
+            onClick={() => setIsCalibrated(false)}
+            style={{
+              background: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.3s ease',
+              minWidth: '60px',
+              gap: '4px',
+            }}
+            title="方位を再調整"
+          >
+            <FaCompass size={20} />
+            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
+          </button>
+        )}
+      </div>
+
+
     </div>
   );
 }
@@ -844,6 +1066,14 @@ function CameraPositionSetter({
     const cameraX = initialCameraConfig.position[0];
     const cameraZ = initialCameraConfig.position[2];
     let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
+
+    // 調整モードなどで上空から俯瞰する場合（Y > 500）または固定高さ（-350）の場合は地形判定をスキップしてその高さを維持する
+    if (finalCameraY > 500 || finalCameraY === -350) {
+      camera.position.set(cameraX, finalCameraY, cameraZ);
+      hasSetPosition.current = true;
+      if (onReady) onReady();
+      return;
+    }
 
     // 高速化: まず名前で検索（これが最も速い）
     // LakeModel側で 'Displacement.001' という名前のオブジェクトを扱っている
@@ -973,6 +1203,7 @@ function CameraPositionSetter({
 }
 
 // FPSスタイルカメラコントロール
+// FPSスタイルカメラコントロール
 function FPSCameraControls() {
   const { camera } = useThree();
   const [isPointerLocked, setIsPointerLocked] = React.useState(false);
@@ -980,11 +1211,11 @@ function FPSCameraControls() {
   const yawRef = React.useRef(0);
 
   React.useEffect(() => {
-    // URLパラメータからの初期位置設定
+    // URLパラメータからの初期位置設定 (初期回転を維持)
     camera.rotation.order = 'YXZ';
-    camera.rotation.x = 0;
-    camera.rotation.y = 0;
-    camera.rotation.z = 0;
+    // 初期回転をRefに反映
+    yawRef.current = camera.rotation.y;
+    pitchRef.current = camera.rotation.x;
 
     const handlePointerLockChange = () => {
       setIsPointerLocked(document.pointerLockElement !== null);
@@ -1150,7 +1381,7 @@ function PinMarker({
   title,
   type,
   basePosition,
-  scene,
+  // scene,
   isSelected = false,
   pinGpsPosition,
 }: {
@@ -1162,100 +1393,23 @@ function PinMarker({
   isSelected?: boolean;
   pinGpsPosition?: { latitude: number; longitude: number };
 }) {
-  const [pinHeight, setPinHeight] = React.useState<number | null>(null);
-  const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
-  const frameCount = React.useRef(0);
+  /* ユーザー要望により全ピンの高さを -350 に固定 (レイキャストによる地形判定を無効化) */
+  const pinHeight = -350;
+
+  // const [pinHeight, setPinHeight] = React.useState<number | null>(null);
+  // const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
+  // const frameCount = React.useRef(0);
   const groupRef = React.useRef<THREE.Group>(null);
   const lightBeamRef = React.useRef<THREE.Mesh>(null);
   const lightBeamIntensity = React.useRef(0.5);
 
+  /*
   useFrame(() => {
     // 地形の高さを一度だけ計算
     if (pinHeight !== null) return;
-
-    frameCount.current += 1;
-    const [pinX, , pinZ] = basePosition;
-
-    // シーン内の地形オブジェクトを検索
-    let terrainMesh: THREE.Mesh | null = null;
-
-    // スケールに応じてサイズ判定を調整
-    const baseSizeLimit = 100;
-    const maxSizeLimit = 10000;
-    const maxHeightLimit = 1000;
-    const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2; // スケールに応じて調整（余裕を持たせる）
-
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.geometry) {
-        const box = new THREE.Box3().setFromObject(child);
-        const size = box.getSize(new THREE.Vector3());
-        const meshName = child.name || '(無名)';
-
-        // 地形のMeshを探す（名前で判定、または適切なサイズのMesh）
-        if (!terrainMesh) {
-          if (meshName === 'Displacement.001' || meshName === 'Displacement') {
-            terrainMesh = child;
-          } else if (
-            size.x > baseSizeLimit &&
-            size.z > baseSizeLimit &&
-            size.x < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
-            size.z < maxSizeLimit * TERRAIN_SCALE_FACTOR &&
-            size.y < scaledMaxHeightLimit
-          ) {
-            // スケールに応じてサイズ制限を調整
-            terrainMesh = child;
-          }
-        }
-      }
-    });
-
-    if (terrainMesh) {
-      const mesh = terrainMesh as THREE.Mesh;
-      const terrainBox = new THREE.Box3().setFromObject(mesh);
-
-      // 高い位置から下方向にレイを飛ばして地形との交差を計算
-      // 地形のバウンディングボックスの最大Y座標を取得し、その上からレイを飛ばす
-      // スケールに応じてオフセットを調整
-      const terrainMaxY = terrainBox.max.y;
-      const rayStartY = terrainMaxY + 1000 * TERRAIN_SCALE_FACTOR; // スケールに応じてレイの開始位置を調整
-      const rayStart = new THREE.Vector3(pinX, rayStartY, pinZ);
-      const rayDirection = new THREE.Vector3(0, -1, 0);
-
-      raycaster.set(rayStart, rayDirection);
-      let intersects = raycaster.intersectObject(mesh, false);
-
-      // 交差が見つからない場合、子要素を再帰的に検索
-      if (intersects.length === 0 && mesh.children.length > 0) {
-        const childMeshes: THREE.Mesh[] = [];
-        mesh.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.geometry) {
-            childMeshes.push(child);
-          }
-        });
-
-        for (const childMesh of childMeshes) {
-          const childIntersects = raycaster.intersectObject(childMesh, false);
-          if (childIntersects.length > 0) {
-            intersects = childIntersects;
-            break;
-          }
-        }
-      }
-
-      if (intersects.length > 0) {
-        const firstIntersect = intersects[0];
-        const terrainHeight = firstIntersect.point.y;
-        const finalHeight = terrainHeight + PIN_HEIGHT_OFFSET;
-        setPinHeight(finalHeight);
-      } else if (frameCount.current >= 100) {
-        // タイムアウト: デフォルトの高さを使用
-        setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
-      }
-    } else if (frameCount.current >= 100) {
-      // 地形が見つからない場合: デフォルトの高さを使用
-      setPinHeight(basePosition[1] + PIN_HEIGHT_OFFSET);
-    }
+    // ... (raycasting logic removed for fixed height)
   });
+  */
 
   // 光の柱のアニメーション
   useFrame((state) => {
