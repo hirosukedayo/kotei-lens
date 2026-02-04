@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLayerGroup, FaTools, FaLocationArrow } from 'react-icons/fa';
+import { FaMapSigns, FaLocationArrow } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
-import CalibrationOverlay from './CalibrationOverlay';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
 import CompassCalibration from '../ui/CompassCalibration';
@@ -43,11 +42,7 @@ export default function OkutamaMap2D({
   onSelectPin: propOnSelectPin,
   onDeselectPin: propOnDeselectPin,
 }: OkutamaMap2DProps) {
-  // ローカル歴史タイルの不透明度（UIで調整可能）
-  const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
-  // キャリブレーションオーバーレイ表示フラグ
-  const [showCalibration, setShowCalibration] = useState<boolean>(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -304,8 +299,8 @@ export default function OkutamaMap2D({
 
   // デバッグ用: レンダリング条件の監視
   useEffect(() => {
-    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, showCalibration, hasBounds: !!modelBounds });
-  }, [isDevMode, showCalibration, modelBounds]);
+    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, hasBounds: !!modelBounds });
+  }, [isDevMode, modelBounds]);
 
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
@@ -353,13 +348,11 @@ export default function OkutamaMap2D({
           /* tms */
           minZoom={12}
           maxZoom={20}
-          opacity={overlayOpacity}
+          opacity={1}
           zIndex={700}
         />
 
-        {isDevMode && showCalibration && modelBounds && (
-          <CalibrationOverlay initialBounds={L.latLngBounds(modelBounds)} />
-        )}
+
 
         {/* devモード時: 3Dモデルの範囲を矩形で表示 */}
         {isDevMode && modelBounds && (
@@ -482,40 +475,7 @@ export default function OkutamaMap2D({
         </button>
       </div>
 
-      {/* キャリブレーション切替ボタン (Devモードのみ) */}
-      {
-        isDevMode && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '100px',
-              right: '16px',
-              zIndex: 10000,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowCalibration(!showCalibration)}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 9999,
-                background: showCalibration ? '#3b82f6' : '#ffffff',
-                color: showCalibration ? '#ffffff' : '#111827',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              aria-label="キャリブレーション表示切替"
-            >
-              <FaTools size={24} />
-            </button>
-          </div>
-        )
-      }
+
 
       {/* 古地図透明度調整スライダー（右下、アイコンベース） & 現在地ボタン */}
       <div
@@ -558,40 +518,6 @@ export default function OkutamaMap2D({
           </button>
         )}
 
-        {/* 透明度スライダー */}
-        <div
-          style={{
-            background: '#ffffff',
-            padding: '12px 16px', // パディングを増やして大きくする
-            borderRadius: '16px',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            border: '1px solid #e5e7eb',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            minWidth: '200px', // 幅を少し広げる
-          }}
-        >
-          <FaLayerGroup size={20} color="#6b7280" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={overlayOpacity}
-            onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
-            style={{
-              flex: 1,
-              height: '8px', // スライダーの高さを増やす
-              borderRadius: '4px',
-              background: '#e5e7eb',
-              outline: 'none',
-              cursor: 'pointer',
-              accentColor: '#3b82f6', // モダンなブラウザ用のアクティブカラー
-            }}
-            aria-label="古地図の透明度"
-          />
-        </div>
       </div>
 
       {/* 画面中央：十字マーク */}
