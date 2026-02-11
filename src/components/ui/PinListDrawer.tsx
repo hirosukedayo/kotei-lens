@@ -30,6 +30,19 @@ export default function PinListDrawer({
     }
   }, [selectedPin]);
 
+  // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
+  React.useEffect(() => {
+    if (open) {
+      // ライブラリによるstyle適用を上書きするため、わずかに遅延させる
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = 'auto';
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      document.body.style.pointerEvents = '';
+    }
+  }, [open]);
+
   const handleTogglePinSelection = (pin: PinData, e: React.MouseEvent) => {
     // 右矢印部分をクリックした場合は詳細表示
     const target = e.target as HTMLElement;
@@ -55,39 +68,59 @@ export default function PinListDrawer({
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
     if (!isOpen) {
-      // ドロワーを閉じても選択状態は保持する（onDeselectPinを呼ばない）
-      setSheetMode('pin-list');
+      // ドロワーが閉じるアニメーション（約300ms）を待ってから状態をリセットする
+      setTimeout(() => {
+        setSheetMode('pin-list');
+        onDeselectPin();
+      }, 300);
     }
   };
 
   return (
-    <VDrawer.Root open={open} onOpenChange={handleOpenChange}>
-      <VDrawer.Portal>
-        <VDrawer.Overlay
+    <VDrawer.Root open={open} onOpenChange={handleOpenChange} modal={false}>
+      <VDrawer.Content
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 11000,
+          // 背景は透明にして、実際のコンテンツ部分のみがクリックをブロックするようにする
+          background: 'transparent',
+          maxHeight: '50vh',
+          display: 'flex',
+          flexDirection: 'column',
+          // pointerEvents: 'none' を削除してドラッグ操作を有効化
+        }}
+        onOpenAutoFocus={(e: Event) => e.preventDefault()}
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <VDrawer.Title style={{ display: 'none' }}>ピン詳細・一覧</VDrawer.Title>
+        <VDrawer.Description style={{ display: 'none' }}>
+          地図上のピンの詳細情報や一覧を表示します。
+        </VDrawer.Description>
+
+        <div
           style={{
-            background: 'transparent', // Canvasが見えるように透明にする
-            pointerEvents: 'none', // Canvasのクリックイベントを妨げないようにする
-          }}
-        />
-        <VDrawer.Content
-          style={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 11000,
             background: '#ffffff',
             borderTopLeftRadius: 14,
             borderTopRightRadius: 14,
             boxShadow: '0 -8px 24px rgba(0,0,0,.2)',
-            pointerEvents: 'auto', // Contentはクリック可能
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+            // pointerEvents: 'auto' は不要になるため削除（親がデフォルトでauto）
           }}
-          onOpenAutoFocus={(e: Event) => e.preventDefault()}
-          onCloseAutoFocus={(e: Event) => e.preventDefault()}
         >
-          <div style={{ padding: 12, display: 'flex', justifyContent: 'center' }}>
+          {/* ドラッグハンドル領域 */}
+          <div
+            style={{ padding: 12, display: 'flex', justifyContent: 'center', cursor: 'grab', background: '#fff' }}
+            data-vaul-handle
+          >
             <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#e5e7eb' }} />
           </div>
+
           {/* 固定ヘッダー */}
           <div
             style={{
@@ -98,6 +131,7 @@ export default function PinListDrawer({
               padding: '0 16px 16px 16px',
               zIndex: 1,
             }}
+            data-vaul-no-drag
           >
             {sheetMode === 'pin-detail' && selectedPin ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -131,7 +165,7 @@ export default function PinListDrawer({
                   ←
                 </button>
                 <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, textAlign: 'left' }}>
                   <h3
                     style={{
                       margin: '0 0 4px 0',
@@ -149,7 +183,7 @@ export default function PinListDrawer({
                 </div>
               </div>
             ) : (
-              <div>
+              <div style={{ textAlign: 'left' }}>
                 <h2
                   style={{
                     margin: '0 0 4px 0',
@@ -166,13 +200,14 @@ export default function PinListDrawer({
               </div>
             )}
           </div>
-          {/* スクロール可能なコンテンツ */}
+          {/* スクロール可能なコンテンツ：ドラッグ不可 */}
           <div
             style={{
               padding: '16px',
-              maxHeight: 'calc(100vh - 200px)',
+              flex: 1, // 残りの高さを埋める
               overflowY: 'auto',
             }}
+            data-vaul-no-drag
           >
             {sheetMode === 'pin-detail' && selectedPin ? (
               <div>
@@ -201,6 +236,7 @@ export default function PinListDrawer({
                     color: '#374151',
                     whiteSpace: 'pre-wrap',
                     marginBottom: 16,
+                    textAlign: 'left',
                   }}
                 >
                   {selectedPin.description}
@@ -284,11 +320,15 @@ export default function PinListDrawer({
                           width: '100%',
                           display: 'flex',
                           alignItems: 'center',
+                          marginTop: 8,
                           marginBottom: 8,
-                          borderRadius: 8,
-                          border: `1px solid ${isSelected ? '#3b82f6' : '#e5e7eb'}`,
-                          background: isSelected ? '#eff6ff' : '#fff',
+                          borderRadius: 12,
+                          border: isSelected ? `1px solid ${style.color}` : '1px solid #f3f4f6',
+                          borderLeft: isSelected ? `5px solid ${style.color}` : '5px solid transparent',
+                          background: '#fff',
+                          boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
                           overflow: 'hidden',
+                          transition: 'all 0.2s ease',
                         }}
                       >
                         <button
@@ -299,63 +339,59 @@ export default function PinListDrawer({
                             textAlign: 'left',
                             background: 'transparent',
                             border: 'none',
-                            padding: '10px 12px',
+                            padding: '12px 14px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 12,
+                            gap: 14,
                             cursor: 'pointer',
                           }}
                         >
-                          <div style={{ fontSize: 20 }}>{style.icon}</div>
+                          <div
+                            style={{
+                              fontSize: 22,
+                              color: isSelected ? style.color : '#9ca3af',
+                              width: 28,
+                              display: 'flex',
+                              justifyContent: 'center',
+                              transition: 'color 0.2s ease'
+                            }}
+                          >
+                            {style.icon}
+                          </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
                               style={{
                                 fontWeight: 700,
-                                fontSize: 14,
+                                fontSize: 15,
                                 color: '#111827',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
+                                marginBottom: 2
                               }}
                             >
                               {pin.title}
                             </div>
-                            <div style={{ fontSize: 12, color: '#6b7280' }}>{style.label}</div>
+                            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{style.label}</div>
                           </div>
-                          {isSelected && (
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: '#3b82f6',
-                                color: '#fff',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <FaCheck size={12} />
-                            </div>
-                          )}
                         </button>
                         <button
                           type="button"
                           className="pin-detail-button"
                           onClick={(e) => handleTogglePinSelection(pin, e)}
                           style={{
-                            padding: '10px 12px',
+                            padding: '12px 16px',
                             border: 'none',
                             background: 'transparent',
-                            color: '#9ca3af',
+                            color: isSelected ? style.color : '#d1d5db',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            borderLeft: `1px solid ${isSelected ? '#3b82f6' : '#e5e7eb'}`,
+                            justifyContent: 'center',
+                            transition: 'color 0.2s ease',
                           }}
                         >
-                          ›
+                          <div style={{ fontSize: 20 }}>›</div>
                         </button>
                       </div>
                     );
@@ -364,8 +400,8 @@ export default function PinListDrawer({
               </div>
             )}
           </div>
-        </VDrawer.Content>
-      </VDrawer.Portal>
+        </div>
+      </VDrawer.Content>
     </VDrawer.Root>
   );
 }

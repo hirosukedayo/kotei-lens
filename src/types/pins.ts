@@ -5,8 +5,8 @@ export type PinType =
   | 'nature'
   | 'cultural'
   | 'viewpoint'
-  | 'restaurant'
   | 'interview'
+  | 'folktale'
   | 'debug';
 
 export interface PinData {
@@ -56,15 +56,16 @@ export const pinTypeStyles: Record<
     icon: '👁️',
     label: '展望',
   },
-  restaurant: {
-    color: '#FF6B35',
-    icon: '🍜',
-    label: '飲食店',
-  },
+
   interview: {
     color: '#4A90E2',
     icon: '🎙️',
     label: 'インタビュー',
+  },
+  folktale: {
+    color: '#D2691E',
+    icon: '📜',
+    label: '民話・伝説',
   },
   debug: {
     color: '#000',
