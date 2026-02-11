@@ -4,7 +4,7 @@ const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポ�
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
-import { FaMapMarkerAlt, FaExternalLinkAlt, FaCheck } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
 
 interface PinListDrawerProps {
   open: boolean;
@@ -38,9 +38,8 @@ export default function PinListDrawer({
         document.body.style.pointerEvents = 'auto';
       }, 50);
       return () => clearTimeout(timer);
-    } else {
-      document.body.style.pointerEvents = '';
     }
+    document.body.style.pointerEvents = '';
   }, [open]);
 
   const handleTogglePinSelection = (pin: PinData, e: React.MouseEvent) => {
