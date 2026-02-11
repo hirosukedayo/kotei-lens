@@ -1028,9 +1028,9 @@ export default function Scene3D({
               </div>
               <input
                 type="range"
-                min="-5"
-                max="20"
-                step="0.5"
+                min="-500"
+                max="500"
+                step="1"
                 value={cameraHeightOffset}
                 onChange={(e) => setCameraHeightOffset(Number(e.target.value))}
                 style={{ width: '100%', height: '4px', accentColor: '#48bb78' }}
