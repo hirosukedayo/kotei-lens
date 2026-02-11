@@ -62,8 +62,8 @@ export const pinTypeStyles: Record<
     label: '飲食店',
   },
   interview: {
-    color: '#3B82F6',
-    icon: '🗣️',
+    color: '#4A90E2',
+    icon: '🎙️',
     label: 'インタビュー',
   },
   debug: {
