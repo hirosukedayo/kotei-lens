@@ -96,6 +96,8 @@ export default function OkutamaMap2D({
   onDeselectPin: propOnDeselectPin,
 }: OkutamaMap2DProps) {
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const pinClickGuardRef = useRef(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -188,7 +190,8 @@ export default function OkutamaMap2D({
     setSelectedPin(pin);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
     if (Array.isArray(coords) && coords.length === 2) {
-      mapRef.current?.flyTo(coords as any, 14, { duration: 0.6 });
+      const currentZoom = mapRef.current?.getZoom() ?? 14;
+      mapRef.current?.flyTo(coords as any, currentZoom, { duration: 0.6 });
     }
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -371,7 +374,9 @@ export default function OkutamaMap2D({
       onDeselectPin();
       setSheetOpen(false);
     } else {
-      // 新しいピンを選択
+      // 新しいピンを選択 — vaulの外クリック閉じを一時的にブロック
+      pinClickGuardRef.current = true;
+      setTimeout(() => { pinClickGuardRef.current = false; }, 300);
       handleSelectPin(pin);
       setSheetOpen(true);
     }
@@ -537,8 +542,8 @@ export default function OkutamaMap2D({
 
       </div>
 
-      {/* 画面中央：中抜き十字マーク（ピン選択時は非表示） */}
-      {!sheetOpen && <div
+      {/* 画面中央：中抜き十字マーク（記事表示中はフェードアウト） */}
+      <div
         style={{
           position: 'absolute',
           top: '50%',
@@ -548,6 +553,8 @@ export default function OkutamaMap2D({
           height: '30px',
           zIndex: 10000,
           pointerEvents: 'none',
+          opacity: (sheetOpen && sheetMode === 'pin-detail') ? 0 : 1,
+          transition: 'opacity 0.5s ease',
         }}
       >
         {/* 上 */}
@@ -558,7 +565,7 @@ export default function OkutamaMap2D({
         <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
         {/* 右 */}
         <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
-      </div>}
+      </div>
 
       {/* 左下：ピン一覧（アイコン） */}
       <div
@@ -595,6 +602,8 @@ export default function OkutamaMap2D({
       <PinListDrawer
         open={sheetOpen}
         onOpenChange={(open) => {
+          // ピン選択直後のvaul外クリック閉じを無視
+          if (!open && pinClickGuardRef.current) return;
           setSheetOpen(open);
           if (!open) {
             mapRef.current?.closePopup();
@@ -603,6 +612,7 @@ export default function OkutamaMap2D({
         selectedPin={selectedPin}
         onSelectPin={handleSelectPin}
         onDeselectPin={onDeselectPin}
+        onSheetModeChange={setSheetMode}
       />
 
       {/* センサー権限要求モーダル (統一UI) */}

@@ -12,6 +12,7 @@ interface PinListDrawerProps {
   selectedPin: PinData | null;
   onSelectPin: (pin: PinData) => void;
   onDeselectPin: () => void;
+  onSheetModeChange?: (mode: 'pin-list' | 'pin-detail') => void;
 }
 
 export default function PinListDrawer({
@@ -20,8 +21,13 @@ export default function PinListDrawer({
   selectedPin,
   onSelectPin,
   onDeselectPin,
+  onSheetModeChange,
 }: PinListDrawerProps) {
-  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const [sheetMode, _setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const setSheetMode = (mode: 'pin-list' | 'pin-detail') => {
+    _setSheetMode(mode);
+    onSheetModeChange?.(mode);
+  };
 
   // 選択されたピンが変更されたら詳細モードに切り替える
   React.useEffect(() => {
@@ -54,8 +60,8 @@ export default function PinListDrawer({
 
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
-    if (!isOpen) {
-      // ドロワーを閉じても選択状態は保持する（onDeselectPinを呼ばない）
+    if (!isOpen && !selectedPin) {
+      // ピン未選択状態でドロワーが閉じた場合のみリストに戻す
       setSheetMode('pin-list');
     }
   };
