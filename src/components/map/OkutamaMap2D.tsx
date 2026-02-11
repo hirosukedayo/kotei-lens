@@ -338,7 +338,7 @@ export default function OkutamaMap2D({
         {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickLogger />
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
+          url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
           className="base-tiles"
           attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
