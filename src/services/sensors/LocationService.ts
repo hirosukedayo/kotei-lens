@@ -180,6 +180,8 @@ export class LocationService {
       longitude: 139.048889,
       altitude: 530, // 水面標高
       accuracy: 5,
+      heading: 0,
+      speed: 0,
       timestamp: Date.now(),
     };
   }
@@ -209,6 +211,8 @@ export class LocationService {
       longitude: position.coords.longitude,
       altitude: position.coords.altitude,
       accuracy: position.coords.accuracy,
+      heading: position.coords.heading,
+      speed: position.coords.speed,
       timestamp: position.timestamp,
     };
   }

@@ -18,6 +18,7 @@ import { preloadLakeModel } from '../3d/LakeModel';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
 import type { PinData } from '../../types/pins';
+import type { GPSPosition, DeviceOrientation } from '../../types/sensors';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
@@ -34,6 +35,58 @@ type OkutamaMap2DProps = {
   selectedPin?: PinData | null;
   onSelectPin?: (pin: PinData) => void;
   onDeselectPin?: () => void;
+};
+
+// 現在地マーカーコンポーネント
+const CurrentLocationMarker = ({
+  gps,
+  orientation,
+}: {
+  gps: GPSPosition;
+  orientation: DeviceOrientation | null;
+}) => {
+  const icon = useMemo(() => {
+    const gpsSpeed = gps.speed ?? 0;
+    const gpsHeading = gps.heading;
+    const compassHeading = orientation?.webkitCompassHeading ?? orientation?.alpha;
+
+    // 1m/s (時速3.6km) 以上で移動中はGPSの進行方向を優先
+    const isMoving = gpsSpeed > 1.0;
+    const displayHeading = (isMoving && gpsHeading != null && !Number.isNaN(gpsHeading))
+      ? gpsHeading
+      : (compassHeading ?? 0);
+
+    return L.divIcon({
+      html: `
+        <div style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+          <svg
+            viewBox="0 0 24 24"
+            width="36"
+            height="36"
+            style="
+              transform: rotate(${displayHeading}deg);
+              transition: transform 0.2s ease-out;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            "
+          >
+            <!-- ナビゲーション矢印 (FaLocationArrow風) -->
+            <path
+              d="M12 2L4.5 20.29C4.24 20.89 4.96 21.46 5.54 21.12L12 17.25L18.46 21.12C19.04 21.46 19.76 20.89 19.5 20.29L12 2Z"
+              fill="#3b82f6"
+              stroke="white"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      `,
+      className: 'gps-marker',
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }, [gps, orientation]);
+
+  return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
 };
 
 export default function OkutamaMap2D({
@@ -86,6 +139,8 @@ export default function OkutamaMap2D({
     });
     return null;
   };
+
+
 
   // カスタムアイコン（選択時に強調表示）
   const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
@@ -371,53 +426,7 @@ export default function OkutamaMap2D({
         {/* GPS位置マーカー（エリア内の場合、またはdevモードの場合に表示） */}
         {sensorData.gps &&
           (sensorManager.locationService.isInOkutamaArea(sensorData.gps) || isDevMode) && (
-            <Marker
-              position={[sensorData.gps.latitude, sensorData.gps.longitude]}
-              icon={L.divIcon({
-                html: `
-                  <div style="position: relative; width: 48px; height: 48px; margin-left: -12px; margin-top: -12px; display: flex; align-items: center; justify-content: center;">
-                    <!-- 視界インジケーター（コンパス連動） -->
-                    <div style="
-                      position: absolute;
-                      width: 0;
-                      height: 0;
-                      border-left: 15px solid transparent;
-                      border-right: 15px solid transparent;
-                      border-bottom: 25px solid rgba(59, 130, 246, 0.4);
-                      bottom: 50%;
-                      transform-origin: 50% 100%;
-                      transform: rotate(${sensorData.orientation?.webkitCompassHeading ?? sensorData.orientation?.alpha ?? 0}deg);
-                      transition: transform 0.2s ease-out;
-                    "></div>
-                    <!-- GPSドット -->
-                    <div style="
-                      width: 24px;
-                      height: 24px;
-                      background: #3b82f6;
-                      border: 3px solid white;
-                      border-radius: 50%;
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                      position: relative;
-                      z-index: 2;
-                    ">
-                      <div style="
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        width: 8px;
-                        height: 8px;
-                        background: white;
-                        border-radius: 50%;
-                      "></div>
-                    </div>
-                  </div>
-                `,
-                className: 'gps-marker',
-                iconSize: [48, 48],
-                iconAnchor: [24, 24],
-              })}
-            />
+            <CurrentLocationMarker gps={sensorData.gps} orientation={sensorData.orientation} />
           )}
 
         {/* ピンマーカー */}
