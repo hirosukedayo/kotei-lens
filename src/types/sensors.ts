@@ -17,6 +17,8 @@ export interface GPSPosition {
   longitude: number;
   altitude: number | null;
   accuracy: number;
+  heading: number | null; // 進行方向 (0-360°)
+  speed: number | null; // 速度 (m/s)
   timestamp: number;
 }
 

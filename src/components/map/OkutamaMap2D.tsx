@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLayerGroup, FaTools, FaLocationArrow } from 'react-icons/fa';
+import { FaMapSigns, FaLocationArrow } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
-import CalibrationOverlay from './CalibrationOverlay';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
 import CompassCalibration from '../ui/CompassCalibration';
@@ -19,6 +18,7 @@ import { preloadLakeModel } from '../3d/LakeModel';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
 import type { PinData } from '../../types/pins';
+import type { GPSPosition, DeviceOrientation } from '../../types/sensors';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
@@ -37,17 +37,65 @@ type OkutamaMap2DProps = {
   onDeselectPin?: () => void;
 };
 
+// 現在地マーカーコンポーネント
+const CurrentLocationMarker = ({
+  gps,
+  orientation,
+}: {
+  gps: GPSPosition;
+  orientation: DeviceOrientation | null;
+}) => {
+  const icon = useMemo(() => {
+    const gpsSpeed = gps.speed ?? 0;
+    const gpsHeading = gps.heading;
+    const compassHeading = orientation?.webkitCompassHeading ?? orientation?.alpha;
+
+    // 1m/s (時速3.6km) 以上で移動中はGPSの進行方向を優先
+    const isMoving = gpsSpeed > 1.0;
+    const displayHeading = (isMoving && gpsHeading != null && !Number.isNaN(gpsHeading))
+      ? gpsHeading
+      : (compassHeading ?? 0);
+
+    return L.divIcon({
+      html: `
+        <div style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+          <svg
+            viewBox="0 0 24 24"
+            width="36"
+            height="36"
+            style="
+              transform: rotate(${displayHeading}deg);
+              transition: transform 0.2s ease-out;
+              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            "
+          >
+            <!-- ナビゲーション矢印 (FaLocationArrow風) -->
+            <path
+              d="M12 2L4.5 20.29C4.24 20.89 4.96 21.46 5.54 21.12L12 17.25L18.46 21.12C19.04 21.46 19.76 20.89 19.5 20.29L12 2Z"
+              fill="#3b82f6"
+              stroke="white"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      `,
+      className: 'gps-marker',
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }, [gps, orientation]);
+
+  return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
+};
+
 export default function OkutamaMap2D({
   onRequest3D,
   selectedPin: propSelectedPin,
   onSelectPin: propOnSelectPin,
   onDeselectPin: propOnDeselectPin,
 }: OkutamaMap2DProps) {
-  // ローカル歴史タイルの不透明度（UIで調整可能）
-  const [overlayOpacity, setOverlayOpacity] = useState<number>(0.6);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
-  // キャリブレーションオーバーレイ表示フラグ
-  const [showCalibration, setShowCalibration] = useState<boolean>(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -81,6 +129,18 @@ export default function OkutamaMap2D({
     }, [map]);
     return null;
   };
+
+  // デバッグ用: クリックした座標をコンソールに表示
+  const MapClickLogger = () => {
+    useMapEvents({
+      click(e) {
+        console.log(`Clicked Coordinate: [${e.latlng.lat}, ${e.latlng.lng}]`);
+      },
+    });
+    return null;
+  };
+
+
 
   // カスタムアイコン（選択時に強調表示）
   const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
@@ -242,7 +302,7 @@ export default function OkutamaMap2D({
   }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
-  const localTilesUrl = `${tilesBase}tiles_okutama/{z}/{x}/{y}.png`;
+  const localTilesUrl = `${tilesBase}tiles/{z}/{x}/{y}.png`;
 
   // 固定の表示範囲（緯度経度）。
   // 体験エリア + 小河内神社 + その周辺を十分に含むよう、以前よりかなり広めに設定
@@ -294,8 +354,8 @@ export default function OkutamaMap2D({
 
   // デバッグ用: レンダリング条件の監視
   useEffect(() => {
-    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, showCalibration, hasBounds: !!modelBounds });
-  }, [isDevMode, showCalibration, modelBounds]);
+    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, hasBounds: !!modelBounds });
+  }, [isDevMode, modelBounds]);
 
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
@@ -330,25 +390,25 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
-        {/* ベース: OSM */}
+        {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
+        <MapClickLogger />
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
+          className="base-tiles"
+          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
         <TileLayer
           url={localTilesUrl}
           noWrap
-          tms
+          /* tms */
           minZoom={12}
           maxZoom={20}
-          opacity={overlayOpacity}
+          opacity={1}
           zIndex={700}
         />
 
-        {isDevMode && showCalibration && modelBounds && (
-          <CalibrationOverlay initialBounds={L.latLngBounds(modelBounds)} />
-        )}
+
 
         {/* devモード時: 3Dモデルの範囲を矩形で表示 */}
         {isDevMode && modelBounds && (
@@ -367,53 +427,7 @@ export default function OkutamaMap2D({
         {/* GPS位置マーカー（エリア内の場合、またはdevモードの場合に表示） */}
         {sensorData.gps &&
           (sensorManager.locationService.isInOkutamaArea(sensorData.gps) || isDevMode) && (
-            <Marker
-              position={[sensorData.gps.latitude, sensorData.gps.longitude]}
-              icon={L.divIcon({
-                html: `
-                  <div style="position: relative; width: 48px; height: 48px; margin-left: -12px; margin-top: -12px; display: flex; align-items: center; justify-content: center;">
-                    <!-- 視界インジケーター（コンパス連動） -->
-                    <div style="
-                      position: absolute;
-                      width: 0;
-                      height: 0;
-                      border-left: 15px solid transparent;
-                      border-right: 15px solid transparent;
-                      border-bottom: 25px solid rgba(59, 130, 246, 0.4);
-                      bottom: 50%;
-                      transform-origin: 50% 100%;
-                      transform: rotate(${sensorData.orientation?.webkitCompassHeading ?? sensorData.orientation?.alpha ?? 0}deg);
-                      transition: transform 0.2s ease-out;
-                    "></div>
-                    <!-- GPSドット -->
-                    <div style="
-                      width: 24px;
-                      height: 24px;
-                      background: #3b82f6;
-                      border: 3px solid white;
-                      border-radius: 50%;
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                      position: relative;
-                      z-index: 2;
-                    ">
-                      <div style="
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        width: 8px;
-                        height: 8px;
-                        background: white;
-                        border-radius: 50%;
-                      "></div>
-                    </div>
-                  </div>
-                `,
-                className: 'gps-marker',
-                iconSize: [48, 48],
-                iconAnchor: [24, 24],
-              })}
-            />
+            <CurrentLocationMarker gps={sensorData.gps} orientation={sensorData.orientation} />
           )}
 
         {/* ピンマーカー */}
@@ -471,40 +485,7 @@ export default function OkutamaMap2D({
         </button>
       </div>
 
-      {/* キャリブレーション切替ボタン (Devモードのみ) */}
-      {
-        isDevMode && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '100px',
-              right: '16px',
-              zIndex: 10000,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowCalibration(!showCalibration)}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 9999,
-                background: showCalibration ? '#3b82f6' : '#ffffff',
-                color: showCalibration ? '#ffffff' : '#111827',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              aria-label="キャリブレーション表示切替"
-            >
-              <FaTools size={24} />
-            </button>
-          </div>
-        )
-      }
+
 
       {/* 古地図透明度調整スライダー（右下、アイコンベース） & 現在地ボタン */}
       <div
@@ -547,43 +528,9 @@ export default function OkutamaMap2D({
           </button>
         )}
 
-        {/* 透明度スライダー */}
-        <div
-          style={{
-            background: '#ffffff',
-            padding: '12px 16px', // パディングを増やして大きくする
-            borderRadius: '16px',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            border: '1px solid #e5e7eb',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            minWidth: '200px', // 幅を少し広げる
-          }}
-        >
-          <FaLayerGroup size={20} color="#6b7280" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={overlayOpacity}
-            onChange={(e) => setOverlayOpacity(Number.parseFloat(e.target.value))}
-            style={{
-              flex: 1,
-              height: '8px', // スライダーの高さを増やす
-              borderRadius: '4px',
-              background: '#e5e7eb',
-              outline: 'none',
-              cursor: 'pointer',
-              accentColor: '#3b82f6', // モダンなブラウザ用のアクティブカラー
-            }}
-            aria-label="古地図の透明度"
-          />
-        </div>
       </div>
 
-      {/* 画面中央：十字マーク */}
+      {/* 画面中央：中抜き十字マーク */}
       <div
         style={{
           position: 'absolute',
@@ -596,32 +543,14 @@ export default function OkutamaMap2D({
           pointerEvents: 'none',
         }}
       >
-        {/* 縦線 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '2px',
-            height: '30px',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
-          }}
-        />
-        {/* 横線 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '30px',
-            height: '2px',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
-          }}
-        />
+        {/* 上 */}
+        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 下 */}
+        <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 左 */}
+        <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 右 */}
+        <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
       </div>
 
       {/* 左下：ピン一覧（アイコン） */}
