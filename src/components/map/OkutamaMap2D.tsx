@@ -537,8 +537,8 @@ export default function OkutamaMap2D({
 
       </div>
 
-      {/* 画面中央：中抜き十字マーク */}
-      <div
+      {/* 画面中央：中抜き十字マーク（ピン選択時は非表示） */}
+      {!sheetOpen && <div
         style={{
           position: 'absolute',
           top: '50%',
@@ -558,7 +558,7 @@ export default function OkutamaMap2D({
         <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
         {/* 右 */}
         <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
-      </div>
+      </div>}
 
       {/* 左下：ピン一覧（アイコン） */}
       <div
