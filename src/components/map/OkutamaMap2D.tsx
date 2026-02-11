@@ -146,17 +146,24 @@ export default function OkutamaMap2D({
   const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
-    const color = isSelected ? '#dc2626' : baseColor; // 選択時は赤系で強調
+    const color = isSelected ? '#ff4900' : baseColor; // 選択時の強調色
     const size = isSelected ? 40 : 36;
-    const border = isSelected ? '3px solid #fecaca' : '3px solid white';
+    const border = isSelected ? '3px solid #ffb899' : '3px solid white';
     const ringSize = 56; // 円環のサイズ
-    const ring = isSelected
-      ? `<div style="position:absolute; width:${ringSize}px; height:${ringSize}px; border-radius:50%; border:2px solid rgba(220,38,38,0.35); top:50%; left:50%; transform:translate(-50%, -50%);"></div>`
+    const ripple = isSelected
+      ? `<style>
+          @keyframes pin-ripple {
+            0% { width:${size}px; height:${size}px; opacity:0.7; }
+            100% { width:${ringSize * 1.6}px; height:${ringSize * 1.6}px; opacity:0; }
+          }
+        </style>
+        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out infinite;"></div>
+        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out 0.5s infinite;"></div>`
       : '';
     return L.divIcon({
       html: `
-        <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center;">
-          ${ring}
+        <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center; overflow:visible;">
+          ${ripple}
           <div style="
             width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
             border-radius:50%; display:flex; align-items:center; justify-content:center;
