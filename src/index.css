@@ -78,6 +78,11 @@ button:focus-visible {
   }
 }
 
+/* ベースタイル: 水域→白、地形→グレーに反転 */
+.base-tiles {
+  filter: brightness(0.6) contrast(3) invert(1) brightness(3.5) sepia(0.8);
+}
+
 @media (max-width: 768px) {
   #root {
     padding: 1rem;

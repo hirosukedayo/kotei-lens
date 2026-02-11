@@ -335,11 +335,12 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
-        {/* ベース: OSM */}
+        {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickLogger />
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
+          className="base-tiles"
+          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
         <TileLayer
