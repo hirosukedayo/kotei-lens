@@ -147,9 +147,9 @@ export default function OkutamaMap2D({
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
     const color = isSelected ? '#dc2626' : baseColor; // 選択時は赤系で強調
-    const size = isSelected ? 32 : 28;
+    const size = isSelected ? 40 : 36;
     const border = isSelected ? '3px solid #fecaca' : '3px solid white';
-    const ringSize = 48; // 円環のサイズ
+    const ringSize = 56; // 円環のサイズ
     const ring = isSelected
       ? `<div style="position:absolute; width:${ringSize}px; height:${ringSize}px; border-radius:50%; border:2px solid rgba(220,38,38,0.35); top:50%; left:50%; transform:translate(-50%, -50%);"></div>`
       : '';
@@ -163,7 +163,7 @@ export default function OkutamaMap2D({
             color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.3);
             position:relative; z-index:1;
           ">
-            <span style="font-size:${isSelected ? '16px' : '14px'}; line-height:1;">${style.icon}</span>
+            <i class="ph-fill ph-${style.icon}" style="font-size:20px; color:#fff; line-height:1;"></i>
           </div>
         </div>
       `,

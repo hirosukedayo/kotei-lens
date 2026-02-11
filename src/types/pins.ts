@@ -33,42 +33,42 @@ export const pinTypeStyles: Record<
 > = {
   historical: {
     color: '#8B4513',
-    icon: '🏛️',
+    icon: 'church',
     label: '歴史',
   },
   landmark: {
     color: '#2E8B57',
-    icon: '🏢',
+    icon: 'buildings',
     label: 'ランドマーク',
   },
   nature: {
     color: '#228B22',
-    icon: '🌲',
+    icon: 'tree',
     label: '自然',
   },
   cultural: {
     color: '#8A2BE2',
-    icon: '🎭',
+    icon: 'masks-theater',
     label: '文化',
   },
   viewpoint: {
     color: '#FF6347',
-    icon: '👁️',
+    icon: 'binoculars',
     label: '展望',
   },
   restaurant: {
     color: '#FF6B35',
-    icon: '🍜',
+    icon: 'bowl-food',
     label: '飲食店',
   },
   interview: {
     color: '#4A90E2',
-    icon: '🎙️',
+    icon: 'microphone',
     label: 'インタビュー',
   },
   debug: {
     color: '#000',
-    icon: '👨‍💻',
+    icon: 'bug',
     label: 'debug',
   },
 };
