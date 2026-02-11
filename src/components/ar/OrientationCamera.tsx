@@ -64,8 +64,7 @@ export default function OrientationCamera({
     // これにより、ジャイベースの安定した alpha 値を利用しつつ、正しい方位を向くことができる。
 
     // 補正値 (baseHeadingOffset + manualHeadingOffset) を適用
-    // NOTE: コンパス方位(時計回り)をThree.jsの回転(反時計回り)に合わせるため、符号を反転させる
-    const alphaRad = THREE.MathUtils.degToRad(alpha + baseHeadingOffset + manualHeadingOffset) * -1;
+    const alphaRad = THREE.MathUtils.degToRad(alpha + baseHeadingOffset + manualHeadingOffset);
     const betaRad = THREE.MathUtils.degToRad(beta);
     const gammaRad = THREE.MathUtils.degToRad(gamma);
     const orientRad = screenOrientation.current;
