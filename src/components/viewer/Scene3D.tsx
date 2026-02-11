@@ -37,6 +37,7 @@ import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
 import CompassCalibration from '../ui/CompassCalibration';
+import DirectionGuide from './DirectionGuide';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -457,6 +458,9 @@ export default function Scene3D({
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
           <PinMarkers3D selectedPin={selectedPin} />
+
+          {/* 方位デバッグガイド */}
+          {showDebug && <DirectionGuide />}
 
           {/* 画角(FOV)を動的に更新するコンポーネント */}
           <FovAdjuster fov={fov} />
