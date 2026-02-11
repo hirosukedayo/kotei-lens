@@ -78,6 +78,21 @@ button:focus-visible {
   }
 }
 
+/* Leaflet attribution: 目立たなくする */
+.leaflet-control-attribution {
+  background: transparent !important;
+  font-size: 8px !important;
+  color: rgba(150, 150, 150, 0.4) !important;
+}
+.leaflet-control-attribution a {
+  color: rgba(150, 150, 150, 0.4) !important;
+}
+
+/* ベースタイル: 水域→白、地形→グレーに反転 */
+.base-tiles {
+  filter: brightness(0.6) contrast(3) invert(1) brightness(3.8) sepia(1.0);
+}
+
 @media (max-width: 768px) {
   #root {
     padding: 1rem;

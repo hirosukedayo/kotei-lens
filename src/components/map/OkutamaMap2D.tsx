@@ -390,11 +390,12 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
-        {/* ベース: OSM */}
+        {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickLogger />
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
+          className="base-tiles"
+          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
         <TileLayer
@@ -529,7 +530,7 @@ export default function OkutamaMap2D({
 
       </div>
 
-      {/* 画面中央：十字マーク */}
+      {/* 画面中央：中抜き十字マーク */}
       <div
         style={{
           position: 'absolute',
@@ -542,32 +543,14 @@ export default function OkutamaMap2D({
           pointerEvents: 'none',
         }}
       >
-        {/* 縦線 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '2px',
-            height: '30px',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
-          }}
-        />
-        {/* 横線 */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '30px',
-            height: '2px',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)',
-          }}
-        />
+        {/* 上 */}
+        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 下 */}
+        <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 左 */}
+        <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        {/* 右 */}
+        <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
       </div>
 
       {/* 左下：ピン一覧（アイコン） */}
