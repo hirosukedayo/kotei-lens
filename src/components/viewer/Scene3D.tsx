@@ -20,7 +20,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye, FaSlidersH } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -95,6 +95,7 @@ export default function Scene3D({
 
   const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible] = useState(false); // デフォルトで非表示
+  const [showCameraControls, setShowCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
 
@@ -955,6 +956,116 @@ export default function Scene3D({
           gap: '12px',
         }}
       >
+        {/* カメラ調整パネル（ポップアップ） */}
+        {showCameraControls && (
+          <div
+            style={{
+              background: 'rgba(0,0,0,0.75)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '16px',
+              padding: '16px',
+              width: '220px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}
+          >
+            {/* 画角(FOV) */}
+            <div>
+              <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FaEye size={12} /> 画角: {fov}°
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFov(DEFAULT_FOV)}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  リセット
+                </button>
+              </div>
+              <input
+                type="range"
+                min="30"
+                max="120"
+                value={fov}
+                onChange={(e) => setFov(Number(e.target.value))}
+                style={{ width: '100%', height: '4px', accentColor: '#60a5fa' }}
+              />
+            </div>
+
+            {/* カメラ高さ */}
+            <div>
+              <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FaEye size={12} style={{ transform: 'rotate(90deg)' }} /> 高さ: {cameraHeightOffset > 0 ? `+${cameraHeightOffset}` : cameraHeightOffset}m
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCameraHeightOffset(0)}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  リセット
+                </button>
+              </div>
+              <input
+                type="range"
+                min="-5"
+                max="20"
+                step="0.5"
+                value={cameraHeightOffset}
+                onChange={(e) => setCameraHeightOffset(Number(e.target.value))}
+                style={{ width: '100%', height: '4px', accentColor: '#48bb78' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* カメラ調整ボタン */}
+        <button
+          type="button"
+          onClick={() => setShowCameraControls(!showCameraControls)}
+          style={{
+            background: showCameraControls ? 'rgba(96,165,250,0.8)' : 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease',
+            minWidth: '60px',
+            gap: '4px',
+          }}
+          title="カメラ調整"
+        >
+          <FaSlidersH size={20} />
+          <span style={{ fontSize: '10px', fontWeight: 'bold' }}>カメラ</span>
+        </button>
+
         {/* キャリブレーション再実行ボタン */}
         {isMobile && permissionGranted && (
           <button
