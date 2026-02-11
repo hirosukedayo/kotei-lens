@@ -32,37 +32,37 @@ export const pinTypeStyles: Record<
   }
 > = {
   historical: {
-    color: '#8B4513',
+    color: '#661A71',
     icon: 'church',
     label: '歴史',
   },
   landmark: {
-    color: '#2E8B57',
+    color: '#FFB0DD',
     icon: 'buildings',
     label: 'ランドマーク',
   },
   nature: {
-    color: '#228B22',
+    color: '#FFB0DD',
     icon: 'tree',
     label: '自然',
   },
   cultural: {
-    color: '#8A2BE2',
+    color: '#661A71',
     icon: 'masks-theater',
     label: '文化',
   },
   viewpoint: {
-    color: '#FF6347',
+    color: '#FFB0DD',
     icon: 'binoculars',
     label: '展望',
   },
   restaurant: {
-    color: '#FF6B35',
+    color: '#661A71',
     icon: 'bowl-food',
     label: '飲食店',
   },
   interview: {
-    color: '#4A90E2',
+    color: '#D55DF4',
     icon: 'microphone',
     label: 'インタビュー',
   },
