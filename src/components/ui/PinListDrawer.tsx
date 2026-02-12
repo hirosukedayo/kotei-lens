@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Drawer } from 'vaul';
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
@@ -24,17 +24,17 @@ export default function PinListDrawer({
   onSheetModeChange,
 }: PinListDrawerProps) {
   const [sheetMode, _setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
-  const setSheetMode = (mode: 'pin-list' | 'pin-detail') => {
+  const setSheetMode = useCallback((mode: 'pin-list' | 'pin-detail') => {
     _setSheetMode(mode);
     onSheetModeChange?.(mode);
-  };
+  }, [onSheetModeChange]);
 
   // 選択されたピンが変更されたら詳細モードに切り替える
   React.useEffect(() => {
     if (selectedPin) {
       setSheetMode('pin-detail');
     }
-  }, [selectedPin]);
+  }, [selectedPin, setSheetMode]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
