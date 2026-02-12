@@ -502,6 +502,7 @@ export default function OkutamaMap2D({
               key={pin.id}
               position={pin.coordinates}
               icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
+              zIndexOffset={isSelected ? 1000 : 0}
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e.originalEvent);
