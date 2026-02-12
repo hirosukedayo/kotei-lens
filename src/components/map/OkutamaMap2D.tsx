@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLocationArrow } from 'react-icons/fa';
+import { FaMapSigns, FaLocationArrow, FaCompass } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
@@ -18,7 +18,7 @@ import { preloadLakeModel } from '../3d/LakeModel';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
 import type { PinData } from '../../types/pins';
-import type { GPSPosition, DeviceOrientation } from '../../types/sensors';
+import type { GPSPosition } from '../../types/sensors';
 import { okutamaPins } from '../../data/okutama-pins';
 import { debugPins } from '../../data/debug-pins';
 import { pinTypeStyles } from '../../types/pins';
@@ -38,18 +38,19 @@ type OkutamaMap2DProps = {
   onDeselectPin?: () => void;
 };
 
-// 現在地マーカーコンポーネント
+// 現在地マーカーコンポーネント（Google Maps風: 中心にドット + 方位方向にグラデーション扇形）
 const CurrentLocationMarker = ({
   gps,
-  orientation,
+  compassHeading,
+  hasHeading,
 }: {
   gps: GPSPosition;
-  orientation: DeviceOrientation | null;
+  compassHeading: number | null;
+  hasHeading: boolean;
 }) => {
   const icon = useMemo(() => {
     const gpsSpeed = gps.speed ?? 0;
     const gpsHeading = gps.heading;
-    const compassHeading = orientation?.webkitCompassHeading ?? orientation?.alpha;
 
     // 1m/s (時速3.6km) 以上で移動中はGPSの進行方向を優先
     const isMoving = gpsSpeed > 1.0;
@@ -57,35 +58,67 @@ const CurrentLocationMarker = ({
       ? gpsHeading
       : (compassHeading ?? 0);
 
+    // 視野角(度) と SVG上の半径
+    const fovDeg = 70;
+    const r = 40; // 扇形の半径
+    const cx = 50;
+    const cy = 50;
+    const halfFov = fovDeg / 2;
+
+    // 扇形のパス（12時方向=上を0度として左右に広がる）
+    const startAngle = -90 - halfFov;
+    const endAngle = -90 + halfFov;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(toRad(startAngle));
+    const y1 = cy + r * Math.sin(toRad(startAngle));
+    const x2 = cx + r * Math.cos(toRad(endAngle));
+    const y2 = cy + r * Math.sin(toRad(endAngle));
+    const largeArc = fovDeg > 180 ? 1 : 0;
+
+    const conePath = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${largeArc},1 ${x2},${y2} Z`;
+
+    // 方位が有効な場合のみ扇形を描画
+    const showCone = hasHeading && compassHeading !== null;
+
+    const coneHtml = showCone
+      ? `<path d="${conePath}" fill="url(#headingCone)" transform="rotate(${displayHeading}, ${cx}, ${cy})" />`
+      : '';
+
+    // ユニークIDを生成（複数マーカー対策）
+    const gradId = 'headingCone';
+
     return L.divIcon({
       html: `
-        <div style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
           <svg
-            viewBox="0 0 24 24"
-            width="36"
-            height="36"
+            viewBox="0 0 100 100"
+            width="60"
+            height="60"
             style="
-              transform: rotate(${displayHeading}deg);
-              transition: transform 0.2s ease-out;
-              filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+              overflow: visible;
+              filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
             "
           >
-            <!-- ナビゲーション矢印 (FaLocationArrow風) -->
-            <path
-              d="M12 2L4.5 20.29C4.24 20.89 4.96 21.46 5.54 21.12L12 17.25L18.46 21.12C19.04 21.46 19.76 20.89 19.5 20.29L12 2Z"
-              fill="#3b82f6"
-              stroke="white"
-              stroke-width="2"
-              stroke-linejoin="round"
-            />
+            <defs>
+              <radialGradient id="${gradId}" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" stop-color="#4285F4" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#4285F4" stop-opacity="0.03" />
+              </radialGradient>
+            </defs>
+            <!-- 視野の扇形（方位連動） -->
+            ${coneHtml}
+            <!-- 外側の光彩 -->
+            <circle cx="${cx}" cy="${cy}" r="10" fill="rgba(66,133,244,0.15)" />
+            <!-- 中心のドット -->
+            <circle cx="${cx}" cy="${cy}" r="7" fill="#4285F4" stroke="white" stroke-width="2.5" />
           </svg>
         </div>
       `,
       className: 'gps-marker',
-      iconSize: [48, 48],
-      iconAnchor: [24, 24],
+      iconSize: [60, 60],
+      iconAnchor: [30, 30],
     });
-  }, [gps, orientation]);
+  }, [gps, compassHeading, hasHeading]);
 
   return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
 };
@@ -152,6 +185,8 @@ export default function OkutamaMap2D({
   const [showOutsideToast, setShowOutsideToast] = useState(false);
   // 3Dモード前のキャリブレーション中かどうか
   const [isCalibrating, setIsCalibrating] = useState(false);
+  // 方位許可の状態管理
+  const [headingPermission, setHeadingPermission] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
 
 
   // 起動時の自動センタリング・トースト制御が完了したかどうか
@@ -327,6 +362,36 @@ export default function OkutamaMap2D({
     startSensors();
   }, [startSensors]);
 
+  // 方位許可状態の初期チェック
+  useEffect(() => {
+    const state = sensorManager.orientationService.getPermissionState();
+    if (state === 'granted') {
+      setHeadingPermission('granted');
+    } else if (state === 'denied') {
+      setHeadingPermission('denied');
+    } else {
+      // iOSではrequestPermissionが必要なので、利用可能かどうかも確認
+      const isIOS =
+        typeof window.DeviceOrientationEvent !== 'undefined' &&
+        typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
+      setHeadingPermission(isIOS ? 'prompt' : 'granted');
+    }
+  }, [sensorManager.orientationService]);
+
+  // 方位許可をリクエスト（ユーザーインタラクション内で呼ぶ）
+  const requestHeadingPermission = useCallback(async () => {
+    try {
+      const permission = await sensorManager.orientationService.requestPermission();
+      setHeadingPermission(permission);
+      if (permission === 'granted') {
+        // センサーを再起動して方位トラッキングを開始
+        await startSensors(true, true);
+      }
+    } catch {
+      setHeadingPermission('denied');
+    }
+  }, [sensorManager.orientationService, startSensors]);
+
   // GPS位置が更新されたときにエリア判定と中心位置を更新
   useEffect(() => {
     const gpsPosition = sensorData.gps;
@@ -482,7 +547,7 @@ export default function OkutamaMap2D({
         {/* GPS位置マーカー（エリア内の場合、またはdevモードの場合に表示） */}
         {sensorData.gps &&
           (sensorManager.locationService.isInOkutamaArea(sensorData.gps) || isDevMode) && (
-            <CurrentLocationMarker gps={sensorData.gps} orientation={sensorData.orientation} />
+            <CurrentLocationMarker gps={sensorData.gps} compassHeading={sensorData.compassHeading} hasHeading={headingPermission === 'granted'} />
           )}
 
         {/* ピンマーカー */}
@@ -542,6 +607,44 @@ export default function OkutamaMap2D({
           <PiCubeFocusFill size={64} />
         </button>
       </div>
+
+      {/* 方位許可バナー（未許可の場合に表示） */}
+      {headingPermission === 'prompt' && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
+          }}
+        >
+          <button
+            type="button"
+            onClick={requestHeadingPermission}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: 9999,
+              background: 'rgba(255,255,255,0.95)',
+              color: '#1a202c',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600,
+              fontFamily: 'sans-serif',
+              whiteSpace: 'nowrap',
+            }}
+            aria-label="方位を有効にする"
+          >
+            <FaCompass size={16} color="#3b82f6" />
+            方位を有効にする
+          </button>
+        </div>
+      )}
 
 
 
