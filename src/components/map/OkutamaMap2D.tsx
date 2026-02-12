@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap, ZoomControl } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaLocationArrow } from 'react-icons/fa';
@@ -445,7 +445,7 @@ export default function OkutamaMap2D({
         // もう少し引きで見られるように、最小ズームを 13 まで許可
         minZoom={13}
         maxZoom={20}
-        zoomControl={true}
+        zoomControl={false}
         scrollWheelZoom={true}
         doubleClickZoom={true}
         touchZoom={true}
@@ -454,6 +454,7 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
+        <ZoomControl position="bottomright" />
         {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
@@ -527,7 +528,8 @@ export default function OkutamaMap2D({
         style={{
           position: 'absolute',
           top: '16px',
-          right: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 10000,
         }}
       >
@@ -535,8 +537,7 @@ export default function OkutamaMap2D({
           type="button"
           onClick={handleRequest3DWithPermission}
           style={{
-            width: 72,
-            height: 72,
+            padding: '14px 32px',
             borderRadius: 9999,
             background: '#ffffff',
             color: '#111827',
@@ -544,12 +545,16 @@ export default function OkutamaMap2D({
             boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: '8px',
             cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}
           aria-label="3Dビューへ"
         >
-          <PiCubeFocusFill size={64} />
+          <PiCubeFocusFill size={26} />
+          3Dモード
         </button>
       </div>
 
@@ -628,7 +633,7 @@ export default function OkutamaMap2D({
         style={{
           position: 'absolute',
           left: '16px',
-          bottom: '80px',
+          bottom: '24px',
           zIndex: 10000,
         }}
       >
