@@ -133,6 +133,8 @@ export default function OkutamaMap2D({
   onDeselectPin: propOnDeselectPin,
 }: OkutamaMap2DProps) {
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const pinClickGuardRef = useRef(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
@@ -189,24 +191,31 @@ export default function OkutamaMap2D({
   const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
-    const color = isSelected ? '#dc2626' : baseColor; // 選択時は赤系で強調
-    const size = isSelected ? 32 : 28;
-    const border = isSelected ? '3px solid #fecaca' : '3px solid white';
-    const ringSize = 48; // 円環のサイズ
-    const ring = isSelected
-      ? `<div style="position:absolute; width:${ringSize}px; height:${ringSize}px; border-radius:50%; border:2px solid rgba(220,38,38,0.35); top:50%; left:50%; transform:translate(-50%, -50%);"></div>`
+    const color = isSelected ? '#ff4900' : baseColor; // 選択時の強調色
+    const size = isSelected ? 40 : 36;
+    const border = isSelected ? '3px solid #ffb899' : '3px solid white';
+    const ringSize = 56; // 円環のサイズ
+    const ripple = isSelected
+      ? `<style>
+          @keyframes pin-ripple {
+            0% { width:${size}px; height:${size}px; opacity:0.7; }
+            100% { width:${ringSize * 1.6}px; height:${ringSize * 1.6}px; opacity:0; }
+          }
+        </style>
+        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out infinite;"></div>
+        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out 0.5s infinite;"></div>`
       : '';
     return L.divIcon({
       html: `
-        <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center;">
-          ${ring}
+        <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center; overflow:visible;">
+          ${ripple}
           <div style="
             width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
             border-radius:50%; display:flex; align-items:center; justify-content:center;
             color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.3);
             position:relative; z-index:1;
           ">
-            <span style="font-size:${isSelected ? '16px' : '14px'}; line-height:1;">${style.icon}</span>
+            <i class="ph-fill ph-${style.icon}" style="font-size:20px; color:#fff; line-height:1;"></i>
           </div>
         </div>
       `,
@@ -223,16 +232,9 @@ export default function OkutamaMap2D({
   const handleSelectPin = (pin: PinData) => {
     setSelectedPin(pin);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
-    if (Array.isArray(coords) && coords.length === 2 && mapRef.current) {
-      const targetZoom = 16;
-      // ピクセル座標に変換
-      const point = mapRef.current.project(coords as L.LatLngExpression, targetZoom);
-      // 画面の高さの 1/4 だけ下にずらした点を中心にする（ピンを画面上部に表示するため）
-      // Y座標を加算すると、中心が下に移動し、相対的にピンは上に移動する
-      const targetPoint = L.point(point.x, point.y + (window.innerHeight * 0.25));
-      const targetLatLng = mapRef.current.unproject(targetPoint, targetZoom);
-
-      mapRef.current.flyTo(targetLatLng, targetZoom, { duration: 0.6 });
+    if (Array.isArray(coords) && coords.length === 2) {
+      const currentZoom = mapRef.current?.getZoom() ?? 14;
+      mapRef.current?.flyTo(coords as any, currentZoom, { duration: 0.6 });
     }
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -415,7 +417,9 @@ export default function OkutamaMap2D({
       onDeselectPin();
       setSheetOpen(false);
     } else {
-      // 新しいピンを選択
+      // 新しいピンを選択 — vaulの外クリック閉じを一時的にブロック
+      pinClickGuardRef.current = true;
+      setTimeout(() => { pinClickGuardRef.current = false; }, 300);
       handleSelectPin(pin);
       setSheetOpen(true);
     }
@@ -584,7 +588,7 @@ export default function OkutamaMap2D({
 
       </div>
 
-      {/* 画面中央：中抜き十字マーク */}
+      {/* 画面中央：中抜き十字マーク（記事表示中はフェードアウト） */}
       <div
         style={{
           position: 'absolute',
@@ -595,6 +599,8 @@ export default function OkutamaMap2D({
           height: '30px',
           zIndex: 10000,
           pointerEvents: 'none',
+          opacity: (sheetOpen && sheetMode === 'pin-detail') ? 0 : 1,
+          transition: 'opacity 0.5s ease',
         }}
       >
         {/* 上 */}
@@ -642,6 +648,8 @@ export default function OkutamaMap2D({
       <PinListDrawer
         open={sheetOpen}
         onOpenChange={(open) => {
+          // ピン選択直後のvaul外クリック閉じを無視
+          if (!open && pinClickGuardRef.current) return;
           setSheetOpen(open);
           if (!open) {
             mapRef.current?.closePopup();
@@ -650,6 +658,7 @@ export default function OkutamaMap2D({
         selectedPin={selectedPin}
         onSelectPin={handleSelectPin}
         onDeselectPin={onDeselectPin}
+        onSheetModeChange={setSheetMode}
       />
 
       {/* センサー権限要求モーダル (統一UI) */}

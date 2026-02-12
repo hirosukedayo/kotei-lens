@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Drawer } from 'vaul';
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
@@ -12,6 +12,7 @@ interface PinListDrawerProps {
   selectedPin: PinData | null;
   onSelectPin: (pin: PinData) => void;
   onDeselectPin: () => void;
+  onSheetModeChange?: (mode: 'pin-list' | 'pin-detail') => void;
 }
 
 export default function PinListDrawer({
@@ -20,15 +21,20 @@ export default function PinListDrawer({
   selectedPin,
   onSelectPin,
   onDeselectPin,
+  onSheetModeChange,
 }: PinListDrawerProps) {
-  const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const [sheetMode, _setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const setSheetMode = useCallback((mode: 'pin-list' | 'pin-detail') => {
+    _setSheetMode(mode);
+    onSheetModeChange?.(mode);
+  }, [onSheetModeChange]);
 
   // 選択されたピンが変更されたら詳細モードに切り替える
   React.useEffect(() => {
     if (selectedPin) {
       setSheetMode('pin-detail');
     }
-  }, [selectedPin]);
+  }, [selectedPin, setSheetMode]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
@@ -66,12 +72,9 @@ export default function PinListDrawer({
 
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
-    if (!isOpen) {
-      // ドロワーが閉じるアニメーション（約300ms）を待ってから状態をリセットする
-      setTimeout(() => {
-        setSheetMode('pin-list');
-        onDeselectPin();
-      }, 300);
+    if (!isOpen && !selectedPin) {
+      // ピン未選択状態でドロワーが閉じた場合のみリストに戻す
+      setSheetMode('pin-list');
     }
   };
 
@@ -163,8 +166,8 @@ export default function PinListDrawer({
                 >
                   ←
                 </button>
-                <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
-                <div style={{ flex: 1, textAlign: 'left' }}>
+                <i className={`ph-fill ph-${pinTypeStyles[selectedPin.type].icon}`} style={{ fontSize: '24px', color: '#9ca3af' }} />
+                <div style={{ flex: 1 }}>
                   <h3
                     style={{
                       margin: '0 0 4px 0',
@@ -345,18 +348,7 @@ export default function PinListDrawer({
                             cursor: 'pointer',
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: 22,
-                              color: isSelected ? style.color : '#9ca3af',
-                              width: 28,
-                              display: 'flex',
-                              justifyContent: 'center',
-                              transition: 'color 0.2s ease'
-                            }}
-                          >
-                            {style.icon}
-                          </div>
+                          <i className={`ph-fill ph-${style.icon}`} style={{ fontSize: 20, color: '#9ca3af' }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
                               style={{

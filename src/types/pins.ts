@@ -32,34 +32,34 @@ export const pinTypeStyles: Record<
   }
 > = {
   historical: {
-    color: '#8B4513',
-    icon: '🏛️',
+    color: '#661A71',
+    icon: 'church',
     label: '歴史',
   },
   landmark: {
-    color: '#2E8B57',
-    icon: '🏢',
+    color: '#FFB0DD',
+    icon: 'buildings',
     label: 'ランドマーク',
   },
   nature: {
-    color: '#228B22',
-    icon: '🌲',
+    color: '#FFB0DD',
+    icon: 'tree',
     label: '自然',
   },
   cultural: {
-    color: '#8A2BE2',
-    icon: '🎭',
+    color: '#661A71',
+    icon: 'masks-theater',
     label: '文化',
   },
   viewpoint: {
-    color: '#FF6347',
-    icon: '👁️',
+    color: '#FFB0DD',
+    icon: 'binoculars',
     label: '展望',
   },
 
   interview: {
-    color: '#4A90E2',
-    icon: '🎙️',
+    color: '#D55DF4',
+    icon: 'microphone',
     label: 'インタビュー',
   },
   folktale: {
@@ -69,7 +69,7 @@ export const pinTypeStyles: Record<
   },
   debug: {
     color: '#000',
-    icon: '👨‍💻',
+    icon: 'bug',
     label: 'debug',
   },
 };
