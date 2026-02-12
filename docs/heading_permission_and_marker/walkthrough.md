@@ -12,10 +12,12 @@ render_diffs(file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/c
 - ユーザータップで許可リクエスト → 許可取得後にセンサー再起動
 
 #### 2. Google Maps風マーカー
-- 中心に青い丸 (`#4285F4`) + 白い縁取り
-- 方位許可あり: 視野方向にグラデーション扇形（70度）が広がる
+- 中心に青い丸 (`#4285F4`) + 白い縁取り + **パルスアニメーション（呼吸）**
+- 方位許可あり: 視野方向にグラデーション扇形（**90度**）が広がる
 - 方位許可なし: 青い丸のみ表示
 - **[UPDATE]** マーカーサイズを 60px → 120px（約2倍）に拡大
+- **[UPDATE]** z-indexOffset=1000 を設定し、他レイヤーより前面に表示
+
 
 ### [CompassCalibration.tsx](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/ui/CompassCalibration.tsx) & [Scene3D.tsx](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/viewer/Scene3D.tsx)
 

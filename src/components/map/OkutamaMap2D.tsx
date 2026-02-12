@@ -59,7 +59,8 @@ const CurrentLocationMarker = ({
       : (compassHeading ?? 0);
 
     // 視野角(度) と SVG上の半径
-    const fovDeg = 70;
+    // 視野角(度) と SVG上の半径
+    const fovDeg = 90;
     const r = 40; // 扇形の半径
     const cx = 50;
     const cy = 50;
@@ -101,16 +102,24 @@ const CurrentLocationMarker = ({
           >
             <defs>
               <radialGradient id="${gradId}" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="0%" stop-color="#4285F4" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#4285F4" stop-opacity="0.03" />
+                <stop offset="0%" stop-color="#4285F4" stop-opacity="0.45" />
+                <stop offset="80%" stop-color="#4285F4" stop-opacity="0.1" />
+                <stop offset="100%" stop-color="#4285F4" stop-opacity="0" />
               </radialGradient>
             </defs>
             <!-- 視野の扇形（方位連動） -->
             ${coneHtml}
-            <!-- 外側の光彩 -->
-            <circle cx="${cx}" cy="${cy}" r="10" fill="rgba(66,133,244,0.15)" />
+            <!-- パルスアニメーション用のスタイル定義 -->
+            <style>
+              @keyframes gps-pulse {
+                0% { r: 10px; opacity: 0.5; }
+                100% { r: 22px; opacity: 0; }
+              }
+            </style>
+            <!-- 外側の光彩（パルスアニメーション） -->
+            <circle cx="${cx}" cy="${cy}" r="10" fill="#4285F4" style="animation: gps-pulse 2.5s infinite ease-out;" />
             <!-- 中心のドット -->
-            <circle cx="${cx}" cy="${cy}" r="7" fill="#4285F4" stroke="white" stroke-width="2.5" />
+            <circle cx="${cx}" cy="${cy}" r="8" fill="#4285F4" stroke="white" stroke-width="3" />
           </svg>
         </div>
       `,
@@ -120,7 +129,7 @@ const CurrentLocationMarker = ({
     });
   }, [gps, compassHeading, hasHeading]);
 
-  return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
+  return <Marker position={[gps.latitude, gps.longitude]} icon={icon} zIndexOffset={1000} />;
 };
 
 // 地図クリックイベントを捕捉するコンポーネント

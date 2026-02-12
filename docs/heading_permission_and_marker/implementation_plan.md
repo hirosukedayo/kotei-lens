@@ -57,6 +57,23 @@ iOSでは`DeviceOrientationEvent.requestPermission()`がユーザーインタラ
 **propsの変更:**
 - `hasHeading: boolean` を追加し、方位許可状態に応じて円弧の表示/非表示を切り替え
 
+
+### コンポーネント3: 2Dマーカーの改善（形状・重なり・アニメーション）
+
+#### [MODIFY] [OkutamaMap2D.tsx](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/map/OkutamaMap2D.tsx)
+
+**1. 扇形の形状改善（Google Maps風）**
+- 現在の`path`による扇形から、よりソフトなグラデーションを持つ形状に変更
+- 視野角を広げる（約90度）
+- `radialGradient`のストップ位置を調整し、中心から外側へ自然にフェードアウトさせる
+
+**2. 表示順序（z-index）の修正**
+- マーカが湖（ポリゴンレイヤー等）の下に隠れないよう、Leafletの`Marker`コンポーネントに `zIndexOffset={1000}` を追加
+
+**3. 呼吸アニメーション（パルス）の追加**
+- ユーザー位置を示す青いドットの外側に、拡縮・フェードアウトする波紋（パルス）アニメーションを追加
+- SVG内に`<style>`タグでキーフレームアニメーション（`@keyframes pulse`）を定義し、外側の円（`<circle ... />`）に適用
+
 ---
 
 ## 検証計画
