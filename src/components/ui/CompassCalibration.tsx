@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCheck, FaHandPointer, FaUndo, FaArrowLeft } from 'react-icons/fa';
+import { FaCheck, FaHandPointer, FaUndo } from 'react-icons/fa';
 import { IoCloseOutline } from 'react-icons/io5';
 import type { DeviceOrientation } from '../../types/sensors';
 
@@ -140,28 +140,7 @@ export default function CompassCalibration({
                         justifyContent: 'flex-end',
                     }}
                 >
-                    {/* Close / Return Button - Top Right of screen (but outside panel) */}
-                    <div style={{ position: 'fixed', top: '16px', right: '16px', pointerEvents: 'auto', zIndex: 30001 }}>
-                        <button
-                            type="button"
-                            onClick={() => startInManualMode ? onClose?.() : setStep('horizontal')}
-                            style={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: 9999,
-                                background: 'rgba(0,0,0,0.6)',
-                                color: 'white',
-                                border: 'none',
-                                backdropFilter: 'blur(4px)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {startInManualMode ? <IoCloseOutline size={28} /> : <FaArrowLeft size={22} />}
-                        </button>
-                    </div>
+
 
                     <motion.div
                         initial={{ y: 200 }}

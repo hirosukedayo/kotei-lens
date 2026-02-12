@@ -15,6 +15,20 @@ render_diffs(file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/c
 - 中心に青い丸 (`#4285F4`) + 白い縁取り
 - 方位許可あり: 視野方向にグラデーション扇形（70度）が広がる
 - 方位許可なし: 青い丸のみ表示
+- **[UPDATE]** マーカーサイズを 60px → 120px（約2倍）に拡大
+
+### [CompassCalibration.tsx](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/ui/CompassCalibration.tsx) & [Scene3D.tsx](file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/viewer/Scene3D.tsx)
+
+render_diffs(file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/ui/CompassCalibration.tsx)
+render_diffs(file:///Users/hirosuke/ghq/github.com/hirosukedayo/kotei-lens/src/components/viewer/Scene3D.tsx)
+
+#### 3Dキャリブレーション改善
+- `step='manual'`から直接開始できる `startInManualMode` オプションを追加
+- スライダー操作時に `onOffsetChange` でリアルタイムに通知
+- **Scene3D再調整時:**
+  - 手動モードで直接開始（水平調整スキップ）
+  - スライダーを動かすとバックグラウンドの3Dカメラがリアルタイムで回転
+
 
 ## 検証結果
 
