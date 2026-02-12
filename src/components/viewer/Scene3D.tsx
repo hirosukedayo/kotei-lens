@@ -92,6 +92,8 @@ export default function Scene3D({
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
   // 初期位置決定後かつ権限許可後にキャリブレーションを行う
   const [isCalibrated, setIsCalibrated] = useState(false);
+  // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
+  const [isRecalibrating, setIsRecalibrating] = useState(false);
 
   const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible] = useState(false); // デフォルトで非表示
@@ -332,14 +334,18 @@ export default function Scene3D({
           onCalibrationComplete={(offset) => {
             setManualHeadingOffset(offset);
             setIsCalibrated(true);
+            setIsRecalibrating(false);
           }}
           // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
-          // または、再調整ボタンから呼ばれた場合の分岐が必要だが、
-          // シンプルにウィンドウを閉じる＝キャリブレーション完了（現状維持）とみなす
-          onClose={() => setIsCalibrated(true)}
+          onClose={() => {
+            setIsCalibrated(true);
+            setIsRecalibrating(false);
+          }}
           initialOffset={manualHeadingOffset}
           orientation={sensorData.orientation}
           compassHeading={sensorData.compassHeading}
+          startInManualMode={isRecalibrating}
+          onOffsetChange={isRecalibrating ? (offset) => setManualHeadingOffset(offset) : undefined}
         />
       )}
 
@@ -1115,7 +1121,10 @@ export default function Scene3D({
         {isMobile && permissionGranted && (
           <button
             type="button"
-            onClick={() => setIsCalibrated(false)}
+            onClick={() => {
+              setIsRecalibrating(true);
+              setIsCalibrated(false);
+            }}
             style={{
               background: 'rgba(0,0,0,0.6)',
               backdropFilter: 'blur(10px)',

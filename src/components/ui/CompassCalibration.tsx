@@ -11,6 +11,10 @@ interface CompassCalibrationProps {
     orientation: DeviceOrientation | null;
     compassHeading: number | null;
     allowManualAdjustment?: boolean;
+    /** trueの場合、自動調整を飛ばして手動モードから開始する */
+    startInManualMode?: boolean;
+    /** スライダー操作時にリアルタイムでオフセットを通知するコールバック */
+    onOffsetChange?: (offset: number) => void;
 }
 
 type CalibrationStep = 'intro' | 'horizontal' | 'manual' | 'complete';
@@ -22,9 +26,11 @@ export default function CompassCalibration({
     orientation,
     compassHeading,
     allowManualAdjustment = true,
+    startInManualMode = false,
+    onOffsetChange,
 }: CompassCalibrationProps) {
     // const { sensorData } = useSensors(); // 親からデータを受け取るため削除
-    const [step, setStep] = useState<CalibrationStep>('horizontal');
+    const [step, setStep] = useState<CalibrationStep>(startInManualMode ? 'manual' : 'horizontal');
     const [manualOffset, setManualOffset] = useState(initialOffset);
     const [isHorizontal, setIsHorizontal] = useState(false);
     const [stabilityProgress, setStabilityProgress] = useState(0);
@@ -138,7 +144,7 @@ export default function CompassCalibration({
                     <div style={{ position: 'fixed', top: '16px', right: '16px', pointerEvents: 'auto', zIndex: 30001 }}>
                         <button
                             type="button"
-                            onClick={() => setStep('horizontal')}
+                            onClick={() => startInManualMode ? onClose?.() : setStep('horizontal')}
                             style={{
                                 width: 56,
                                 height: 56,
@@ -153,7 +159,7 @@ export default function CompassCalibration({
                                 cursor: 'pointer',
                             }}
                         >
-                            <FaArrowLeft size={22} />
+                            {startInManualMode ? <IoCloseOutline size={28} /> : <FaArrowLeft size={22} />}
                         </button>
                     </div>
 
@@ -196,7 +202,11 @@ export default function CompassCalibration({
                                 min="-180"
                                 max="180"
                                 value={manualOffset}
-                                onChange={(e) => setManualOffset(Number(e.target.value))}
+                                onChange={(e) => {
+                                    const newOffset = Number(e.target.value);
+                                    setManualOffset(newOffset);
+                                    onOffsetChange?.(newOffset);
+                                }}
                                 style={{ width: '100%', height: '8px', accentColor: '#48bb78', cursor: 'pointer' }}
                             />
                         </div>
