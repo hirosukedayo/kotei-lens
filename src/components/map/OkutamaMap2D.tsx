@@ -89,11 +89,11 @@ const CurrentLocationMarker = ({
 
     return L.divIcon({
       html: `
-        <div style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center;">
           <svg
             viewBox="0 0 100 100"
-            width="60"
-            height="60"
+            width="120"
+            height="120"
             style="
               overflow: visible;
               filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
@@ -115,8 +115,8 @@ const CurrentLocationMarker = ({
         </div>
       `,
       className: 'gps-marker',
-      iconSize: [60, 60],
-      iconAnchor: [30, 30],
+      iconSize: [120, 120],
+      iconAnchor: [60, 60],
     });
   }, [gps, compassHeading, hasHeading]);
 
