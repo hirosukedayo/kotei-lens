@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap, ZoomControl } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaLocationArrow, FaCompass } from 'react-icons/fa';
@@ -264,12 +264,21 @@ export default function OkutamaMap2D({
     setSheetOpen(true);
   };
   // 一覧から選択 → 詳細 + 地図パン
+  // Drawerが画面下半分を占めるため、ピンを画面上部寄りに表示する
   const handleSelectPin = (pin: PinData) => {
     setSelectedPin(pin);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
-    if (Array.isArray(coords) && coords.length === 2) {
-      const currentZoom = mapRef.current?.getZoom() ?? 14;
-      mapRef.current?.flyTo(coords as any, currentZoom, { duration: 0.6 });
+    if (Array.isArray(coords) && coords.length === 2 && mapRef.current) {
+      const map = mapRef.current;
+      const currentZoom = map.getZoom() ?? 14;
+      // ピンの位置をピクセル座標に変換し、画面の下方向にオフセットして
+      // 実際のピンが画面上部 1/4 あたりに表示されるようにする
+      const targetPoint = map.project(coords as [number, number], currentZoom);
+      const mapHeight = map.getSize().y;
+      // Drawer が最大 50vh を占めるので、その1/4(画面高さの12.5%)分だけ上にずらす
+      targetPoint.y += mapHeight * 0.125;
+      const offsetLatLng = map.unproject(targetPoint, currentZoom);
+      map.flyTo(offsetLatLng, currentZoom, { duration: 0.6 });
     }
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -501,7 +510,7 @@ export default function OkutamaMap2D({
         // もう少し引きで見られるように、最小ズームを 13 まで許可
         minZoom={13}
         maxZoom={20}
-        zoomControl={true}
+        zoomControl={false}
         scrollWheelZoom={true}
         doubleClickZoom={true}
         touchZoom={true}
@@ -510,6 +519,7 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
+        <ZoomControl position="bottomright" />
         {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
@@ -558,6 +568,7 @@ export default function OkutamaMap2D({
               key={pin.id}
               position={pin.coordinates}
               icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
+              zIndexOffset={isSelected ? 1000 : 0}
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e.originalEvent);
@@ -582,7 +593,8 @@ export default function OkutamaMap2D({
         style={{
           position: 'absolute',
           top: '16px',
-          right: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 10000,
         }}
       >
@@ -590,8 +602,7 @@ export default function OkutamaMap2D({
           type="button"
           onClick={handleRequest3DWithPermission}
           style={{
-            width: 72,
-            height: 72,
+            padding: '14px 32px',
             borderRadius: 9999,
             background: '#ffffff',
             color: '#111827',
@@ -599,12 +610,16 @@ export default function OkutamaMap2D({
             boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: '8px',
             cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}
           aria-label="3Dビューへ"
         >
-          <PiCubeFocusFill size={64} />
+          <PiCubeFocusFill size={26} />
+          3Dモード
         </button>
       </div>
 
@@ -721,7 +736,7 @@ export default function OkutamaMap2D({
         style={{
           position: 'absolute',
           left: '16px',
-          bottom: '80px',
+          bottom: '24px',
           zIndex: 10000,
         }}
       >
