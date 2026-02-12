@@ -63,8 +63,8 @@ export const pinTypeStyles: Record<
     label: 'インタビュー',
   },
   folktale: {
-    color: '#D2691E',
-    icon: '📜',
+    color: '#FFB0DD',
+    icon: 'scroll',
     label: '民話・伝説',
   },
   debug: {
