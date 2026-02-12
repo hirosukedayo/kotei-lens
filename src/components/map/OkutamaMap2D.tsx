@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLocationArrow, FaCompass } from 'react-icons/fa';
+import { FaMapSigns, FaLocationArrow, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
@@ -519,7 +519,7 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
-        <ZoomControl position="bottomright" />
+
         {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
@@ -663,19 +663,65 @@ export default function OkutamaMap2D({
 
 
 
-      {/* 古地図透明度調整スライダー（右下、アイコンベース） & 現在地ボタン */}
+      {/* 右下：ズームコントロール & 現在地ボタン */}
       <div
         style={{
           position: 'absolute',
-          bottom: '80px',
+          bottom: '24px',
           right: '16px',
           zIndex: 10000,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',
-          gap: '16px', // ボタンとスライダーの間隔を広げる
+          gap: '16px',
         }}
       >
+        {/* ズームイン */}
+        <button
+          type="button"
+          onClick={() => mapRef.current?.zoomIn()}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: '24px',
+          }}
+          aria-label="ズームイン"
+        >
+          <FaPlus size={20} style={{ width: '20px', height: '20px' }} />
+        </button>
+
+        {/* ズームアウト */}
+        <button
+          type="button"
+          onClick={() => mapRef.current?.zoomOut()}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 9999,
+            background: '#ffffff',
+            color: '#111827',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: '24px',
+          }}
+          aria-label="ズームアウト"
+        >
+          <FaMinus size={20} style={{ width: '20px', height: '20px' }} />
+        </button>
+
         {/* 現在地へ戻るボタン */}
         {sensorData.gps && (
           <button
