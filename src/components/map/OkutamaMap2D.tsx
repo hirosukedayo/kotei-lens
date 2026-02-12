@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaMapSigns, FaLocationArrow } from 'react-icons/fa';
@@ -20,6 +20,7 @@ import 'leaflet/dist/leaflet.css';
 import type { PinData } from '../../types/pins';
 import type { GPSPosition, DeviceOrientation } from '../../types/sensors';
 import { okutamaPins } from '../../data/okutama-pins';
+import { debugPins } from '../../data/debug-pins';
 import { pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
 
@@ -89,6 +90,42 @@ const CurrentLocationMarker = ({
   return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
 };
 
+// 地図クリックイベントを捕捉するコンポーネント
+const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
+  const map = useMap();
+  const handlerRef = React.useRef(onClick);
+
+  React.useEffect(() => {
+    handlerRef.current = onClick;
+  }, [onClick]);
+
+  React.useEffect(() => {
+    // Leafletのネイティブイベントリスナーを使用
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      console.log(`[DEBUG] Map instance click: ${e.latlng}`);
+      if (handlerRef.current) {
+        handlerRef.current();
+      }
+    };
+
+    map.on('click', handleMapClick);
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [map]);
+
+  // グローバルクリック監視（デバッグ用）
+  React.useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      console.log('[DEBUG] Global click target:', e.target);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+  return null;
+};
+
 export default function OkutamaMap2D({
   onRequest3D,
   selectedPin: propSelectedPin,
@@ -102,7 +139,9 @@ export default function OkutamaMap2D({
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
   const setSelectedPin = propOnSelectPin ?? setLocalSelectedPin;
-  const onDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
+  // 選択解除ハンドラのメモ化（依存配列の警告回避とパフォーマンス最適化）
+  const defaultDeselect = React.useCallback(() => setLocalSelectedPin(null), []);
+  const onDeselectPin = propOnDeselectPin ?? defaultDeselect;
   const mapRef = useRef<LeafletMap | null>(null);
 
   // GPS位置取得とセンサー管理
@@ -132,15 +171,19 @@ export default function OkutamaMap2D({
     return null;
   };
 
-  // デバッグ用: クリックした座標をコンソールに表示
-  const MapClickLogger = () => {
-    useMapEvents({
-      click(e) {
-        console.log(`Clicked Coordinate: [${e.latlng.lat}, ${e.latlng.lng}]`);
-      },
-    });
-    return null;
-  };
+  // 地図クリック時のハンドリング（シートを閉じる）
+  // 地図クリック時のハンドリング（シートを閉じる）
+  const handleMapClick = React.useCallback(() => {
+    // 地図の背景をクリックしたときのみ実行
+    // マーカークリック時は stopPropagation しているのでここには来ないはずだが念のため
+    if (sheetOpen) {
+      setSheetOpen(false);
+      // ドロワーが閉じるアニメーション（約300ms）を待ってから選択解除する
+      setTimeout(() => {
+        onDeselectPin();
+      }, 300);
+    }
+  }, [sheetOpen, onDeselectPin]);
 
 
 
@@ -403,9 +446,9 @@ export default function OkutamaMap2D({
       >
         <MapRefBinder />
         {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
-        <MapClickLogger />
+        <MapClickHandler onClick={handleMapClick} />
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png"
+          url={`https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_STADIA_API_KEY}`}
           className="base-tiles"
           attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
@@ -443,7 +486,7 @@ export default function OkutamaMap2D({
           )}
 
         {/* ピンマーカー */}
-        {okutamaPins.map((pin) => {
+        {(isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins).map((pin) => {
           const isSelected = selectedPin?.id === pin.id;
           return (
             <Marker
@@ -451,7 +494,10 @@ export default function OkutamaMap2D({
               position={pin.coordinates}
               icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
               eventHandlers={{
-                click: () => handlePinClick(pin),
+                click: (e) => {
+                  L.DomEvent.stopPropagation(e.originalEvent);
+                  handlePinClick(pin);
+                },
               }}
             />
           );
@@ -558,13 +604,13 @@ export default function OkutamaMap2D({
         }}
       >
         {/* 上 */}
-        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)', }} />
         {/* 下 */}
-        <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px', height: '10px', backgroundColor: 'rgba(128,128,128,0.7)', }} />
         {/* 左 */}
-        <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)', }} />
         {/* 右 */}
-        <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)',  }} />
+        <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', width: '10px', height: '2px', backgroundColor: 'rgba(128,128,128,0.7)', }} />
       </div>
 
       {/* 左下：ピン一覧（アイコン） */}
