@@ -136,7 +136,7 @@ export default function PinListDrawer({
                 >
                   ←
                 </button>
-                <div style={{ fontSize: '24px' }}>{pinTypeStyles[selectedPin.type].icon}</div>
+                <i className={`ph-fill ph-${pinTypeStyles[selectedPin.type].icon}`} style={{ fontSize: '24px', color: '#9ca3af' }} />
                 <div style={{ flex: 1 }}>
                   <h3
                     style={{
@@ -312,7 +312,7 @@ export default function PinListDrawer({
                             cursor: 'pointer',
                           }}
                         >
-                          <div style={{ fontSize: 20 }}>{style.icon}</div>
+                          <i className={`ph-fill ph-${style.icon}`} style={{ fontSize: 20, color: '#9ca3af' }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
                               style={{
