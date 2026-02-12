@@ -229,12 +229,21 @@ export default function OkutamaMap2D({
     setSheetOpen(true);
   };
   // 一覧から選択 → 詳細 + 地図パン
+  // Drawerが画面下半分を占めるため、ピンを画面上部寄りに表示する
   const handleSelectPin = (pin: PinData) => {
     setSelectedPin(pin);
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
-    if (Array.isArray(coords) && coords.length === 2) {
-      const currentZoom = mapRef.current?.getZoom() ?? 14;
-      mapRef.current?.flyTo(coords as any, currentZoom, { duration: 0.6 });
+    if (Array.isArray(coords) && coords.length === 2 && mapRef.current) {
+      const map = mapRef.current;
+      const currentZoom = map.getZoom() ?? 14;
+      // ピンの位置をピクセル座標に変換し、画面の下方向にオフセットして
+      // 実際のピンが画面上部 1/4 あたりに表示されるようにする
+      const targetPoint = map.project(coords as [number, number], currentZoom);
+      const mapHeight = map.getSize().y;
+      // Drawer が最大 50vh を占めるので、その1/4(画面高さの12.5%)分だけ上にずらす
+      targetPoint.y += mapHeight * 0.125;
+      const offsetLatLng = map.unproject(targetPoint, currentZoom);
+      map.flyTo(offsetLatLng, currentZoom, { duration: 0.6 });
     }
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
