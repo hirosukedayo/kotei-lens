@@ -20,7 +20,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import type { PinData, PinType } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaSlidersH } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye, FaSlidersH, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -92,12 +92,15 @@ export default function Scene3D({
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
   // 初期位置決定後かつ権限許可後にキャリブレーションを行う
   const [isCalibrated, setIsCalibrated] = useState(false);
+  // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
+  const [isRecalibrating, setIsRecalibrating] = useState(false);
 
   const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [showCameraControls, setShowCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+  const [terrainModel, setTerrainModel] = useState<'wireframe' | 'realscale'>('wireframe');
 
   // ワイヤーフレーム位置調整用State
   const [wfPos, setWfPos] = useState(() => {
@@ -331,14 +334,18 @@ export default function Scene3D({
           onCalibrationComplete={(offset) => {
             setManualHeadingOffset(offset);
             setIsCalibrated(true);
+            setIsRecalibrating(false);
           }}
           // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
-          // または、再調整ボタンから呼ばれた場合の分岐が必要だが、
-          // シンプルにウィンドウを閉じる＝キャリブレーション完了（現状維持）とみなす
-          onClose={() => setIsCalibrated(true)}
+          onClose={() => {
+            setIsCalibrated(true);
+            setIsRecalibrating(false);
+          }}
           initialOffset={manualHeadingOffset}
           orientation={sensorData.orientation}
           compassHeading={sensorData.compassHeading}
+          startInManualMode={isRecalibrating}
+          onOffsetChange={isRecalibrating ? (offset) => setManualHeadingOffset(offset) : undefined}
         />
       )}
 
@@ -429,7 +436,7 @@ export default function Scene3D({
             position={terrainPosition}
             scale={[1, 1, 1]} // 全体のスケール
             rotation={[0, 0, 0]}
-            visible={false}
+            visible={terrainModel === 'realscale'}
             showTerrain={true} // 地形を表示
             showWater={false} // 水面を表示
             wireframe={isWireframe}
@@ -447,13 +454,14 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
           />
 
-          {/* テスト用ワイヤーフレームモデル - 調整モード */}
+          {/* ワイヤーフレームモデル */}
           <WireframeModel
             position={[wfPos.x, wfPos.y, wfPos.z]}
             scale={[wfScale, wfScaleY, wfScale]}
             rotation={[0, 0, 0]}
             followCamera={false}
             yOffset={-20}
+            visible={terrainModel === 'wireframe'}
           />
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
@@ -1036,6 +1044,49 @@ export default function Scene3D({
                 style={{ width: '100%', height: '4px', accentColor: '#48bb78' }}
               />
             </div>
+
+            {/* 地形モデル切り替え */}
+            <div>
+              <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <FaMountain size={12} /> 地形モデル
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setTerrainModel('wireframe')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    background: terrainModel === 'wireframe' ? 'rgba(96,165,250,0.8)' : 'rgba(255,255,255,0.1)',
+                    color: terrainModel === 'wireframe' ? 'white' : 'rgba(255,255,255,0.6)',
+                  }}
+                >
+                  ワイヤーフレーム
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTerrainModel('realscale')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 0',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    background: terrainModel === 'realscale' ? 'rgba(96,165,250,0.8)' : 'rgba(255,255,255,0.1)',
+                    color: terrainModel === 'realscale' ? 'white' : 'rgba(255,255,255,0.6)',
+                  }}
+                >
+                  リアルスケール
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1070,7 +1121,10 @@ export default function Scene3D({
         {isMobile && permissionGranted && (
           <button
             type="button"
-            onClick={() => setIsCalibrated(false)}
+            onClick={() => {
+              setIsRecalibrating(true);
+              setIsCalibrated(false);
+            }}
             style={{
               background: 'rgba(0,0,0,0.6)',
               backdropFilter: 'blur(10px)',
@@ -1148,12 +1202,11 @@ function CameraPositionSetter({
   // 高さオフセットが変更されたときにカメラ位置を更新
   useEffect(() => {
     if (baseTerrainHeightRef.current !== null) {
-      const cameraX = initialCameraConfig.position[0];
-      const cameraZ = initialCameraConfig.position[2];
       const newY = baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset;
-      camera.position.set(cameraX, newY, cameraZ);
+      // X/Z は現在のカメラ位置を維持（初期位置に戻さない）
+      camera.position.setY(newY);
     }
-  }, [heightOffset, initialCameraConfig.position, camera]);
+  }, [heightOffset, camera]);
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
   // useProgressフックを使用してロード状態を監視
@@ -1180,6 +1233,8 @@ function CameraPositionSetter({
 
     // 調整モードなどで上空から俯瞰する場合（Y > 500）または固定高さ（-350）の場合は地形判定をスキップしてその高さを維持する
     if (finalCameraY > 500 || finalCameraY === -350) {
+      // baseTerrainHeightRef を設定して、heightOffset スライダーが動作するようにする
+      baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
       if (onReady) onReady();
