@@ -1,0 +1,4 @@
+/* ベースタイル: フィルター調整 */
+.base-tiles {
+  filter: contrast(0.9) brightness(8.5) sepia(1.0) hue-rotate(340deg) saturate(1.0);
+}
