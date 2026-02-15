@@ -523,9 +523,9 @@ export default function OkutamaMap2D({
         {/* ベース: OpenStreetMap（セピア調フィルタ適用） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
         <TileLayer
