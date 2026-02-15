@@ -122,7 +122,7 @@ button:focus-visible {
   color: rgba(150, 150, 150, 0.4) !important;
 }
 
-/* ベースタイル: OSMタルをセピア調に変換 */
+/* ベースタイル: OSMタイルをセピア調に変換 */
 .base-tiles {
   filter: contrast(0.95) brightness(8.0) sepia(1.0) hue-rotate(360deg) saturate(1.0);
 }
