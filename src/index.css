@@ -124,7 +124,7 @@ button:focus-visible {
 
 /* ベースタイル: OSMタイルをセピア調に変換 */
 .base-tiles {
-  filter: contrast(0.95) brightness(8.0) sepia(1.0) hue-rotate(360deg) saturate(1.0);
+  filter: contrast(0.9) brightness(8.5) sepia(1.0) hue-rotate(340deg) saturate(1.0);
 }
 
 @media (max-width: 768px) {
