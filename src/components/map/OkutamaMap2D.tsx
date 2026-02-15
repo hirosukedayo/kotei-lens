@@ -520,7 +520,7 @@ export default function OkutamaMap2D({
       >
         <MapRefBinder />
 
-        {/* ベース: OpenStreetMap（セピア調フィルタ適用） */}
+        {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
