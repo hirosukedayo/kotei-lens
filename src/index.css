@@ -122,9 +122,9 @@ button:focus-visible {
   color: rgba(150, 150, 150, 0.4) !important;
 }
 
-/* ベースタイル: 水域→白、地形→グレーに反転 */
+/* ベースタイル: OSMタイルをセピア調に変換 */
 .base-tiles {
-  filter: brightness(0.6) contrast(3) invert(1) brightness(3.8) sepia(1.0);
+  filter: grayscale(1) brightness(1.1) sepia(0.8);
 }
 
 @media (max-width: 768px) {
