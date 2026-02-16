@@ -520,12 +520,12 @@ export default function OkutamaMap2D({
       >
         <MapRefBinder />
 
-        {/* ベース: Stamen Toner Lite（セピア調フィルタ適用） */}
+        {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
-          url={`https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png?api_key=${import.meta.env.VITE_STADIA_API_KEY}`}
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
-          attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
         <TileLayer
