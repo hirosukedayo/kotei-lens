@@ -133,12 +133,8 @@ const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
   }, [onClick]);
 
   React.useEffect(() => {
-    // Leafletのネイティブイベントリスナーを使用
-    const handleMapClick = (e: L.LeafletMouseEvent) => {
-      console.log(`[DEBUG] Map instance click: ${e.latlng}`);
-      if (handlerRef.current) {
-        handlerRef.current();
-      }
+    const handleMapClick = () => {
+      handlerRef.current?.();
     };
 
     map.on('click', handleMapClick);
@@ -146,15 +142,6 @@ const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
       map.off('click', handleMapClick);
     };
   }, [map]);
-
-  // グローバルクリック監視（デバッグ用）
-  React.useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      console.log('[DEBUG] Global click target:', e.target);
-    };
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   return null;
 };
@@ -227,8 +214,8 @@ export default function OkutamaMap2D({
 
 
 
-  // カスタムアイコン（選択時に強調表示）
-  const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
+  // カスタムアイコン（選択時に強調表示）- メモ化で不要な再生成を回避
+  const createCustomIcon = useCallback((isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
     const color = isSelected ? '#ff4900' : baseColor; // 選択時の強調色
@@ -263,7 +250,7 @@ export default function OkutamaMap2D({
       iconSize: [ringSize, ringSize],
       iconAnchor: [ringSize / 2, ringSize],
     });
-  };
+  }, []);
   // 一覧を開く
   const openPinList = () => {
     setSheetOpen(true);
@@ -558,11 +545,6 @@ export default function OkutamaMap2D({
     return cornersGPS;
   }, [isDevMode]);
 
-  // デバッグ用: レンダリング条件の監視
-  useEffect(() => {
-    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, hasBounds: !!modelBounds });
-  }, [isDevMode, modelBounds]);
-
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
     if (selectedPin?.id === pin.id) {
@@ -662,6 +644,9 @@ export default function OkutamaMap2D({
       {/* Step 1: 位置情報の許可モーダル */}
       {permissionStep === 'location' && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="location-modal-title"
           style={{
             position: 'fixed',
             inset: 0,
@@ -684,7 +669,7 @@ export default function OkutamaMap2D({
             }}
           >
             <div style={{ marginBottom: 12 }}><FaMapMarkerAlt size={32} color="#3b82f6" /></div>
-            <h3 style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+            <h3 id="location-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
               位置情報の許可
             </h3>
             <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
@@ -692,18 +677,9 @@ export default function OkutamaMap2D({
             </p>
             <button
               type="button"
+              className="modal-btn-primary"
               onClick={handleLocationPermissionRequest}
-              style={{
-                width: '100%',
-                padding: '12px 0',
-                borderRadius: 10,
-                background: '#111827',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              autoFocus
             >
               許可する
             </button>
@@ -714,6 +690,10 @@ export default function OkutamaMap2D({
       {/* Step 2: 方位センサーの許可モーダル */}
       {permissionStep === 'heading' && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="heading-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') handleHeadingPermissionSkip(); }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -736,7 +716,7 @@ export default function OkutamaMap2D({
             }}
           >
             <div style={{ marginBottom: 12 }}><FaCompass size={32} color="#3b82f6" /></div>
-            <h3 style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+            <h3 id="heading-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
               方位センサーの許可
             </h3>
             <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
@@ -744,36 +724,17 @@ export default function OkutamaMap2D({
             </p>
             <button
               type="button"
+              className="modal-btn-primary"
               onClick={handleHeadingPermissionRequest}
-              style={{
-                width: '100%',
-                padding: '12px 0',
-                borderRadius: 10,
-                background: '#111827',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginBottom: 12,
-              }}
+              style={{ marginBottom: 12 }}
+              autoFocus
             >
               許可する
             </button>
             <button
               type="button"
+              className="modal-btn-skip"
               onClick={handleHeadingPermissionSkip}
-              style={{
-                width: '100%',
-                padding: '10px 0',
-                borderRadius: 10,
-                background: 'transparent',
-                color: '#9ca3af',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
             >
               スキップ
             </button>
@@ -784,6 +745,10 @@ export default function OkutamaMap2D({
       {/* Step 3: エリア外モーダル */}
       {permissionStep === 'outside' && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="outside-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') handleOutsideDismiss(); }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -806,7 +771,7 @@ export default function OkutamaMap2D({
             }}
           >
             <div style={{ marginBottom: 12 }}><FaMapMarkerAlt size={32} color="#f59e0b" /></div>
-            <h3 style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+            <h3 id="outside-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
               体験エリアの外にいます
             </h3>
             <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
@@ -814,18 +779,9 @@ export default function OkutamaMap2D({
             </p>
             <button
               type="button"
+              className="modal-btn-primary"
               onClick={handleOutsideDismiss}
-              style={{
-                width: '100%',
-                padding: '12px 0',
-                borderRadius: 10,
-                background: '#111827',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              autoFocus
             >
               OK
             </button>
@@ -845,22 +801,8 @@ export default function OkutamaMap2D({
       >
         <button
           type="button"
+          className="map-btn map-btn--pill"
           onClick={handleRequest3DWithPermission}
-          style={{
-            padding: '14px 32px',
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            fontSize: '18px',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}
           aria-label="3Dビューへ"
         >
           <PiCubeFocusFill size={26} />
@@ -887,73 +829,34 @@ export default function OkutamaMap2D({
         {/* ズームイン */}
         <button
           type="button"
+          className="map-btn map-btn--round"
           onClick={() => mapRef.current?.zoomIn()}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: '24px',
-            padding: 0,
-          }}
           aria-label="ズームイン"
         >
-          <FaPlus size={20} style={{ width: '20px', height: '20px' }} />
+          <FaPlus size={20} />
         </button>
 
         {/* ズームアウト */}
         <button
           type="button"
+          className="map-btn map-btn--round"
           onClick={() => mapRef.current?.zoomOut()}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: '24px',
-            padding: 0,
-          }}
           aria-label="ズームアウト"
         >
-          <FaMinus size={20} style={{ width: '20px', height: '20px' }} />
+          <FaMinus size={20} />
         </button>
 
         {/* 現在地へ戻るボタン */}
         {sensorData.gps && (
           <button
             type="button"
+            className="map-btn map-btn--round"
             onClick={() => {
               if (sensorData.gps) {
                 mapRef.current?.flyTo([sensorData.gps.latitude, sensorData.gps.longitude], 16, { duration: 1.0 });
               }
             }}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 9999,
-              background: '#ffffff',
-              color: '#3b82f6',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+            style={{ color: '#3b82f6' }}
             aria-label="現在地へ戻る"
           >
             <FaLocationArrow size={24} />
@@ -998,21 +901,9 @@ export default function OkutamaMap2D({
       >
         <button
           type="button"
+          className="map-btn map-btn--round"
           aria-label="ピン一覧"
           onClick={openPinList}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
         >
           <FaMapSigns size={22} />
         </button>
