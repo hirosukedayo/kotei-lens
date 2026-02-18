@@ -20,6 +20,8 @@ export interface PinData {
   mapUrl?: string; // マップアプリで開くURL（オプション）
   externalUrl?: string; // 外部リンクURL（ブログなど）（オプション）
   hasLocation?: boolean; // 現在位置として表示するかどうか
+  folktaleTitle?: string; // 関連する民話のタイトル（オプション）
+  performingArtTitle?: string; // 関連する伝統芸能のタイトル（オプション）
 }
 
 // ピンタイプごとのスタイル設定
