@@ -31,17 +31,14 @@ html {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100%;
   background: linear-gradient(135deg, var(--color-mist-white) 0%, #e8f4fd 100%);
 }
 
 #root {
   width: 100%;
-  margin: 0 auto;
-  text-align: center;
+  height: 100%;
 }
 
 button {
@@ -84,6 +81,6 @@ button:focus-visible {
 
 @media (max-width: 768px) {
   #root {
-    padding: 1rem;
+    padding: 0;
   }
 }

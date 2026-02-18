@@ -211,7 +211,7 @@ export default function PinListDrawer({
         </div>
       </div>
 
-      <VDrawer.Root open={open} onOpenChange={handleOpenChange} modal={false}>
+      <VDrawer.Root open={open} onOpenChange={handleOpenChange} modal={false} noBodyStyles>
         <VDrawer.Content
           style={{
             position: 'fixed',
@@ -421,6 +421,8 @@ export default function PinListDrawer({
                 padding: '16px',
                 flex: 1,
                 overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
               }}
               data-vaul-no-drag
             >
@@ -438,52 +440,55 @@ export default function PinListDrawer({
                   >
                     {selectedPin.description}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {selectedPin.mapUrl && (
-                      <a
-                        href={selectedPin.mapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '12px 16px',
-                          background: '#f9fafb',
-                          borderRadius: 8,
-                          textDecoration: 'none',
-                          color: '#111827',
-                          fontWeight: 500,
-                          fontSize: '14px',
-                          border: '1px solid #e5e7eb',
-                        }}
-                      >
-                        <FaMapMarkerAlt size={16} />
-                        <span>いまはここ</span>
-                        <FaExternalLinkAlt size={12} style={{ marginLeft: 'auto' }} />
-                      </a>
-                    )}
+                  <div style={{ display: 'flex', gap: 8 }}>
                     {selectedPin.externalUrl && (
                       <a
                         href={selectedPin.externalUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
+                          flex: 1,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 8,
-                          padding: '12px 16px',
-                          background: '#f9fafb',
-                          borderRadius: 8,
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '10px 12px',
+                          background: '#f3f4f6',
+                          borderRadius: 10,
                           textDecoration: 'none',
-                          color: '#111827',
-                          fontWeight: 500,
-                          fontSize: '14px',
-                          border: '1px solid #e5e7eb',
+                          color: '#6b7280',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          border: 'none',
                         }}
                       >
+                        <FaExternalLinkAlt size={10} />
                         <span>{selectedPin.externalUrlTitle || '関連リンク'}</span>
-                        <FaExternalLinkAlt size={12} style={{ marginLeft: 'auto' }} />
+                      </a>
+                    )}
+                    {selectedPin.mapUrl && (
+                      <a
+                        href={selectedPin.mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '10px 12px',
+                          background: '#f3f4f6',
+                          borderRadius: 10,
+                          textDecoration: 'none',
+                          color: '#6b7280',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          border: 'none',
+                        }}
+                      >
+                        <FaMapMarkerAlt size={11} />
+                        <span>いまはここ</span>
                       </a>
                     )}
                   </div>
