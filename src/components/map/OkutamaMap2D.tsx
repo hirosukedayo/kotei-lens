@@ -584,7 +584,7 @@ export default function OkutamaMap2D({
         {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
         <MapClickHandler onClick={handleMapClick} />
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
         />
