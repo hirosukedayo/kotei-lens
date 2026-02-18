@@ -2,7 +2,7 @@ import type React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import type { SensorStatus } from '../../types/sensors';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaInfoCircle, FaCamera } from 'react-icons/fa';
 
 interface SensorPermissionRequestProps {
@@ -213,22 +213,11 @@ export default function SensorPermissionRequest({
     onPermissionsGranted();
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.3, ease: 'easeOut' as const }
-    },
-    exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
-  };
-
   // 全て許可されているかチェック（利用可能なものに限る）
   const isAllGranted =
     (!sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted') &&
     (!sensorStatus.camera.available || sensorStatus.camera.permission === 'granted') &&
     (!sensorStatus.motion.available || sensorStatus.motion.permission === 'granted') &&
-    // GPSは必須とみなすか？一旦含める
     (!sensorStatus.gps.available || sensorStatus.gps.permission === 'granted');
 
   return (
@@ -239,57 +228,45 @@ export default function SensorPermissionRequest({
         exit={{ opacity: 0 }}
         style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(8px)',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 20000, // 最前面 (Map UIは10000なのでそれより上にする)
-          fontFamily: 'sans-serif',
+          zIndex: 20000,
         }}
       >
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } }}
+          exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '24px',
-            padding: '32px',
-            maxWidth: '380px',
-            width: '90%',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
-            border: '1px solid rgba(255, 255, 255, 0.5)',
+            background: '#ffffff',
+            borderRadius: 16,
+            padding: '32px 28px 24px',
+            maxWidth: 'min(380px, 88vw)',
+            width: '100%',
+            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.2)',
             maxHeight: '90vh',
             overflowY: 'auto',
           }}
         >
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <motion.h2
-              style={{
-                margin: '0 0 12px 0',
-                fontSize: '22px',
-                fontWeight: '800',
-                color: '#1a202c',
-                letterSpacing: '-0.02em'
-              }}
-            >
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
               センサー許可
-            </motion.h2>
-            <p style={{ margin: 0, fontSize: '14px', color: '#718096', lineHeight: '1.6' }}>
-              没入感のあるAR体験のために、<br />デバイスセンサーの許可をお願いします。
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, color: '#6b7280', lineHeight: 1.7 }}>
+              没入感のあるAR体験のために、
+              <br />
+              デバイスセンサーの許可をお願いします。
             </p>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
             {/* GPS */}
             <PermissionItem
-              icon={<FaMapMarkerAlt size={20} />}
+              icon={<FaMapMarkerAlt size={18} />}
               title="位置情報"
               description="現在地周辺の景色を表示"
               status={sensorStatus.gps}
@@ -299,7 +276,7 @@ export default function SensorPermissionRequest({
 
             {/* Camera */}
             <PermissionItem
-              icon={<FaCamera size={20} />}
+              icon={<FaCamera size={18} />}
               title="カメラ"
               description="AR背景として使用"
               status={sensorStatus.camera}
@@ -309,7 +286,7 @@ export default function SensorPermissionRequest({
 
             {/* Orientation */}
             <PermissionItem
-              icon={<FaCompass size={20} />}
+              icon={<FaCompass size={18} />}
               title="デバイスの方位"
               description="向いている方向の景色と連動"
               status={sensorStatus.orientation}
@@ -319,7 +296,7 @@ export default function SensorPermissionRequest({
 
             {/* Motion */}
             <PermissionItem
-              icon={<FaWalking size={20} />}
+              icon={<FaWalking size={18} />}
               title="モーション"
               description="移動や傾きをより正確に反映"
               status={sensorStatus.motion}
@@ -328,49 +305,36 @@ export default function SensorPermissionRequest({
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* 全て許可ボタンは自動遷移するため削除、代わりにスキップを目立たないように配置 */}
+          <button
+            type="button"
+            className="modal-btn-primary"
+            onClick={skipPermissions}
+            disabled={isRequesting}
+          >
+            {isAllGranted ? '開始する' : '許可せずに開始'}
+          </button>
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={skipPermissions}
-              disabled={isRequesting}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '12px',
-                border: 'none',
-                backgroundColor: isAllGranted ? '#3182CE' : '#EDF2F7',
-                color: isAllGranted ? 'white' : '#4A5568',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: isRequesting ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-            >
-              {isAllGranted ? '開始する' : '許可せずに開始'}
-            </motion.button>
-
-            <button
-              type="button"
-              onClick={() => setShowDetails(!showDetails)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#A0AEC0',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                marginTop: '8px'
-              }}
-            >
-              <FaInfoCircle /> プライバシーについて
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#9ca3af',
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              marginTop: 12,
+              width: '100%',
+              minHeight: 0,
+              padding: 0,
+            }}
+          >
+            <FaInfoCircle size={11} /> プライバシーについて
+          </button>
 
           <AnimatePresence>
             {showDetails && (
@@ -380,22 +344,24 @@ export default function SensorPermissionRequest({
                 exit={{ height: 0, opacity: 0 }}
                 style={{ overflow: 'hidden' }}
               >
-                <div style={{
-                  marginTop: '16px',
-                  padding: '16px',
-                  backgroundColor: '#F7FAFC',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  color: '#718096',
-                  lineHeight: '1.6'
-                }}>
-                  <p style={{ margin: '0 0 8px 0' }}>
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 14,
+                    background: '#f9fafb',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    color: '#6b7280',
+                    lineHeight: 1.7,
+                  }}
+                >
+                  <p style={{ margin: '0 0 6px' }}>
                     データはデバイス内でのみ処理され、外部サーバーには送信されません。
                     設定からいつでも変更可能です。
                   </p>
                   {/iPhone|iPad|iPod/i.test(navigator.userAgent) && (
-                    <p style={{ margin: 0, color: '#D69E2E', fontWeight: 'bold' }}>
-                      ⚠️ iOSの場合、各項目の「許可」ボタンを直接タップしてください。
+                    <p style={{ margin: 0, color: '#f59e0b', fontWeight: 600, fontSize: 11 }}>
+                      iOSの場合、各項目の「許可」ボタンを直接タップしてください。
                     </p>
                   )}
                 </div>
@@ -414,82 +380,95 @@ function PermissionItem({
   description,
   status,
   onClick,
-  isRequesting
+  isRequesting,
 }: {
-  icon: React.ReactNode,
-  title: string,
-  description: string,
-  status: { available: boolean; permission: string | PermissionState },
-  onClick: () => void,
-  isRequesting: boolean
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  status: { available: boolean; permission: string | PermissionState };
+  onClick: () => void;
+  isRequesting: boolean;
 }) {
   const isGranted = status.permission === 'granted';
   const isDenied = status.permission === 'denied';
 
   if (!status.available) return null;
 
+  const isClickable = !isGranted && !isDenied && !isRequesting;
+
   return (
-    <motion.div
-      whileTap={!isGranted && !isDenied ? { scale: 0.98 } : undefined}
+    <button
+      type="button"
+      onClick={isClickable ? onClick : undefined}
+      disabled={!isClickable}
       style={{
         display: 'flex',
         alignItems: 'center',
-        padding: '16px',
-        backgroundColor: isGranted ? '#F0FFF4' : '#FFFFFF',
-        borderRadius: '16px',
-        border: isGranted ? '1px solid #C6F6D5' : '1px solid #E2E8F0',
-        cursor: !isGranted && !isDenied ? 'pointer' : 'default',
-        boxShadow: isGranted ? 'none' : '0 2px 4px rgba(0,0,0,0.02)',
-        transition: 'all 0.2s',
+        padding: '12px 14px',
+        minHeight: 0,
+        background: isGranted ? '#f0fdf4' : '#f9fafb',
+        borderRadius: 10,
+        border: isGranted ? '1px solid #bbf7d0' : '1px solid #e5e7eb',
+        cursor: isClickable ? 'pointer' : 'default',
+        transition: 'all 0.15s ease',
+        width: '100%',
+        textAlign: 'left',
       }}
-      onClick={!isGranted && !isDenied && !isRequesting ? onClick : undefined}
     >
-      <div style={{
-        width: '40px',
-        height: '40px',
-        borderRadius: '12px',
-        backgroundColor: isGranted ? '#C6F6D5' : '#EBF8FF', // 緑 or 青
-        color: isGranted ? '#2F855A' : '#3182CE',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: '16px',
-        flexShrink: 0
-      }}>
-        {isGranted ? <FaCheck size={18} /> : icon}
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: isGranted ? '#dcfce7' : '#f3f4f6',
+          color: isGranted ? '#16a34a' : '#6b7280',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 12,
+          flexShrink: 0,
+          transition: 'all 0.15s ease',
+        }}
+      >
+        {isGranted ? <FaCheck size={14} /> : icon}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 style={{ margin: '0 0 2px 0', fontSize: '15px', fontWeight: '700', color: isGranted ? '#22543D' : '#2D3748' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: isGranted ? '#166534' : '#111827', lineHeight: 1.4 }}>
           {title}
-        </h3>
-        <p style={{ margin: 0, fontSize: '12px', color: isGranted ? '#48BB78' : '#718096', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: isGranted ? '#16a34a' : '#9ca3af',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {isGranted ? '許可済み' : description}
-        </p>
+        </div>
       </div>
 
-      <div style={{ marginLeft: '12px' }}>
-        {isGranted ? (
-          // チェックマークのみ
-          null
-        ) : isDenied ? (
-          <span style={{ fontSize: '12px', color: '#E53E3E', fontWeight: 'bold' }}>拒否</span>
+      <div style={{ marginLeft: 10, flexShrink: 0 }}>
+        {isGranted ? null : isDenied ? (
+          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>拒否</span>
         ) : (
-          <motion.div
+          <div
             style={{
-              padding: '6px 16px',
-              backgroundColor: '#3182CE',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '600',
-              boxShadow: '0 4px 6px rgba(49, 130, 206, 0.3)',
+              padding: '5px 14px',
+              background: '#111827',
+              color: '#ffffff',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
             }}
           >
             許可
-          </motion.div>
+          </div>
         )}
       </div>
-    </motion.div>
+    </button>
   );
 }

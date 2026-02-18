@@ -386,10 +386,20 @@ export default function OkutamaMap2D({
   }, [sensorData.gps, sensorManager.locationService, isDevMode, center]);
 
   // 権限チェック → キャリブレーション or 遷移
-  const proceedTo3DAfterMove = useCallback(() => {
+  const proceedTo3DAfterMove = useCallback(async () => {
     const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
 
-    if (orientationPermission === 'granted') {
+    // カメラ権限チェック
+    let cameraGranted = false;
+    try {
+      const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+      cameraGranted = result.state === 'granted';
+    } catch {
+      // Permissions API非対応の場合はモーダルで確認させる
+      cameraGranted = false;
+    }
+
+    if (orientationPermission === 'granted' && cameraGranted) {
       const ua = navigator.userAgent;
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
       if (isMobile) {

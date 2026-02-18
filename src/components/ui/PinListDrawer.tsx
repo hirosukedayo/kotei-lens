@@ -686,9 +686,12 @@ export default function PinListDrawer({
                                   color: '#9ca3af',
                                   fontWeight: 500,
                                   marginTop: 1,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 3,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  ...(activeTab !== 'all' && subtitle
+                                    ? { display: 'flex', alignItems: 'center', gap: 3 }
+                                    : {}),
                                 }}
                               >
                                 {activeTab !== 'all' && subtitle ? (
@@ -696,14 +699,14 @@ export default function PinListDrawer({
                                     <FaMapMarkerAlt size={9} style={{ flexShrink: 0 }} />
                                     {pin.title}
                                   </>
-                                ) : subtitle ? (
-                                  <span
-                                    style={{ color: pin.folktaleTitle ? '#D55DF4' : '#661A71' }}
-                                  >
-                                    {subtitle}
-                                  </span>
                                 ) : (
-                                  style.label
+                                  [
+                                    style.label,
+                                    pin.folktaleTitle,
+                                    pin.performingArtTitle,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(', ')
                                 )}
                               </div>
                             </div>
