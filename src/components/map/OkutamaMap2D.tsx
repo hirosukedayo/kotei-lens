@@ -395,7 +395,7 @@ export default function OkutamaMap2D({
       }
     };
     checkExistingPermissions();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 方位許可をリクエスト（ユーザーインタラクション内で呼ぶ）
   const requestHeadingPermission = useCallback(async () => {
