@@ -112,7 +112,7 @@ export function useSensors() {
       // モーションセンサー開始
       if (sensorManager.motionService.isAvailable()) {
         try {
-          await sensorManager.motionService.startTracking(handleMotionUpdate);
+          await sensorManager.motionService.startTracking(handleMotionUpdate, autoRequest);
           startedCount++;
         } catch (motionError) {
           console.error('モーションセンサー開始エラー:', motionError);

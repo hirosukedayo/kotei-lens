@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLocationArrow, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaMapSigns, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
@@ -13,7 +13,7 @@ import {
   SCENE_CENTER,
 } from '../../utils/coordinate-converter';
 import { TERRAIN_SCALE_FACTOR, TERRAIN_CENTER_OFFSET } from '../../config/terrain-config';
-import { Toast } from '../ui/Toast';
+
 import { preloadLakeModel } from '../3d/LakeModel';
 import { useDevModeStore } from '../../stores/devMode';
 import 'leaflet/dist/leaflet.css';
@@ -133,12 +133,8 @@ const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
   }, [onClick]);
 
   React.useEffect(() => {
-    // Leafletのネイティブイベントリスナーを使用
-    const handleMapClick = (e: L.LeafletMouseEvent) => {
-      console.log(`[DEBUG] Map instance click: ${e.latlng}`);
-      if (handlerRef.current) {
-        handlerRef.current();
-      }
+    const handleMapClick = () => {
+      handlerRef.current?.();
     };
 
     map.on('click', handleMapClick);
@@ -146,15 +142,6 @@ const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
       map.off('click', handleMapClick);
     };
   }, [map]);
-
-  // グローバルクリック監視（デバッグ用）
-  React.useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      console.log('[DEBUG] Global click target:', e.target);
-    };
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, []);
 
   return null;
 };
@@ -181,8 +168,13 @@ export default function OkutamaMap2D({
   const { sensorData, startSensors, sensorManager } = useSensors();
   // Devモード状態
   const { isDevMode } = useDevModeStore();
-  // エリア外トースト表示フラグ
-  const [showOutsideToast, setShowOutsideToast] = useState(false);
+  // 段階的パーミッションステップ管理
+  type PermissionStep = 'check' | 'location' | 'heading' | 'outside' | 'done';
+  const [permissionStep, setPermissionStep] = useState<PermissionStep>('check');
+  // エリア外かどうか (null = まだGPS未取得で未判定)
+  const [isOutsideArea, setIsOutsideArea] = useState<boolean | null>(null);
+  // エリア外モーダルを一度表示したかどうか
+  const hasShownOutsideModalRef = useRef(false);
   // 3Dモード前のキャリブレーション中かどうか
   const [isCalibrating, setIsCalibrating] = useState(false);
   // 方位許可の状態管理
@@ -222,8 +214,8 @@ export default function OkutamaMap2D({
 
 
 
-  // カスタムアイコン（選択時に強調表示）
-  const createCustomIcon = (isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
+  // カスタムアイコン（選択時に強調表示）- メモ化で不要な再生成を回避
+  const createCustomIcon = useCallback((isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
     const color = isSelected ? '#ff4900' : baseColor; // 選択時の強調色
@@ -258,7 +250,7 @@ export default function OkutamaMap2D({
       iconSize: [ringSize, ringSize],
       iconAnchor: [ringSize / 2, ringSize],
     });
-  };
+  }, []);
   // 一覧を開く
   const openPinList = () => {
     setSheetOpen(true);
@@ -365,12 +357,6 @@ export default function OkutamaMap2D({
     return () => window.removeEventListener('resize', setVh);
   }, []);
 
-  // GPS位置取得とエリア判定、画面中心位置の設定
-  useEffect(() => {
-    // センサーを開始
-    startSensors();
-  }, [startSensors]);
-
   // 方位許可状態の初期チェック
   useEffect(() => {
     const state = sensorManager.orientationService.getPermissionState();
@@ -379,13 +365,37 @@ export default function OkutamaMap2D({
     } else if (state === 'denied') {
       setHeadingPermission('denied');
     } else {
-      // iOSではrequestPermissionが必要なので、利用可能かどうかも確認
       const isIOS =
         typeof window.DeviceOrientationEvent !== 'undefined' &&
         typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
       setHeadingPermission(isIOS ? 'prompt' : 'granted');
     }
   }, [sensorManager.orientationService]);
+
+  // マウント時: 既存の権限状態を確認し、適切なステップに遷移
+  // biome-ignore lint/correctness/useExhaustiveDependencies: マウント時に1回だけ実行する初期化処理
+  useEffect(() => {
+    const checkExistingPermissions = async () => {
+      const gpsPermission = await sensorManager.locationService.checkPermission();
+      const orientationState = sensorManager.orientationService.getPermissionState();
+      const isIOS =
+        typeof window.DeviceOrientationEvent !== 'undefined' &&
+        typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
+      const needsHeadingPrompt = isIOS && orientationState !== 'granted';
+
+      if (gpsPermission === 'granted') {
+        startSensors();
+        if (needsHeadingPrompt) {
+          setPermissionStep('heading');
+        } else {
+          setPermissionStep('done');
+        }
+      } else {
+        setPermissionStep('location');
+      }
+    };
+    checkExistingPermissions();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 方位許可をリクエスト（ユーザーインタラクション内で呼ぶ）
   const requestHeadingPermission = useCallback(async () => {
@@ -401,32 +411,88 @@ export default function OkutamaMap2D({
     }
   }, [sensorManager.orientationService, startSensors]);
 
+  // Step 1: 位置情報の許可ボタン押下（GPSのみ開始、方位・モーションは触らない）
+  const handleLocationPermissionRequest = useCallback(async () => {
+    // GPSだけを開始（startSensorsは方位やモーションも開始してOSプロンプトが出るため直接呼ぶ）
+    // useSensorsのGPSコールバックは後のステップでstartSensors経由で接続される
+    if (sensorManager.locationService.isAvailable()) {
+      sensorManager.locationService.startWatching(() => {});
+    }
+
+    const orientationState = sensorManager.orientationService.getPermissionState();
+    const isIOS =
+      typeof window.DeviceOrientationEvent !== 'undefined' &&
+      typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
+    const needsHeadingPrompt = isIOS && orientationState !== 'granted';
+    if (needsHeadingPrompt) {
+      setPermissionStep('heading');
+    } else {
+      // 非iOS or 方位既許可 → 全センサーを開始（非iOSではOSプロンプトなし）
+      startSensors(false, true);
+      setPermissionStep('done');
+    }
+  }, [sensorManager, startSensors]);
+
+  // Step 2: 方位センサーの許可ボタン押下
+  const handleHeadingPermissionRequest = useCallback(async () => {
+    await requestHeadingPermission();
+    // requestHeadingPermissionは許可時にstartSensors(true, true)を呼ぶ。
+    // 拒否時にもGPSコールバック接続のためstartSensorsを呼ぶ（autoRequest=falseで追加プロンプトなし）
+    startSensors(false, false);
+    if (isOutsideArea === true) {
+      hasShownOutsideModalRef.current = true;
+      setPermissionStep('outside');
+    } else {
+      setPermissionStep('done');
+    }
+  }, [requestHeadingPermission, startSensors, isOutsideArea]);
+
+  // Step 2: 方位スキップ
+  const handleHeadingPermissionSkip = useCallback(() => {
+    // 方位をスキップしてもGPSコールバック接続のためstartSensorsを呼ぶ
+    // autoRequest=falseで方位・モーションのOSプロンプトは出ない
+    startSensors(false, false);
+    if (isOutsideArea === true) {
+      hasShownOutsideModalRef.current = true;
+      setPermissionStep('outside');
+    } else {
+      setPermissionStep('done');
+    }
+  }, [startSensors, isOutsideArea]);
+
+  // Step 3: エリア外モーダルのOK
+  const handleOutsideDismiss = useCallback(() => {
+    setPermissionStep('done');
+  }, []);
+
   // GPS位置が更新されたときにエリア判定と中心位置を更新
   useEffect(() => {
     const gpsPosition = sensorData.gps;
-    // 起動時の最初のGPS取得時のみ、自動センタリングとトースト制御を行う
+    // 起動時の最初のGPS取得時のみ、自動センタリングとエリア判定を行う
     if (!gpsPosition || hasInitialCenterSet) return;
 
     const isInArea = sensorManager.locationService.isInOkutamaArea(gpsPosition);
 
     if (isInArea) {
-      // エリア内の場合：GPS位置を中心に設定
       const newCenter: LatLngExpression = [gpsPosition.latitude, gpsPosition.longitude];
       setCenter(newCenter);
-      // マップの中心位置を更新
       mapRef.current?.flyTo(newCenter, 14, { duration: 0.6 });
-      // エリア内なのでトーストは非表示
-      setShowOutsideToast(false);
     } else {
-      // エリア外の場合：初期位置（奥多摩湖の碑）を中心に設定
       const startCenter: LatLngExpression = [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
       setCenter(startCenter);
       mapRef.current?.flyTo(startCenter, 14, { duration: 0.6 });
-      // エリア外トーストを表示
-      setShowOutsideToast(true);
     }
+    setIsOutsideArea(!isInArea);
     setHasInitialCenterSet(true);
   }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
+
+  // GPS遅延対応: ステップが done のときにエリア外と判明したら outside モーダルを表示
+  useEffect(() => {
+    if (isOutsideArea === true && permissionStep === 'done' && !hasShownOutsideModalRef.current) {
+      hasShownOutsideModalRef.current = true;
+      setPermissionStep('outside');
+    }
+  }, [isOutsideArea, permissionStep]);
   // public配下のタイルは Vite の base に追従して配信される
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles/{z}/{x}/{y}.png`;
@@ -479,11 +545,6 @@ export default function OkutamaMap2D({
     return cornersGPS;
   }, [isDevMode]);
 
-  // デバッグ用: レンダリング条件の監視
-  useEffect(() => {
-    console.log('[DEBUG] OkutamaMap2D State:', { isDevMode, hasBounds: !!modelBounds });
-  }, [isDevMode, modelBounds]);
-
   // ピンクリック時の処理（同じピンを再度クリックすると選択解除）
   const handlePinClick = (pin: PinData) => {
     if (selectedPin?.id === pin.id) {
@@ -500,7 +561,7 @@ export default function OkutamaMap2D({
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: 'calc(var(--vh, 1vh) * 100)' }}>
       {/* 全画面。ズームは固定、パンは境界内でのみ可能 */}
       <MapContainer
         center={center}
@@ -580,13 +641,144 @@ export default function OkutamaMap2D({
         })}
       </MapContainer>
 
-      {/* エリア外トースト */}
-      <Toast
-        open={showOutsideToast}
-        onClose={() => setShowOutsideToast(false)}
-        variant="warning"
-        message="現在、体験エリアの外にいます。小河内神社付近（奥多摩湖周辺）に近づくと、かつての村の姿を重ねて見ることができます。"
-      />
+      {/* Step 1: 位置情報の許可モーダル */}
+      {permissionStep === 'location' && (
+        <div
+          aria-labelledby="location-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 30000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '32px 28px 24px',
+              maxWidth: 'min(380px, 88vw)',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ marginBottom: 12 }}><FaMapMarkerAlt size={32} color="#3b82f6" /></div>
+            <h3 id="location-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+              位置情報の許可
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
+              現在地を地図に表示するために、位置情報へのアクセスを許可してください。
+            </p>
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={handleLocationPermissionRequest}
+            >
+              許可する
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: 方位センサーの許可モーダル */}
+      {permissionStep === 'heading' && (
+        <div
+          aria-labelledby="heading-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') handleHeadingPermissionSkip(); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 30000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '32px 28px 24px',
+              maxWidth: 'min(380px, 88vw)',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ marginBottom: 12 }}><FaCompass size={32} color="#3b82f6" /></div>
+            <h3 id="heading-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+              方位センサーの許可
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
+              向いている方向を地図に表示するために、方位センサーへのアクセスを許可してください。
+            </p>
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={handleHeadingPermissionRequest}
+              style={{ marginBottom: 12 }}
+            >
+              許可する
+            </button>
+            <button
+              type="button"
+              className="modal-btn-skip"
+              onClick={handleHeadingPermissionSkip}
+            >
+              スキップ
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: エリア外モーダル */}
+      {permissionStep === 'outside' && (
+        <div
+          aria-labelledby="outside-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') handleOutsideDismiss(); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 30000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '32px 28px 24px',
+              maxWidth: 'min(380px, 88vw)',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ marginBottom: 12 }}><FaMapMarkerAlt size={32} color="#f59e0b" /></div>
+            <h3 id="outside-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+              体験エリアの外にいます
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
+              小河内神社付近（奥多摩湖周辺）に近づくと、かつての村の姿を重ねて見ることができます。
+            </p>
+            <button
+              type="button"
+              className="modal-btn-primary"
+              onClick={handleOutsideDismiss}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* UI（3D切替）。mapより前面 */}
       <div
@@ -600,22 +792,8 @@ export default function OkutamaMap2D({
       >
         <button
           type="button"
+          className="map-btn map-btn--pill"
           onClick={handleRequest3DWithPermission}
-          style={{
-            padding: '14px 32px',
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            fontSize: '18px',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}
           aria-label="3Dビューへ"
         >
           <PiCubeFocusFill size={26} />
@@ -623,43 +801,6 @@ export default function OkutamaMap2D({
         </button>
       </div>
 
-      {/* 方位許可バナー（未許可の場合に表示） */}
-      {headingPermission === 'prompt' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '16px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10000,
-          }}
-        >
-          <button
-            type="button"
-            onClick={requestHeadingPermission}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              borderRadius: 9999,
-              background: 'rgba(255,255,255,0.95)',
-              color: '#1a202c',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 600,
-              fontFamily: 'sans-serif',
-              whiteSpace: 'nowrap',
-            }}
-            aria-label="方位を有効にする"
-          >
-            <FaCompass size={16} color="#3b82f6" />
-            方位を有効にする
-          </button>
-        </div>
-      )}
 
 
 
@@ -667,7 +808,7 @@ export default function OkutamaMap2D({
       <div
         style={{
           position: 'absolute',
-          bottom: '24px',
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           right: '16px',
           zIndex: 10000,
           display: 'flex',
@@ -679,71 +820,34 @@ export default function OkutamaMap2D({
         {/* ズームイン */}
         <button
           type="button"
+          className="map-btn map-btn--round"
           onClick={() => mapRef.current?.zoomIn()}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: '24px',
-          }}
           aria-label="ズームイン"
         >
-          <FaPlus size={20} style={{ width: '20px', height: '20px' }} />
+          <FaPlus size={20} />
         </button>
 
         {/* ズームアウト */}
         <button
           type="button"
+          className="map-btn map-btn--round"
           onClick={() => mapRef.current?.zoomOut()}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            fontSize: '24px',
-          }}
           aria-label="ズームアウト"
         >
-          <FaMinus size={20} style={{ width: '20px', height: '20px' }} />
+          <FaMinus size={20} />
         </button>
 
         {/* 現在地へ戻るボタン */}
         {sensorData.gps && (
           <button
             type="button"
+            className="map-btn map-btn--round"
             onClick={() => {
               if (sensorData.gps) {
                 mapRef.current?.flyTo([sensorData.gps.latitude, sensorData.gps.longitude], 16, { duration: 1.0 });
               }
             }}
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 9999,
-              background: '#ffffff',
-              color: '#3b82f6',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+            style={{ color: '#3b82f6' }}
             aria-label="現在地へ戻る"
           >
             <FaLocationArrow size={24} />
@@ -782,27 +886,15 @@ export default function OkutamaMap2D({
         style={{
           position: 'absolute',
           left: '16px',
-          bottom: '24px',
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           zIndex: 10000,
         }}
       >
         <button
           type="button"
+          className="map-btn map-btn--round"
           aria-label="ピン一覧"
           onClick={openPinList}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
         >
           <FaMapSigns size={22} />
         </button>

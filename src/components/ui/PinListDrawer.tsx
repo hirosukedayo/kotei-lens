@@ -4,7 +4,7 @@ const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポ�
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
-import { FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaExternalLinkAlt, FaChevronRight, FaChevronLeft } from 'react-icons/fa';
 
 interface PinListDrawerProps {
   open: boolean;
@@ -105,9 +105,9 @@ export default function PinListDrawer({
         <div
           style={{
             background: '#ffffff',
-            borderTopLeftRadius: 14,
-            borderTopRightRadius: 14,
-            boxShadow: '0 -8px 24px rgba(0,0,0,.2)',
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            boxShadow: '0 -4px 20px rgba(0,0,0,.12)',
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -116,11 +116,8 @@ export default function PinListDrawer({
           }}
         >
           {/* ドラッグハンドル領域 */}
-          <div
-            style={{ padding: 12, display: 'flex', justifyContent: 'center', cursor: 'grab', background: '#fff' }}
-            data-vaul-handle
-          >
-            <div style={{ width: 40, height: 4, borderRadius: 9999, background: '#e5e7eb' }} />
+          <div style={{ padding: '12px 0 8px', display: 'flex', justifyContent: 'center' }}>
+            <div data-vaul-handle />
           </div>
 
           {/* 固定ヘッダー */}
@@ -129,74 +126,54 @@ export default function PinListDrawer({
               position: 'sticky',
               top: 0,
               background: '#ffffff',
-              borderBottom: '1px solid #e5e7eb',
-              padding: '0 16px 16px 16px',
+              borderBottom: '1px solid #f3f4f6',
+              padding: '0 16px 14px 16px',
               zIndex: 1,
             }}
             data-vaul-no-drag
           >
             {sheetMode === 'pin-detail' && selectedPin ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button
                   type="button"
+                  className="drawer-back-btn"
                   onClick={backToList}
+                  aria-label="一覧に戻る"
+                >
+                  <FaChevronLeft size={14} />
+                </button>
+                <h3
                   style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    background: 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: '#6b7280',
-                    fontSize: '18px',
-                    fontWeight: '400',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                    e.currentTarget.style.color = '#4b5563';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#6b7280';
+                    margin: 0,
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: '#111827',
+                    lineHeight: 1.35,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: 'left',
                   }}
                 >
-                  ←
-                </button>
-                <i className={`ph-fill ph-${pinTypeStyles[selectedPin.type].icon}`} style={{ fontSize: '24px', color: '#9ca3af' }} />
-                <div style={{ flex: 1 }}>
-                  <h3
-                    style={{
-                      margin: '0 0 4px 0',
-                      fontSize: '20px',
-                      fontWeight: 800,
-                      color: '#111827',
-                      lineHeight: '1.35',
-                    }}
-                  >
-                    {selectedPin.title}
-                  </h3>
-                  <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: 500 }}>
-                    {pinTypeStyles[selectedPin.type].label}
-                  </div>
-                </div>
+                  {selectedPin.title}
+                </h3>
               </div>
             ) : (
               <div style={{ textAlign: 'left' }}>
                 <h2
                   style={{
-                    margin: '0 0 4px 0',
-                    fontSize: '20px',
-                    fontWeight: 800,
+                    margin: '0 0 2px 0',
+                    fontSize: 18,
+                    fontWeight: 700,
                     color: '#111827',
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   情報地点一覧
                 </h2>
-                <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>
                   かつての小河内村の情報地点を探索
                 </div>
               </div>
@@ -243,9 +220,8 @@ export default function PinListDrawer({
                 >
                   {selectedPin.description}
                 </div>
-                <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: 16 }}>
-                  座標: {selectedPin.coordinates[0].toFixed(6)},{' '}
-                  {selectedPin.coordinates[1].toFixed(6)}
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>
+                  {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {selectedPin.mapUrl && (
@@ -266,7 +242,6 @@ export default function PinListDrawer({
                         fontSize: '14px',
                         border: '1px solid #e5e7eb',
                       }}
-                      onClick={() => window.open(selectedPin.mapUrl, '_blank')}
                     >
                       <FaMapMarkerAlt size={16} />
                       <span>Googleマップで開く</span>
@@ -291,7 +266,6 @@ export default function PinListDrawer({
                         fontSize: '14px',
                         border: '1px solid #e5e7eb',
                       }}
-                      onClick={() => window.open(selectedPin.externalUrl, '_blank')}
                     >
                       <span>関連リンク</span>
                       <FaExternalLinkAlt size={12} style={{ marginLeft: 'auto' }} />
@@ -305,86 +279,108 @@ export default function PinListDrawer({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    margin: '0 0 8px 0',
+                    justifyContent: 'space-between',
+                    margin: '0 0 4px 0',
+                    padding: '0 2px',
                   }}
                 >
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{okutamaPins.length} 件</div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500, letterSpacing: '0.02em' }}>
+                    {okutamaPins.length} 件
+                  </div>
                 </div>
                 <div>
-                  {okutamaPins.map((pin) => {
+                  {okutamaPins.map((pin, index) => {
                     const style = pinTypeStyles[pin.type];
                     const isSelected = selectedPin?.id === pin.id;
+                    const isLast = index === okutamaPins.length - 1;
                     return (
-                      <div
+                      <button
                         key={pin.id}
+                        type="button"
+                        onClick={(e) => handleTogglePinSelection(pin, e)}
                         style={{
                           width: '100%',
                           display: 'flex',
                           alignItems: 'center',
-                          marginTop: 8,
-                          marginBottom: 8,
-                          borderRadius: 12,
-                          border: isSelected ? `1px solid ${style.color}` : '1px solid #f3f4f6',
-                          borderLeft: isSelected ? `5px solid ${style.color}` : '5px solid transparent',
-                          background: '#fff',
-                          boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
-                          overflow: 'hidden',
-                          transition: 'all 0.2s ease',
+                          gap: 12,
+                          padding: '14px 4px',
+                          background: isSelected ? '#f8f7ff' : 'transparent',
+                          border: 'none',
+                          borderBottom: isLast ? 'none' : '1px solid #f3f4f6',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          borderRadius: isSelected ? 8 : 0,
+                          transition: 'background 0.15s ease',
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={(e) => handleTogglePinSelection(pin, e)}
+                        {/* タイプカラードット */}
+                        <div
                           style={{
-                            flex: 1,
-                            textAlign: 'left',
-                            background: 'transparent',
-                            border: 'none',
-                            padding: '12px 14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 14,
-                            cursor: 'pointer',
+                            width: 8,
+                            height: 8,
+                            minWidth: 8,
+                            borderRadius: 9999,
+                            background: style.color,
+                            opacity: isSelected ? 1 : 0.5,
+                            transition: 'opacity 0.15s ease',
                           }}
-                        >
-                          <i className={`ph-fill ph-${style.icon}`} style={{ fontSize: 20, color: '#9ca3af' }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontWeight: 700,
-                                fontSize: 15,
-                                color: '#111827',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                marginBottom: 2
-                              }}
-                            >
-                              {pin.title}
-                            </div>
-                            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{style.label}</div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className="pin-detail-button"
-                          onClick={(e) => handleTogglePinSelection(pin, e)}
+                        />
+                        {/* アイコン */}
+                        <div
                           style={{
-                            padding: '12px 16px',
-                            border: 'none',
-                            background: 'transparent',
-                            color: isSelected ? style.color : '#d1d5db',
-                            cursor: 'pointer',
+                            width: 36,
+                            height: 36,
+                            minWidth: 36,
+                            borderRadius: 10,
+                            background: isSelected ? '#f0ecff' : '#f9fafb',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'color 0.2s ease',
+                            transition: 'background 0.15s ease',
                           }}
                         >
-                          <div style={{ fontSize: 20 }}>›</div>
-                        </button>
-                      </div>
+                          <i
+                            className={`ph-fill ph-${style.icon}`}
+                            style={{
+                              fontSize: 17,
+                              color: isSelected ? style.color : '#9ca3af',
+                              transition: 'color 0.15s ease',
+                            }}
+                          />
+                        </div>
+                        {/* テキスト */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              fontSize: 14,
+                              color: '#111827',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {pin.title}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginTop: 1 }}>
+                            {style.label}
+                          </div>
+                        </div>
+                        {/* 矢印 */}
+                        <div
+                          className="pin-detail-button"
+                          style={{
+                            color: isSelected ? style.color : '#d1d5db',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'color 0.15s ease',
+                            padding: '0 2px',
+                          }}
+                        >
+                          <FaChevronRight size={11} />
+                        </div>
+                      </button>
                     );
                   })}
                 </div>

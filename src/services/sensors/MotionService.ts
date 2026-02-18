@@ -4,6 +4,8 @@ export class MotionService {
   private callbacks: MotionCallback[] = [];
   private isTracking = false;
   private lastMotion: DeviceMotion | null = null;
+  // 権限状態のキャッシュ
+  private permissionState: PermissionState | 'unknown' = 'unknown';
 
   // 歩行検知用パラメーター
   private walkingThreshold = 2.5; // 歩行検知の閾値 (m/s²)
@@ -25,6 +27,11 @@ export class MotionService {
 
   // iOS 13+ での許可要求
   public async requestPermission(): Promise<PermissionState> {
+    // 既に許可済みの場合はキャッシュを返す
+    if (this.permissionState === 'granted') {
+      return 'granted';
+    }
+
     // iOS 13+ では許可が必要
     if (
       typeof window.DeviceMotionEvent !== 'undefined' &&
@@ -33,27 +40,42 @@ export class MotionService {
       try {
         const permission = await window.DeviceMotionEvent.requestPermission();
         console.log('DeviceMotion permission result:', permission);
-        return permission === 'granted' ? 'granted' : 'denied';
+        this.permissionState = permission === 'granted' ? 'granted' : 'denied';
+        return this.permissionState;
       } catch (error) {
         console.error('Device motion permission request failed:', error);
+        this.permissionState = 'denied';
         return 'denied';
       }
     }
 
     // その他のブラウザでは自動的に許可
+    this.permissionState = 'granted';
     return 'granted';
   }
 
+  // 現在の権限状態を取得
+  public getPermissionState(): PermissionState | 'unknown' {
+    return this.permissionState;
+  }
+
   // モーション追跡開始
-  public async startTracking(callback: MotionCallback): Promise<void> {
+  public async startTracking(callback: MotionCallback, autoRequestPermission = true): Promise<void> {
     if (!this.isAvailable()) {
       throw new Error('Device motion is not supported');
     }
 
-    // 許可チェック
-    const permission = await this.requestPermission();
-    if (permission !== 'granted') {
-      throw new Error('Device motion permission denied');
+    // 既に許可済みならリクエストをスキップ、そうでなければリクエスト
+    if (this.permissionState !== 'granted') {
+      if (!autoRequestPermission) {
+        console.warn('Motion tracking skipped: Permission not granted and autoRequestPermission is false.');
+        return;
+      }
+
+      const permission = await this.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Device motion permission denied');
+      }
     }
 
     this.callbacks.push(callback);
