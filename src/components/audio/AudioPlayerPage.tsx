@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MdForward5, MdPause, MdPlayArrow, MdReplay5 } from 'react-icons/md';
 import { type AudioTrack, audioTracks } from '../../data/audio-tracks';
 
 const STORAGE_KEY = 'audio-player-last-track';
@@ -126,13 +127,13 @@ export function AudioPlayerPage() {
 
         <div style={styles.controls}>
           <button type="button" style={styles.controlBtn} onClick={() => skip(-5)}>
-            ⏪
+            <MdReplay5 />
           </button>
           <button type="button" style={styles.playBtn} onClick={togglePlay}>
-            {isPlaying ? '⏸' : '▶️'}
+            {isPlaying ? <MdPause /> : <MdPlayArrow />}
           </button>
           <button type="button" style={styles.controlBtn} onClick={() => skip(5)}>
-            ⏩
+            <MdForward5 />
           </button>
         </div>
 
@@ -229,7 +230,7 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     background: '#f8f1e6',
     borderRadius: '16px',
-    padding: '32px 24px',
+    padding: '20px 24px',
     textAlign: 'center',
     boxShadow: '0 8px 32px rgba(30,20,10,0.25)',
     marginBottom: '24px',
@@ -252,7 +253,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '16px',
   },
   controlBtn: {
-    background: 'rgba(248,241,230,0.2)',
+    background: '#f8f1e6',
     border: 'none',
     borderRadius: '50%',
     width: '60px',
