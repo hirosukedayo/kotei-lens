@@ -294,7 +294,7 @@ export default function PinListDrawer({
                           display: 'flex',
                           alignItems: 'center',
                           gap: 12,
-                          padding: '14px 4px',
+                          padding: '10px 4px',
                           background: isSelected ? '#f8f7ff' : 'transparent',
                           border: 'none',
                           borderBottom: isLast ? 'none' : '1px solid #f3f4f6',
@@ -304,18 +304,18 @@ export default function PinListDrawer({
                           transition: 'background 0.15s ease',
                         }}
                       >
-                        {/* タイプカラードット */}
-                        <div
-                          style={{
-                            width: 8,
-                            height: 8,
-                            minWidth: 8,
-                            borderRadius: 9999,
-                            background: style.color,
-                            opacity: isSelected ? 1 : 0.5,
-                            transition: 'opacity 0.15s ease',
-                          }}
-                        />
+                        {/* タイプカラードット（選択時のみ表示） */}
+                        {isSelected && (
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              minWidth: 8,
+                              borderRadius: 9999,
+                              background: style.color,
+                            }}
+                          />
+                        )}
                         {/* アイコン */}
                         <div
                           style={{
