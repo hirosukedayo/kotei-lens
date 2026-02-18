@@ -112,7 +112,6 @@ export default function PinListDrawer({
             flexDirection: 'column',
             height: '100%',
             overflow: 'hidden',
-            // pointerEvents: 'auto' は不要になるため削除（親がデフォルトでauto）
           }}
         >
           {/* ドラッグハンドル領域 */}
@@ -120,7 +119,7 @@ export default function PinListDrawer({
             <div data-vaul-handle />
           </div>
 
-          {/* 固定ヘッダー */}
+          {/* 固定ヘッダー（スワイプダウンでドロワーを閉じられる） */}
           <div
             style={{
               position: 'sticky',
@@ -130,7 +129,6 @@ export default function PinListDrawer({
               padding: '0 16px 14px 16px',
               zIndex: 1,
             }}
-            data-vaul-no-drag
           >
             {sheetMode === 'pin-detail' && selectedPin ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -169,9 +167,15 @@ export default function PinListDrawer({
                     fontWeight: 700,
                     color: '#111827',
                     letterSpacing: '-0.01em',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: 8,
                   }}
                 >
                   情報地点一覧
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#9ca3af' }}>
+                    ({okutamaPins.length}件)
+                  </span>
                 </h2>
                 <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>
                   かつての小河内村の情報地点を探索
@@ -275,19 +279,6 @@ export default function PinListDrawer({
               </div>
             ) : (
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    margin: '0 0 4px 0',
-                    padding: '0 2px',
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500, letterSpacing: '0.02em' }}>
-                    {okutamaPins.length} 件
-                  </div>
-                </div>
                 <div>
                   {okutamaPins.map((pin, index) => {
                     const style = pinTypeStyles[pin.type];

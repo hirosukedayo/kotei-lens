@@ -39,16 +39,48 @@ export class LocationService {
 
   // 権限状態チェック
   public async checkPermission(): Promise<PermissionState> {
-    if (!('permissions' in navigator)) {
-      return 'prompt';
+    // Permissions API が使える場合（Chrome, Firefox等）
+    if ('permissions' in navigator) {
+      try {
+        const result = await navigator.permissions.query({ name: 'geolocation' });
+        return result.state;
+      } catch {
+        // query失敗時はフォールバック
+      }
     }
 
-    try {
-      const result = await navigator.permissions.query({ name: 'geolocation' });
-      return result.state;
-    } catch {
-      return 'prompt';
+    // iOS Safari等、Permissions API非対応の場合:
+    // 実際にGPS取得を試行して許可済みか判定する
+    if (!this.isAvailable()) {
+      return 'denied';
     }
+
+    return new Promise<PermissionState>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        // タイムアウト＝未許可の可能性が高い
+        resolve('prompt');
+      }, 3000);
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(timeoutId);
+          // 成功＝既に許可済み。ついでに位置をキャッシュ
+          this.lastPosition = this.convertPosition(position);
+          resolve('granted');
+        },
+        (error) => {
+          clearTimeout(timeoutId);
+          if (error.code === error.PERMISSION_DENIED) {
+            resolve('denied');
+          } else {
+            // POSITION_UNAVAILABLE や TIMEOUT はGPS自体の問題であり、
+            // 許可はされている可能性がある
+            resolve('granted');
+          }
+        },
+        { timeout: 3000, maximumAge: 60000 },
+      );
+    });
   }
 
   // 単発位置取得

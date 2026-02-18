@@ -48,9 +48,51 @@ export class OrientationService {
     return 'granted';
   }
 
-  // 現在の権限状態を取得
+  // 現在の権限状態を取得（同期版、キャッシュのみ）
   public getPermissionState(): PermissionState | 'unknown' {
     return this.permissionState;
+  }
+
+  // 権限状態チェック（非同期版、実際にイベント発火を確認）
+  // iOS Safariでは一度許可されていればrequestPermissionなしでもイベントが発火する
+  public async checkPermission(): Promise<PermissionState> {
+    // 既にキャッシュがあればそれを返す
+    if (this.permissionState === 'granted' || this.permissionState === 'denied') {
+      return this.permissionState;
+    }
+
+    // iOS以外（requestPermissionが不要な環境）は自動許可
+    const isIOS =
+      typeof window.DeviceOrientationEvent !== 'undefined' &&
+      typeof window.DeviceOrientationEvent.requestPermission === 'function';
+    if (!isIOS) {
+      this.permissionState = 'granted';
+      return 'granted';
+    }
+
+    // iOS: 一時的にイベントリスナーを登録し、イベントが来るか確認
+    return new Promise<PermissionState>((resolve) => {
+      let resolved = false;
+
+      const handler = () => {
+        if (resolved) return;
+        resolved = true;
+        window.removeEventListener('deviceorientation', handler);
+        this.permissionState = 'granted';
+        resolve('granted');
+      };
+
+      window.addEventListener('deviceorientation', handler);
+
+      // 1秒待ってイベントが来なければ未許可と判断
+      setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        window.removeEventListener('deviceorientation', handler);
+        // 未許可（promptが必要）
+        resolve('prompt');
+      }, 1000);
+    });
   }
 
   // 方位追跡開始
