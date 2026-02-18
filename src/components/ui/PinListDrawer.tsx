@@ -437,9 +437,6 @@ export default function PinListDrawer({
                   >
                     {selectedPin.description}
                   </div>
-                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16, fontWeight: 500 }}>
-                    {selectedPin.coordinates[0].toFixed(6)}, {selectedPin.coordinates[1].toFixed(6)}
-                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {selectedPin.mapUrl && (
                       <a
@@ -489,6 +486,109 @@ export default function PinListDrawer({
                       </a>
                     )}
                   </div>
+                  {/* ページネーション */}
+                  {(() => {
+                    const currentIndex = filteredPins.findIndex((p) => p.id === selectedPin.id);
+                    const prevPin = currentIndex > 0 ? filteredPins[currentIndex - 1] : null;
+                    const nextPin = currentIndex < filteredPins.length - 1 ? filteredPins[currentIndex + 1] : null;
+                    const tabLabel = TAB_ITEMS.find((t) => t.key === activeTab)?.label ?? '';
+                    return (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginTop: 24,
+                          paddingTop: 16,
+                          borderTop: '1px solid #f3f4f6',
+                        }}
+                      >
+                        {/* 前へ */}
+                        <button
+                          type="button"
+                          disabled={!prevPin}
+                          onClick={() => prevPin && onSelectPin(prevPin)}
+                          aria-label="前の地点"
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            minHeight: 0,
+                            padding: 0,
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: prevPin ? 'pointer' : 'default',
+                            opacity: prevPin ? 1 : 0,
+                          }}
+                        >
+                          <FaChevronLeft size={10} style={{ color: '#9ca3af', flexShrink: 0 }} />
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 500,
+                              color: '#6b7280',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              textAlign: 'left',
+                            }}
+                          >
+                            {prevPin?.title ?? ''}
+                          </span>
+                        </button>
+                        {/* 中央ラベル */}
+                        <div
+                          style={{
+                            flexShrink: 0,
+                            textAlign: 'center',
+                            padding: '0 12px',
+                          }}
+                        >
+                          <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', lineHeight: 1.3 }}>
+                            {tabLabel}
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', lineHeight: 1.3 }}>
+                            {currentIndex + 1}/{filteredPins.length}
+                          </div>
+                        </div>
+                        {/* 次へ */}
+                        <button
+                          type="button"
+                          disabled={!nextPin}
+                          onClick={() => nextPin && onSelectPin(nextPin)}
+                          aria-label="次の地点"
+                          style={{
+                            flex: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 6,
+                            minHeight: 0,
+                            padding: 0,
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: nextPin ? 'pointer' : 'default',
+                            opacity: nextPin ? 1 : 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 500,
+                              color: '#6b7280',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              textAlign: 'right',
+                            }}
+                          >
+                            {nextPin?.title ?? ''}
+                          </span>
+                          <FaChevronRight size={10} style={{ color: '#9ca3af', flexShrink: 0 }} />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div>
