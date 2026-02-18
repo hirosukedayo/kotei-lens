@@ -14,6 +14,7 @@ export class LocationService {
   };
 
   private watchId: number | null = null;
+  private statusCheckTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private callbacks: GPSCallback[] = [];
   private errorCallbacks: GPSErrorCallback[] = [];
   private lastPosition: GPSPosition | null = null;
@@ -151,8 +152,12 @@ export class LocationService {
       );
       console.log('GPS watchPosition started with ID:', this.watchId);
 
+      // 既存のチェックタイマーをクリア
+      if (this.statusCheckTimeoutId !== null) {
+        clearTimeout(this.statusCheckTimeoutId);
+      }
       // 10秒後にGPS受信状況をチェック
-      setTimeout(() => {
+      this.statusCheckTimeoutId = setTimeout(() => {
         console.log('10秒後のGPS状況:', {
           watchId: this.watchId,
           callbackCount: this.callbacks.length,
@@ -165,6 +170,7 @@ export class LocationService {
             'GPSからのデータを受信していません。位置の許可が適切に設定されているか確認してください。'
           );
         }
+        this.statusCheckTimeoutId = null;
       }, 10000);
     } else {
       console.log('GPS watching already active with ID:', this.watchId);
@@ -187,6 +193,10 @@ export class LocationService {
     if (this.callbacks.length === 0 && this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
+      if (this.statusCheckTimeoutId !== null) {
+        clearTimeout(this.statusCheckTimeoutId);
+        this.statusCheckTimeoutId = null;
+      }
     }
   }
 

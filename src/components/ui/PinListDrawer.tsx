@@ -11,6 +11,8 @@ import {
   FaChevronLeft,
   FaImage,
   FaTimes,
+  FaPlay,
+  FaStop,
 } from 'react-icons/fa';
 
 type ListTab = 'all' | 'folktale' | 'performing-art';
@@ -48,7 +50,29 @@ export default function PinListDrawer({
   const [sheetMode, _setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
   const [activeTab, _setActiveTab] = useState<ListTab>('all');
   const [imageOpen, setImageOpen] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const stopSpeech = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  const toggleSpeech = useCallback(() => {
+    if (isSpeaking) {
+      stopSpeech();
+      return;
+    }
+    if (!selectedPin) return;
+    const utterance = new SpeechSynthesisUtterance(selectedPin.description);
+    utterance.lang = 'ja-JP';
+    utterance.rate = 1.0;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  }, [isSpeaking, selectedPin, stopSpeech]);
 
   const setActiveTab = useCallback((tab: ListTab) => {
     _setActiveTab(tab);
@@ -72,8 +96,9 @@ export default function PinListDrawer({
     if (selectedPin) {
       setSheetMode('pin-detail');
       setImageOpen(!!selectedPin.image);
+      stopSpeech();
     }
-  }, [selectedPin, setSheetMode]);
+  }, [selectedPin, setSheetMode, stopSpeech]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
@@ -103,12 +128,14 @@ export default function PinListDrawer({
   const backToList = () => {
     setSheetMode('pin-list');
     setImageOpen(false);
+    stopSpeech();
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     onOpenChange(isOpen);
     if (!isOpen) {
       setImageOpen(false);
+      stopSpeech();
       if (!selectedPin) {
         setSheetMode('pin-list');
       }
@@ -273,6 +300,30 @@ export default function PinListDrawer({
                       </div>
                     )}
                   </div>
+                  {/* 音声再生ボタン */}
+                  <button
+                    type="button"
+                    onClick={toggleSpeech}
+                    aria-label={isSpeaking ? '読み上げを停止' : '読み上げ'}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      minHeight: 0,
+                      minWidth: 36,
+                      borderRadius: 10,
+                      border: 'none',
+                      background: isSpeaking ? '#111827' : '#f3f4f6',
+                      color: isSpeaking ? '#ffffff' : '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                      transition: 'background 0.15s ease, color 0.15s ease',
+                    }}
+                  >
+                    {isSpeaking ? <FaStop size={12} /> : <FaPlay size={12} />}
+                  </button>
                   {/* 画像表示ボタン */}
                   {selectedPin.image && (
                     <button

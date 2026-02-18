@@ -19,6 +19,7 @@ export class MotionService {
   private stepCount = 0;
   private lastStepTime = 0;
   private isWalking = false;
+  private walkingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // デバイスモーションセンサー対応チェック
   public isAvailable(): boolean {
@@ -128,11 +129,16 @@ export class MotionService {
       this.lastStepTime = now;
       this.isWalking = true;
 
+      // 既存のタイマーをクリアしてから新規登録
+      if (this.walkingTimeoutId !== null) {
+        clearTimeout(this.walkingTimeoutId);
+      }
       // 3秒間歩行が検知されなければ停止とみなす
-      setTimeout(() => {
+      this.walkingTimeoutId = setTimeout(() => {
         if (Date.now() - this.lastStepTime > 3000) {
           this.isWalking = false;
         }
+        this.walkingTimeoutId = null;
       }, 3000);
 
       return true;
@@ -317,6 +323,10 @@ export class MotionService {
   private resetWalkingState(): void {
     this.isWalking = false;
     this.lastStepTime = 0;
+    if (this.walkingTimeoutId !== null) {
+      clearTimeout(this.walkingTimeoutId);
+      this.walkingTimeoutId = null;
+    }
   }
 
   // クリーンアップ
