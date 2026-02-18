@@ -64,7 +64,8 @@ export default function PinListDrawer({
       return;
     }
     if (!selectedPin) return;
-    const utterance = new SpeechSynthesisUtterance(selectedPin.description);
+    const text = selectedPin.reading ?? `${selectedPin.title}。${selectedPin.description}`;
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ja-JP';
     utterance.rate = 1.0;
     utterance.onend = () => setIsSpeaking(false);
@@ -458,7 +459,7 @@ export default function PinListDrawer({
                         }}
                       >
                         <FaMapMarkerAlt size={16} />
-                        <span>Googleマップで開く</span>
+                        <span>いまはここ</span>
                         <FaExternalLinkAlt size={12} style={{ marginLeft: 'auto' }} />
                       </a>
                     )}
@@ -481,7 +482,7 @@ export default function PinListDrawer({
                           border: '1px solid #e5e7eb',
                         }}
                       >
-                        <span>関連リンク</span>
+                        <span>{selectedPin.externalUrlTitle || '関連リンク'}</span>
                         <FaExternalLinkAlt size={12} style={{ marginLeft: 'auto' }} />
                       </a>
                     )}
