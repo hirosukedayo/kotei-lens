@@ -7,6 +7,8 @@ export type PinType =
   | 'viewpoint'
   | 'interview'
   | 'folktale'
+  | 'heritage'
+  | 'current'
   | 'debug';
 
 export interface PinData {
@@ -19,7 +21,11 @@ export interface PinData {
   icon?: string; // カスタムアイコン（オプション）
   mapUrl?: string; // マップアプリで開くURL（オプション）
   externalUrl?: string; // 外部リンクURL（ブログなど）（オプション）
+  externalUrlTitle?: string; // 外部リンクのタイトル（オプション）
   hasLocation?: boolean; // 現在位置として表示するかどうか
+  reading?: string; // 読み上げ用テキスト（タイトル＋本文の読み仮名付き）
+  folktaleTitle?: string; // 関連する民話のタイトル（オプション）
+  performingArtTitle?: string; // 関連する伝統芸能のタイトル（オプション）
 }
 
 // ピンタイプごとのスタイル設定
@@ -66,6 +72,16 @@ export const pinTypeStyles: Record<
     color: '#FFB0DD',
     icon: 'scroll',
     label: '民話・伝説',
+  },
+  heritage: {
+    color: '#9B30FF',
+    icon: 'mask-happy',
+    label: '民俗芸能',
+  },
+  current: {
+    color: '#3B82F6',
+    icon: 'map-pin',
+    label: '現代',
   },
   debug: {
     color: '#000',

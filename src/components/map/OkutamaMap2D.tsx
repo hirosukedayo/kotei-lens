@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaListUl, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
@@ -36,6 +36,92 @@ type OkutamaMap2DProps = {
   selectedPin?: PinData | null;
   onSelectPin?: (pin: PinData) => void;
   onDeselectPin?: () => void;
+};
+
+// 選択ピンのリップルエフェクト（requestAnimationFrame駆動でiOS Safariでも確実に動作）
+const PinRippleEffect = ({ position }: { position: [number, number] }) => {
+  const map = useMap();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const duration = 1400; // ms
+    const maxScale = 2.2;
+    const baseSize = 40;
+    const ringCount = 2;
+    const stagger = 500; // ms（2つ目のリングの遅延）
+
+    let startTime: number | null = null;
+
+    const draw = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+
+      // キャンバスサイズをリップル最大径に合わせる
+      const canvasSize = baseSize * maxScale + 8;
+      canvas.width = canvasSize;
+      canvas.height = canvasSize;
+
+      // マップ上の座標をピクセル位置に変換してキャンバスを配置
+      // iconAnchorが下端中央 [28, 56] なので、ピンの円の中心は point.y - 28 の位置
+      const point = map.latLngToContainerPoint(position);
+      const pinCenterY = point.y - 28; // ringSize(56) / 2
+      canvas.style.left = `${point.x - canvasSize / 2}px`;
+      canvas.style.top = `${pinCenterY - canvasSize / 2}px`;
+
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
+      const cx = canvasSize / 2;
+      const cy = canvasSize / 2;
+
+      for (let i = 0; i < ringCount; i++) {
+        const elapsed = timestamp - startTime - i * stagger;
+        if (elapsed < 0) continue;
+
+        const progress = (elapsed % duration) / duration; // 0-1
+        const eased = 1 - (1 - progress) * (1 - progress); // ease-out
+        const scale = 1 + (maxScale - 1) * eased;
+        const opacity = 0.7 * (1 - eased);
+        const radius = (baseSize / 2) * scale;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 73, 0, ${opacity})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    animRef.current = requestAnimationFrame(draw);
+
+    // マップ移動時にもキャンバス位置を更新
+    const onMove = () => {
+      // draw内で毎フレーム位置更新しているので追加処理は不要
+    };
+    map.on('move', onMove);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      map.off('move', onMove);
+    };
+  }, [map, position]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        pointerEvents: 'none',
+        zIndex: 999,
+      }}
+    />
+  );
 };
 
 // 現在地マーカーコンポーネント（Google Maps風: 中心にドット + 方位方向にグラデーション扇形）
@@ -121,6 +207,24 @@ const CurrentLocationMarker = ({
   }, [gps, compassHeading, hasHeading]);
 
   return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
+};
+
+// Drawer表示中にマップのタッチドラッグを無効化するコンポーネント
+// vaulのドラッグとLeafletのパンが競合するのを防ぐ
+const MapTouchGuard = ({ drawerOpen }: { drawerOpen: boolean }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (drawerOpen) {
+      map.dragging.disable();
+      map.touchZoom.disable();
+    } else {
+      map.dragging.enable();
+      map.touchZoom.enable();
+    }
+  }, [map, drawerOpen]);
+
+  return null;
 };
 
 // 地図クリックイベントを捕捉するコンポーネント
@@ -222,20 +326,9 @@ export default function OkutamaMap2D({
     const size = isSelected ? 40 : 36;
     const border = isSelected ? '3px solid #ffb899' : '3px solid white';
     const ringSize = 56; // 円環のサイズ
-    const ripple = isSelected
-      ? `<style>
-          @keyframes pin-ripple {
-            0% { width:${size}px; height:${size}px; opacity:0.7; }
-            100% { width:${ringSize * 1.6}px; height:${ringSize * 1.6}px; opacity:0; }
-          }
-        </style>
-        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out infinite;"></div>
-        <div style="position:absolute; border-radius:50%; border:2px solid rgba(255,73,0,0.5); top:50%; left:50%; transform:translate(-50%,-50%); animation:pin-ripple 1.4s ease-out 0.5s infinite;"></div>`
-      : '';
     return L.divIcon({
       html: `
         <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center; overflow:visible;">
-          ${ripple}
           <div style="
             width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
             border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -275,58 +368,76 @@ export default function OkutamaMap2D({
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
 
-  // 3D切替: クリック時にセンサー権限を確認
-  const handleRequest3DWithPermission = async () => {
-    // 3Dボタンを押した直後にモデルのプリロードを開始（キャリブレーション等の待ち時間を有効活用）
-    preloadLakeModel();
+  // 3Dモードの初期位置を決定
+  const get3DTargetPosition = useCallback((): [number, number] => {
+    const gps = sensorData.gps;
+    if (gps && sensorManager.locationService.isInOkutamaArea(gps)) {
+      return [gps.latitude, gps.longitude];
+    }
+    if (isDevMode) {
+      return [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
+    }
+    const currentCenter = mapRef.current?.getCenter();
+    if (currentCenter) {
+      return [currentCenter.lat, currentCenter.lng];
+    }
+    const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
+    return [centerLatLng[0], centerLatLng[1]];
+  }, [sensorData.gps, sensorManager.locationService, isDevMode, center]);
 
-    // 既に許可済みかチェック (キャッシュを利用)
+  // 権限チェック → キャリブレーション or 遷移
+  const proceedTo3DAfterMove = useCallback(async () => {
     const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
-    // const gpsPermission = 'granted'; // GPSは基本的にavailableなら使えることが多いが、ここで厳密にチェックしてもよい
 
-    // 簡易チェック: Orientationが許可済みなら即遷移 (iOS対策)
-    // GPSやMotionは必須ではない、あるいはOrientation許可時に一括で処理される想定
-    if (orientationPermission === 'granted') {
-      // モバイルの場合はキャリブレーション（水平安定化）を挟む
+    // カメラ権限チェック
+    let cameraGranted = false;
+    try {
+      const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+      cameraGranted = result.state === 'granted';
+    } catch {
+      // Permissions API非対応の場合はモーダルで確認させる
+      cameraGranted = false;
+    }
+
+    if (orientationPermission === 'granted' && cameraGranted) {
       const ua = navigator.userAgent;
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
       if (isMobile) {
         setIsCalibrating(true);
       } else {
-        // PCなどは即座に遷移（ヘディングオフセットなし）
         transitionTo3D();
       }
     } else {
-      // 未許可なら統一モーダルを表示
       setShowPermissionModal(true);
+    }
+  }, [sensorManager.orientationService]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3D切替: クリック時にまず2Dマップを初期位置に移動し、その後権限確認へ
+  const handleRequest3DWithPermission = async () => {
+    preloadLakeModel();
+
+    const [targetLat, targetLng] = get3DTargetPosition();
+    const map = mapRef.current;
+
+    if (map) {
+      map.flyTo([targetLat, targetLng], 16, { duration: 0.8 });
+      map.once('moveend', () => {
+        proceedTo3DAfterMove();
+      });
+    } else {
+      proceedTo3DAfterMove();
     }
   };
 
   const transitionTo3D = (headingOffset?: number) => {
-    // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
-    const currentCenter = mapRef.current?.getCenter();
-    const commonProps = {
+    const [targetLat, targetLng] = get3DTargetPosition();
+    const initialPosition: Initial3DPosition = {
+      latitude: targetLat,
+      longitude: targetLng,
       heading: sensorData.orientation?.alpha ?? undefined,
       headingOffset: headingOffset,
     };
-
-    if (currentCenter) {
-      const initialPosition: Initial3DPosition = {
-        latitude: currentCenter.lat,
-        longitude: currentCenter.lng,
-        ...commonProps,
-      };
-      onRequest3D?.(initialPosition);
-    } else {
-      // マップが初期化されていない場合は、stateのcenterを使用
-      const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
-      const initialPosition: Initial3DPosition = {
-        latitude: centerLatLng[0],
-        longitude: centerLatLng[1],
-        ...commonProps,
-      };
-      onRequest3D?.(initialPosition);
-    }
+    onRequest3D?.(initialPosition);
   };
 
   // キャリブレーション完了時のハンドラ
@@ -359,17 +470,17 @@ export default function OkutamaMap2D({
 
   // 方位許可状態の初期チェック
   useEffect(() => {
-    const state = sensorManager.orientationService.getPermissionState();
-    if (state === 'granted') {
-      setHeadingPermission('granted');
-    } else if (state === 'denied') {
-      setHeadingPermission('denied');
-    } else {
-      const isIOS =
-        typeof window.DeviceOrientationEvent !== 'undefined' &&
-        typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
-      setHeadingPermission(isIOS ? 'prompt' : 'granted');
-    }
+    const checkHeadingPermission = async () => {
+      const state = await sensorManager.orientationService.checkPermission();
+      if (state === 'granted') {
+        setHeadingPermission('granted');
+      } else if (state === 'denied') {
+        setHeadingPermission('denied');
+      } else {
+        setHeadingPermission('prompt');
+      }
+    };
+    checkHeadingPermission();
   }, [sensorManager.orientationService]);
 
   // マウント時: 既存の権限状態を確認し、適切なステップに遷移
@@ -377,11 +488,8 @@ export default function OkutamaMap2D({
   useEffect(() => {
     const checkExistingPermissions = async () => {
       const gpsPermission = await sensorManager.locationService.checkPermission();
-      const orientationState = sensorManager.orientationService.getPermissionState();
-      const isIOS =
-        typeof window.DeviceOrientationEvent !== 'undefined' &&
-        typeof (window.DeviceOrientationEvent as any).requestPermission === 'function';
-      const needsHeadingPrompt = isIOS && orientationState !== 'granted';
+      const orientationPermission = await sensorManager.orientationService.checkPermission();
+      const needsHeadingPrompt = orientationPermission === 'prompt';
 
       if (gpsPermission === 'granted') {
         startSensors();
@@ -580,6 +688,7 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
+        <MapTouchGuard drawerOpen={sheetOpen} />
 
         {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
         <MapClickHandler onClick={handleMapClick} />
@@ -639,6 +748,11 @@ export default function OkutamaMap2D({
             />
           );
         })}
+
+        {/* 選択ピンのリップルエフェクト（Canvas + rAF でiOS Safari対応） */}
+        {selectedPin && (
+          <PinRippleEffect position={selectedPin.coordinates as [number, number]} />
+        )}
       </MapContainer>
 
       {/* Step 1: 位置情報の許可モーダル */}
@@ -780,7 +894,7 @@ export default function OkutamaMap2D({
         </div>
       )}
 
-      {/* UI（3D切替）。mapより前面 */}
+      {/* UI（3D切替）。mapより前面。ボトムシート表示中はフェードアウト */}
       <div
         style={{
           position: 'absolute',
@@ -788,17 +902,46 @@ export default function OkutamaMap2D({
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 10000,
+          opacity: sheetOpen ? 0 : 1,
+          pointerEvents: sheetOpen ? 'none' : 'auto',
+          transition: 'opacity 0.3s ease',
         }}
       >
-        <button
-          type="button"
-          className="map-btn map-btn--pill"
-          onClick={handleRequest3DWithPermission}
-          aria-label="3Dビューへ"
-        >
-          <PiCubeFocusFill size={26} />
-          3Dモード
-        </button>
+        {(() => {
+          // GPSが未取得、またはエリア外の場合は3Dモードを無効化（devモード時は常に有効）
+          const gps = sensorData.gps;
+          const inArea = gps != null && sensorManager.locationService.isInOkutamaArea(gps);
+          const disabled = isDevMode ? false : !inArea;
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                className="map-btn map-btn--pill"
+                onClick={handleRequest3DWithPermission}
+                disabled={disabled}
+                aria-label="3Dビューへ"
+                style={disabled ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+              >
+                <PiCubeFocusFill size={26} />
+                3Dモード
+              </button>
+              {disabled && (
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  background: 'rgba(255,255,255,0.85)',
+                  backdropFilter: 'blur(4px)',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  奥多摩湖の近くで試してみてね！
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
 
@@ -837,8 +980,8 @@ export default function OkutamaMap2D({
           <FaMinus size={20} />
         </button>
 
-        {/* 現在地へ戻るボタン */}
-        {sensorData.gps && (
+        {/* 現在地へ戻るボタン（エリア内のみ表示） */}
+        {sensorData.gps && !isOutsideArea && (
           <button
             type="button"
             className="map-btn map-btn--round"
@@ -896,7 +1039,7 @@ export default function OkutamaMap2D({
           aria-label="ピン一覧"
           onClick={openPinList}
         >
-          <FaMapSigns size={22} />
+          <FaListUl size={22} />
         </button>
       </div>
 

@@ -168,6 +168,25 @@
   outline-offset: -2px;
 }
 
+/* Vaulがbody/htmlに付与するスタイルを完全に無効化（画面ズレ防止） */
+body[vaul-drawer-visible],
+body[vaul-drawer-visible][style] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  transform: none !important;
+  overflow: hidden !important;
+}
+
+/* Vaulのドロワーオーバーレイを無効化（non-modalモード） */
+[data-vaul-overlay] {
+  display: none !important;
+}
+
 /* Vaulハンドルをフラットスタイルに上書き */
 [data-vaul-handle] {
   width: 36px !important;
