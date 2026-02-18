@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
-import { FaMapSigns, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaListUl, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
 import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
@@ -368,58 +368,66 @@ export default function OkutamaMap2D({
   };
   const [showPermissionModal, setShowPermissionModal] = useState(false);
 
-  // 3D切替: クリック時にセンサー権限を確認
-  const handleRequest3DWithPermission = async () => {
-    // 3Dボタンを押した直後にモデルのプリロードを開始（キャリブレーション等の待ち時間を有効活用）
-    preloadLakeModel();
+  // 3Dモードの初期位置を決定
+  const get3DTargetPosition = useCallback((): [number, number] => {
+    const gps = sensorData.gps;
+    if (gps && sensorManager.locationService.isInOkutamaArea(gps)) {
+      return [gps.latitude, gps.longitude];
+    }
+    if (isDevMode) {
+      return [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
+    }
+    const currentCenter = mapRef.current?.getCenter();
+    if (currentCenter) {
+      return [currentCenter.lat, currentCenter.lng];
+    }
+    const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
+    return [centerLatLng[0], centerLatLng[1]];
+  }, [sensorData.gps, sensorManager.locationService, isDevMode, center]);
 
-    // 既に許可済みかチェック (キャッシュを利用)
+  // 権限チェック → キャリブレーション or 遷移
+  const proceedTo3DAfterMove = useCallback(() => {
     const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
-    // const gpsPermission = 'granted'; // GPSは基本的にavailableなら使えることが多いが、ここで厳密にチェックしてもよい
 
-    // 簡易チェック: Orientationが許可済みなら即遷移 (iOS対策)
-    // GPSやMotionは必須ではない、あるいはOrientation許可時に一括で処理される想定
     if (orientationPermission === 'granted') {
-      // モバイルの場合はキャリブレーション（水平安定化）を挟む
       const ua = navigator.userAgent;
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
       if (isMobile) {
         setIsCalibrating(true);
       } else {
-        // PCなどは即座に遷移（ヘディングオフセットなし）
         transitionTo3D();
       }
     } else {
-      // 未許可なら統一モーダルを表示
       setShowPermissionModal(true);
+    }
+  }, [sensorManager.orientationService]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3D切替: クリック時にまず2Dマップを初期位置に移動し、その後権限確認へ
+  const handleRequest3DWithPermission = async () => {
+    preloadLakeModel();
+
+    const [targetLat, targetLng] = get3DTargetPosition();
+    const map = mapRef.current;
+
+    if (map) {
+      map.flyTo([targetLat, targetLng], 16, { duration: 0.8 });
+      map.once('moveend', () => {
+        proceedTo3DAfterMove();
+      });
+    } else {
+      proceedTo3DAfterMove();
     }
   };
 
   const transitionTo3D = (headingOffset?: number) => {
-    // 2Dマップの現在の中心位置を取得（マップインスタンスから直接取得）
-    const currentCenter = mapRef.current?.getCenter();
-    const commonProps = {
+    const [targetLat, targetLng] = get3DTargetPosition();
+    const initialPosition: Initial3DPosition = {
+      latitude: targetLat,
+      longitude: targetLng,
       heading: sensorData.orientation?.alpha ?? undefined,
       headingOffset: headingOffset,
     };
-
-    if (currentCenter) {
-      const initialPosition: Initial3DPosition = {
-        latitude: currentCenter.lat,
-        longitude: currentCenter.lng,
-        ...commonProps,
-      };
-      onRequest3D?.(initialPosition);
-    } else {
-      // マップが初期化されていない場合は、stateのcenterを使用
-      const centerLatLng = Array.isArray(center) ? center : [center.lat, center.lng];
-      const initialPosition: Initial3DPosition = {
-        latitude: centerLatLng[0],
-        longitude: centerLatLng[1],
-        ...commonProps,
-      };
-      onRequest3D?.(initialPosition);
-    }
+    onRequest3D?.(initialPosition);
   };
 
   // キャリブレーション完了時のハンドラ
@@ -890,10 +898,10 @@ export default function OkutamaMap2D({
         }}
       >
         {(() => {
-          // GPSが未取得、またはエリア外の場合は3Dモードを無効化
+          // GPSが未取得、またはエリア外の場合は3Dモードを無効化（devモード時は常に有効）
           const gps = sensorData.gps;
           const inArea = gps != null && sensorManager.locationService.isInOkutamaArea(gps);
-          const disabled = !inArea;
+          const disabled = isDevMode ? false : !inArea;
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
@@ -1021,7 +1029,7 @@ export default function OkutamaMap2D({
           aria-label="ピン一覧"
           onClick={openPinList}
         >
-          <FaMapSigns size={22} />
+          <FaListUl size={22} />
         </button>
       </div>
 
