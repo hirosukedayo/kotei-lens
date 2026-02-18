@@ -373,6 +373,7 @@ export default function OkutamaMap2D({
   }, [sensorManager.orientationService]);
 
   // マウント時: 既存の権限状態を確認し、適切なステップに遷移
+  // biome-ignore lint/correctness/useExhaustiveDependencies: マウント時に1回だけ実行する初期化処理
   useEffect(() => {
     const checkExistingPermissions = async () => {
       const gpsPermission = await sensorManager.locationService.checkPermission();
@@ -394,7 +395,6 @@ export default function OkutamaMap2D({
       }
     };
     checkExistingPermissions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 方位許可をリクエスト（ユーザーインタラクション内で呼ぶ）
@@ -644,8 +644,6 @@ export default function OkutamaMap2D({
       {/* Step 1: 位置情報の許可モーダル */}
       {permissionStep === 'location' && (
         <div
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="location-modal-title"
           style={{
             position: 'fixed',
@@ -679,7 +677,6 @@ export default function OkutamaMap2D({
               type="button"
               className="modal-btn-primary"
               onClick={handleLocationPermissionRequest}
-              autoFocus
             >
               許可する
             </button>
@@ -690,8 +687,6 @@ export default function OkutamaMap2D({
       {/* Step 2: 方位センサーの許可モーダル */}
       {permissionStep === 'heading' && (
         <div
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="heading-modal-title"
           onKeyDown={(e) => { if (e.key === 'Escape') handleHeadingPermissionSkip(); }}
           style={{
@@ -727,7 +722,6 @@ export default function OkutamaMap2D({
               className="modal-btn-primary"
               onClick={handleHeadingPermissionRequest}
               style={{ marginBottom: 12 }}
-              autoFocus
             >
               許可する
             </button>
@@ -745,8 +739,6 @@ export default function OkutamaMap2D({
       {/* Step 3: エリア外モーダル */}
       {permissionStep === 'outside' && (
         <div
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="outside-modal-title"
           onKeyDown={(e) => { if (e.key === 'Escape') handleOutsideDismiss(); }}
           style={{
@@ -781,7 +773,6 @@ export default function OkutamaMap2D({
               type="button"
               className="modal-btn-primary"
               onClick={handleOutsideDismiss}
-              autoFocus
             >
               OK
             </button>
