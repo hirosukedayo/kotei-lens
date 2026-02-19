@@ -605,11 +605,11 @@ export default function OkutamaMap2D({
     if (isInArea) {
       const newCenter: LatLngExpression = [gpsPosition.latitude, gpsPosition.longitude];
       setCenter(newCenter);
-      mapRef.current?.flyTo(newCenter, 14, { duration: 0.6 });
+      mapRef.current?.flyTo(newCenter, 16, { duration: 0.6 });
     } else {
       const startCenter: LatLngExpression = [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
       setCenter(startCenter);
-      mapRef.current?.flyTo(startCenter, 14, { duration: 0.6 });
+      mapRef.current?.flyTo(startCenter, 16, { duration: 0.6 });
     }
     setIsOutsideArea(!isInArea);
     setHasInitialCenterSet(true);
@@ -694,7 +694,7 @@ export default function OkutamaMap2D({
       {/* 全画面。ズームは固定、パンは境界内でのみ可能 */}
       <MapContainer
         center={center}
-        zoom={14}
+        zoom={16}
         maxBounds={okutamaBounds}
         maxBoundsViscosity={0.5}
         // もう少し引きで見られるように、最小ズームを 13 まで許可
