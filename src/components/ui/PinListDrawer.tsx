@@ -142,7 +142,7 @@ export default function PinListDrawer({
     onOpenChange(isOpen);
     if (!isOpen) {
       setImageOpen(false);
-      stopSpeech();
+      // stopSpeechはuseEffect(!open)で一元管理
       if (!selectedPin) {
         setSheetMode('pin-list');
       }
