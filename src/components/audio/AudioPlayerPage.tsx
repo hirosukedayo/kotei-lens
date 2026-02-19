@@ -36,6 +36,10 @@ export function AudioPlayerPage() {
       setDuration(0);
       setIsPlaying(false);
 
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', track.id);
+      window.history.replaceState(null, '', url.toString());
+
       const audio = audioRef.current;
       if (audio) {
         audio.pause();
