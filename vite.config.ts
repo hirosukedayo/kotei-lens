@@ -5,7 +5,21 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
-  plugins: [react(), basicSsl()],
+  plugins: [
+    react(),
+    basicSsl(),
+    {
+      name: 'mpa-rewrite',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url === '/audio') {
+            req.url = '/audio/index.html';
+          }
+          next();
+        });
+      },
+    },
+  ],
   base: command === 'serve' ? '/' : '/kotei-lens/',
   resolve: {
     alias: {
@@ -19,6 +33,10 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2022',
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        audio: resolve(__dirname, 'audio/index.html'),
+      },
       output: {
         manualChunks: {
           'three': ['three'],
