@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback, createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaListUl, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
@@ -228,23 +230,52 @@ const MapTouchGuard = ({ drawerOpen }: { drawerOpen: boolean }) => {
 };
 
 // 地図クリックイベントを捕捉するコンポーネント
-const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
+// ピンは interactive:false なので、クリック座標とピン位置の近接判定でピン選択を行う
+const MapClickHandler = ({
+  onMapClick,
+  pins,
+  onPinClick,
+}: {
+  onMapClick: () => void;
+  pins: PinData[];
+  onPinClick: (pin: PinData) => void;
+}) => {
   const map = useMap();
-  const handlerRef = React.useRef(onClick);
+  const onMapClickRef = React.useRef(onMapClick);
+  const onPinClickRef = React.useRef(onPinClick);
+  const pinsRef = React.useRef(pins);
+
+  React.useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
+  React.useEffect(() => { onPinClickRef.current = onPinClick; }, [onPinClick]);
+  React.useEffect(() => { pinsRef.current = pins; }, [pins]);
 
   React.useEffect(() => {
-    handlerRef.current = onClick;
-  }, [onClick]);
+    const HIT_RADIUS_PX = 28; // ピンアイコン半径(56/2)
 
-  React.useEffect(() => {
-    const handleMapClick = () => {
-      handlerRef.current?.();
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const clickPoint = map.latLngToContainerPoint(e.latlng);
+      let closest: { pin: PinData; dist: number } | null = null;
+
+      for (const pin of pinsRef.current) {
+        const pinPoint = map.latLngToContainerPoint(pin.coordinates as L.LatLngExpression);
+        // iconAnchorが下端中央なので、ピンの円の中心はpinPoint.y - 28の位置
+        const dx = clickPoint.x - pinPoint.x;
+        const dy = clickPoint.y - (pinPoint.y - HIT_RADIUS_PX);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= HIT_RADIUS_PX && (!closest || dist < closest.dist)) {
+          closest = { pin, dist };
+        }
+      }
+
+      if (closest) {
+        onPinClickRef.current(closest.pin);
+      } else {
+        onMapClickRef.current();
+      }
     };
 
-    map.on('click', handleMapClick);
-    return () => {
-      map.off('click', handleMapClick);
-    };
+    map.on('click', handleClick);
+    return () => { map.off('click', handleClick); };
   }, [map]);
 
   return null;
@@ -335,7 +366,7 @@ export default function OkutamaMap2D({
             color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.3);
             position:relative; z-index:1;
           ">
-            <i class="ph-fill ph-${style.icon}" style="font-size:20px; color:#fff; line-height:1;"></i>
+            ${renderToStaticMarkup(createElement(style.IconComponent, { size: 20, color: '#fff' }))}
           </div>
         </div>
       `,
@@ -344,6 +375,25 @@ export default function OkutamaMap2D({
       iconAnchor: [ringSize / 2, ringSize],
     });
   }, []);
+
+  // クラスタアイコン（白丸にピン数を表示）
+  const createClusterIcon = useCallback((cluster: { getChildCount: () => number }) => {
+    const count = cluster.getChildCount();
+    const size = count < 10 ? 40 : count < 100 ? 48 : 56;
+    return L.divIcon({
+      html: `<div style="
+        width:${size}px; height:${size}px; border-radius:50%;
+        background:#fff; border:2px solid #d1d5db;
+        display:flex; align-items:center; justify-content:center;
+        font-size:14px; font-weight:700; color:#374151;
+        box-shadow:0 2px 8px rgba(0,0,0,0.2);
+      ">${count}</div>`,
+      className: 'custom-cluster',
+      iconSize: L.point(size, size),
+      iconAnchor: L.point(size / 2, size / 2),
+    });
+  }, []);
+
   // 一覧を開く
   const openPinList = () => {
     setSheetOpen(true);
@@ -584,11 +634,11 @@ export default function OkutamaMap2D({
     if (isInArea) {
       const newCenter: LatLngExpression = [gpsPosition.latitude, gpsPosition.longitude];
       setCenter(newCenter);
-      mapRef.current?.flyTo(newCenter, 14, { duration: 0.6 });
+      mapRef.current?.flyTo(newCenter, 16, { duration: 0.6 });
     } else {
       const startCenter: LatLngExpression = [DEFAULT_START_POSITION.latitude, DEFAULT_START_POSITION.longitude];
       setCenter(startCenter);
-      mapRef.current?.flyTo(startCenter, 14, { duration: 0.6 });
+      mapRef.current?.flyTo(startCenter, 16, { duration: 0.6 });
     }
     setIsOutsideArea(!isInArea);
     setHasInitialCenterSet(true);
@@ -673,7 +723,7 @@ export default function OkutamaMap2D({
       {/* 全画面。ズームは固定、パンは境界内でのみ可能 */}
       <MapContainer
         center={center}
-        zoom={14}
+        zoom={16}
         maxBounds={okutamaBounds}
         maxBoundsViscosity={0.5}
         // もう少し引きで見られるように、最小ズームを 13 まで許可
@@ -691,7 +741,11 @@ export default function OkutamaMap2D({
         <MapTouchGuard drawerOpen={sheetOpen} />
 
         {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
-        <MapClickHandler onClick={handleMapClick} />
+        <MapClickHandler
+          onMapClick={handleMapClick}
+          pins={isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins}
+          onPinClick={handlePinClick}
+        />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
@@ -730,24 +784,36 @@ export default function OkutamaMap2D({
             <CurrentLocationMarker gps={sensorData.gps} compassHeading={sensorData.compassHeading} hasHeading={headingPermission === 'granted'} />
           )}
 
-        {/* ピンマーカー */}
-        {(isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins).map((pin) => {
-          const isSelected = selectedPin?.id === pin.id;
-          return (
-            <Marker
-              key={pin.id}
-              position={pin.coordinates}
-              icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
-              zIndexOffset={isSelected ? 1000 : 0}
-              eventHandlers={{
-                click: (e) => {
-                  L.DomEvent.stopPropagation(e.originalEvent);
-                  handlePinClick(pin);
-                },
-              }}
-            />
-          );
-        })}
+        {/* ピンマーカー: 非選択ピンをクラスタ化 */}
+        <MarkerClusterGroup
+          maxClusterRadius={40}
+          disableClusteringAtZoom={18}
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick={true}
+          iconCreateFunction={createClusterIcon}
+        >
+          {(isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins)
+            .filter((pin) => selectedPin?.id !== pin.id)
+            .map((pin) => (
+              <Marker
+                key={pin.id}
+                position={pin.coordinates}
+                icon={createCustomIcon(false, pin.type as keyof typeof pinTypeStyles)}
+                interactive={false}
+              />
+            ))}
+        </MarkerClusterGroup>
+
+        {/* 選択中のピンはクラスタ外に単独表示（リップルエフェクト・zIndex維持） */}
+        {selectedPin && (
+          <Marker
+            key={`selected-${selectedPin.id}`}
+            position={selectedPin.coordinates}
+            icon={createCustomIcon(true, selectedPin.type as keyof typeof pinTypeStyles)}
+            zIndexOffset={1000}
+            interactive={false}
+          />
+        )}
 
         {/* 選択ピンのリップルエフェクト（Canvas + rAF でiOS Safari対応） */}
         {selectedPin && (

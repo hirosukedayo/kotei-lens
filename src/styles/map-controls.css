@@ -209,3 +209,18 @@ body[vaul-drawer-visible][style] {
 .leaflet-control-attribution a {
   color: rgba(150, 150, 150, 0.4) !important;
 }
+
+/* MarkerCluster: デフォルトスタイルをリセットしてカスタムアイコンのみ使用 */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: none !important;
+}
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background: none !important;
+}
+.marker-cluster {
+  background: none !important;
+}
