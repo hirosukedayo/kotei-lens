@@ -5,8 +5,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const csvPath = path.resolve(__dirname, '../resources/spot_20260218.csv');
+const csvPath = path.resolve(__dirname, '../resources/spot_20260219.csv');
 const outputPath = path.resolve(__dirname, '../src/data/okutama-pins.ts');
+const imagesDir = path.resolve(__dirname, '../public/images');
+
+// public/images 内の画像ファイル名セットを構築
+const imageFiles = new Set(
+  fs.readdirSync(imagesDir).filter(f => f.endsWith('.jpg'))
+);
 
 // スキップするtype
 const SKIP_TYPES = new Set(['photo']);
@@ -173,6 +179,9 @@ try {
     const externalUrlTitle = colIndex.general_url_title !== undefined ? (cols[colIndex.general_url_title] || '').trim() : '';
     const imageName = colIndex['画像のファイル名'] !== undefined ? (cols[colIndex['画像のファイル名']] || '').trim() : '';
     const reading = colIndex.reading !== undefined ? cleanDescription(cols[colIndex.reading] || '') : '';
+    const folktaleTitle = colIndex.folktale !== undefined ? (cols[colIndex.folktale] || '').trim() : '';
+    const folktaleId = colIndex.folktale_id !== undefined ? (cols[colIndex.folktale_id] || '').trim() : '';
+    const performingArtTitle = colIndex.heritage !== undefined ? (cols[colIndex.heritage] || '').trim() : '';
 
     // 空行スキップ
     if (!id && !title) continue;
@@ -211,8 +220,21 @@ try {
       basePinData.externalUrl = externalUrl;
       if (externalUrlTitle) basePinData.externalUrlTitle = externalUrlTitle;
     }
-    if (imageName) basePinData.image = `/images/${imageName}`;
+    if (imageName) {
+      basePinData.image = `/images/${imageName}`;
+    } else {
+      // id.jpg または ゼロ埋め id.jpg を検索
+      const padded = id.padStart(2, '0');
+      if (imageFiles.has(`${id}.jpg`)) {
+        basePinData.image = `/images/${id}.jpg`;
+      } else if (imageFiles.has(`${padded}.jpg`)) {
+        basePinData.image = `/images/${padded}.jpg`;
+      }
+    }
     if (reading) basePinData.reading = reading;
+    if (folktaleTitle) basePinData.folktaleTitle = folktaleTitle;
+    if (folktaleId) basePinData.folktaleId = folktaleId;
+    if (performingArtTitle) basePinData.performingArtTitle = performingArtTitle;
 
     if (coordinatesList.length === 1) {
       pins.push({
@@ -238,7 +260,7 @@ try {
   // TypeScriptファイルの生成
   const tsContent = `import type { PinData } from '../types/pins';
 
-// CSV由来のピンデータ (Generated from spot_20260218.csv)
+// CSV由来のピンデータ (Generated from spot_20260219.csv)
 export const okutamaPins: PinData[] = ${JSON.stringify(pins, null, 2)};
 `;
 

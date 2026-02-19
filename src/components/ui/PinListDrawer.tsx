@@ -446,7 +446,32 @@ export default function PinListDrawer({
                   >
                     {selectedPin.description}
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {selectedPin.folktaleId && (
+                      <a
+                        href={`${import.meta.env.BASE_URL}audio/?id=${selectedPin.folktaleId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '10px 12px',
+                          background: '#fff0f6',
+                          borderRadius: 10,
+                          textDecoration: 'none',
+                          color: '#D55DF4',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          border: 'none',
+                        }}
+                      >
+                        <FiVolume2 size={12} />
+                        <span>民話を聴く</span>
+                      </a>
+                    )}
                     {selectedPin.externalUrl && (
                       <a
                         href={selectedPin.externalUrl}

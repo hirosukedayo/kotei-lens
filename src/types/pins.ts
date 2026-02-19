@@ -31,6 +31,7 @@ export interface PinData {
   hasLocation?: boolean; // 現在位置として表示するかどうか
   reading?: string; // 読み上げ用テキスト（タイトル＋本文の読み仮名付き）
   folktaleTitle?: string; // 関連する民話のタイトル（オプション）
+  folktaleId?: string; // 関連する民話のID（外部リンク用）（オプション）
   performingArtTitle?: string; // 関連する伝統芸能のタイトル（オプション）
 }
 
