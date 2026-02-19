@@ -11,9 +11,8 @@ import {
   FaChevronLeft,
   FaImage,
   FaTimes,
-  FaPlay,
-  FaStop,
 } from 'react-icons/fa';
+import { FiVolume2, FiVolumeX } from 'react-icons/fi';
 
 type ListTab = 'all' | 'folktale' | 'performing-art';
 
@@ -100,6 +99,13 @@ export default function PinListDrawer({
       stopSpeech();
     }
   }, [selectedPin, setSheetMode, stopSpeech]);
+
+  // ドロワーが閉じられたら音声を停止（スワイプ閉じ等あらゆるケースに対応）
+  React.useEffect(() => {
+    if (!open) {
+      stopSpeech();
+    }
+  }, [open, stopSpeech]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
@@ -323,7 +329,7 @@ export default function PinListDrawer({
                       transition: 'background 0.15s ease, color 0.15s ease',
                     }}
                   >
-                    {isSpeaking ? <FaStop size={12} /> : <FaPlay size={12} />}
+                    {isSpeaking ? <FiVolumeX size={14} /> : <FiVolume2 size={14} />}
                   </button>
                   {/* 画像表示ボタン */}
                   {selectedPin.image && (
