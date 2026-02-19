@@ -662,11 +662,10 @@ export default function PinListDrawer({
                                 transition: 'background 0.15s ease',
                               }}
                             >
-                              <i
-                                className={`ph-fill ph-${style.icon}`}
+                              <style.IconComponent
+                                size={17}
+                                color={isSelected ? style.color : '#9ca3af'}
                                 style={{
-                                  fontSize: 17,
-                                  color: isSelected ? style.color : '#9ca3af',
                                   transition: 'color 0.15s ease',
                                 }}
                               />

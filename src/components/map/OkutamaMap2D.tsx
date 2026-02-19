@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback, createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
@@ -335,7 +336,7 @@ export default function OkutamaMap2D({
             color:#fff; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.3);
             position:relative; z-index:1;
           ">
-            <i class="ph-fill ph-${style.icon}" style="font-size:20px; color:#fff; line-height:1;"></i>
+            ${renderToStaticMarkup(createElement(style.IconComponent, { size: 20, color: '#fff' }))}
           </div>
         </div>
       `,

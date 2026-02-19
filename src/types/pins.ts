@@ -1,3 +1,17 @@
+import type { IconType } from 'react-icons';
+import {
+  PiChurchFill,
+  PiBuildingsFill,
+  PiTreeFill,
+  PiPaletteFill,
+  PiBinocularsFill,
+  PiMicrophoneFill,
+  PiScrollFill,
+  PiMaskHappyFill,
+  PiMapPinFill,
+  PiBugBeetleFill,
+} from 'react-icons/pi';
+
 // ピン情報の型定義
 export type PinType =
   | 'historical'
@@ -33,59 +47,58 @@ export const pinTypeStyles: Record<
   PinType,
   {
     color: string;
-    icon: string;
+    IconComponent: IconType;
     label: string;
   }
 > = {
   historical: {
     color: '#661A71',
-    icon: 'church',
+    IconComponent: PiChurchFill,
     label: '歴史',
   },
   landmark: {
     color: '#FFB0DD',
-    icon: 'buildings',
+    IconComponent: PiBuildingsFill,
     label: 'ランドマーク',
   },
   nature: {
     color: '#FFB0DD',
-    icon: 'tree',
+    IconComponent: PiTreeFill,
     label: '自然',
   },
   cultural: {
     color: '#661A71',
-    icon: 'masks-theater',
+    IconComponent: PiPaletteFill,
     label: '文化',
   },
   viewpoint: {
     color: '#FFB0DD',
-    icon: 'binoculars',
+    IconComponent: PiBinocularsFill,
     label: '展望',
   },
-
   interview: {
     color: '#D55DF4',
-    icon: 'microphone',
+    IconComponent: PiMicrophoneFill,
     label: 'インタビュー',
   },
   folktale: {
     color: '#FFB0DD',
-    icon: 'scroll',
+    IconComponent: PiScrollFill,
     label: '民話・伝説',
   },
   heritage: {
     color: '#9B30FF',
-    icon: 'mask-happy',
+    IconComponent: PiMaskHappyFill,
     label: '民俗芸能',
   },
   current: {
     color: '#3B82F6',
-    icon: 'map-pin',
+    IconComponent: PiMapPinFill,
     label: '現代',
   },
   debug: {
     color: '#000',
-    icon: 'bug',
+    IconComponent: PiBugBeetleFill,
     label: 'debug',
   },
 };
