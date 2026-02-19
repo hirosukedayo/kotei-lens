@@ -230,23 +230,52 @@ const MapTouchGuard = ({ drawerOpen }: { drawerOpen: boolean }) => {
 };
 
 // 地図クリックイベントを捕捉するコンポーネント
-const MapClickHandler = ({ onClick }: { onClick: () => void }) => {
+// ピンは interactive:false なので、クリック座標とピン位置の近接判定でピン選択を行う
+const MapClickHandler = ({
+  onMapClick,
+  pins,
+  onPinClick,
+}: {
+  onMapClick: () => void;
+  pins: PinData[];
+  onPinClick: (pin: PinData) => void;
+}) => {
   const map = useMap();
-  const handlerRef = React.useRef(onClick);
+  const onMapClickRef = React.useRef(onMapClick);
+  const onPinClickRef = React.useRef(onPinClick);
+  const pinsRef = React.useRef(pins);
+
+  React.useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
+  React.useEffect(() => { onPinClickRef.current = onPinClick; }, [onPinClick]);
+  React.useEffect(() => { pinsRef.current = pins; }, [pins]);
 
   React.useEffect(() => {
-    handlerRef.current = onClick;
-  }, [onClick]);
+    const HIT_RADIUS_PX = 28; // ピンアイコン半径(56/2)
 
-  React.useEffect(() => {
-    const handleMapClick = () => {
-      handlerRef.current?.();
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      const clickPoint = map.latLngToContainerPoint(e.latlng);
+      let closest: { pin: PinData; dist: number } | null = null;
+
+      for (const pin of pinsRef.current) {
+        const pinPoint = map.latLngToContainerPoint(pin.coordinates as L.LatLngExpression);
+        // iconAnchorが下端中央なので、ピンの円の中心はpinPoint.y - 28の位置
+        const dx = clickPoint.x - pinPoint.x;
+        const dy = clickPoint.y - (pinPoint.y - HIT_RADIUS_PX);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= HIT_RADIUS_PX && (!closest || dist < closest.dist)) {
+          closest = { pin, dist };
+        }
+      }
+
+      if (closest) {
+        onPinClickRef.current(closest.pin);
+      } else {
+        onMapClickRef.current();
+      }
     };
 
-    map.on('click', handleMapClick);
-    return () => {
-      map.off('click', handleMapClick);
-    };
+    map.on('click', handleClick);
+    return () => { map.off('click', handleClick); };
   }, [map]);
 
   return null;
@@ -712,7 +741,11 @@ export default function OkutamaMap2D({
         <MapTouchGuard drawerOpen={sheetOpen} />
 
         {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
-        <MapClickHandler onClick={handleMapClick} />
+        <MapClickHandler
+          onMapClick={handleMapClick}
+          pins={isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins}
+          onPinClick={handlePinClick}
+        />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
@@ -766,12 +799,7 @@ export default function OkutamaMap2D({
                 key={pin.id}
                 position={pin.coordinates}
                 icon={createCustomIcon(false, pin.type as keyof typeof pinTypeStyles)}
-                eventHandlers={{
-                  click: (e) => {
-                    L.DomEvent.stopPropagation(e.originalEvent);
-                    handlePinClick(pin);
-                  },
-                }}
+                interactive={false}
               />
             ))}
         </MarkerClusterGroup>
@@ -783,12 +811,7 @@ export default function OkutamaMap2D({
             position={selectedPin.coordinates}
             icon={createCustomIcon(true, selectedPin.type as keyof typeof pinTypeStyles)}
             zIndexOffset={1000}
-            eventHandlers={{
-              click: (e) => {
-                L.DomEvent.stopPropagation(e.originalEvent);
-                handlePinClick(selectedPin);
-              },
-            }}
+            interactive={false}
           />
         )}
 
