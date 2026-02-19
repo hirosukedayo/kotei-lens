@@ -43,7 +43,7 @@ export function AudioPlayerPage() {
       const audio = audioRef.current;
       if (audio) {
         audio.pause();
-        audio.src = `/audio/${track.filename}`;
+        audio.src = `${import.meta.env.BASE_URL}audio/${track.filename}`;
         audio.load();
       }
     },
@@ -81,7 +81,7 @@ export function AudioPlayerPage() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.src = `/audio/${selectedTrack.filename}`;
+    audio.src = `${import.meta.env.BASE_URL}audio/${selectedTrack.filename}`;
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
     const onLoadedMetadata = () => {
