@@ -204,7 +204,7 @@ export default function PinListDrawer({
           </button>
           {selectedPin?.image && (
             <img
-              src={selectedPin.image}
+              src={`${import.meta.env.BASE_URL}${selectedPin.image.replace(/^\//, '')}`}
               alt={selectedPin.title}
               style={{
                 maxWidth: '100%',
