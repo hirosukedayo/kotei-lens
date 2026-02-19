@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback, createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MapContainer, TileLayer, Marker, Polygon, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaListUl, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
@@ -345,6 +346,25 @@ export default function OkutamaMap2D({
       iconAnchor: [ringSize / 2, ringSize],
     });
   }, []);
+
+  // クラスタアイコン（白丸にピン数を表示）
+  const createClusterIcon = useCallback((cluster: { getChildCount: () => number }) => {
+    const count = cluster.getChildCount();
+    const size = count < 10 ? 40 : count < 100 ? 48 : 56;
+    return L.divIcon({
+      html: `<div style="
+        width:${size}px; height:${size}px; border-radius:50%;
+        background:#fff; border:2px solid #d1d5db;
+        display:flex; align-items:center; justify-content:center;
+        font-size:14px; font-weight:700; color:#374151;
+        box-shadow:0 2px 8px rgba(0,0,0,0.2);
+      ">${count}</div>`,
+      className: 'custom-cluster',
+      iconSize: L.point(size, size),
+      iconAnchor: L.point(size / 2, size / 2),
+    });
+  }, []);
+
   // 一覧を開く
   const openPinList = () => {
     setSheetOpen(true);
@@ -731,24 +751,46 @@ export default function OkutamaMap2D({
             <CurrentLocationMarker gps={sensorData.gps} compassHeading={sensorData.compassHeading} hasHeading={headingPermission === 'granted'} />
           )}
 
-        {/* ピンマーカー */}
-        {(isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins).map((pin) => {
-          const isSelected = selectedPin?.id === pin.id;
-          return (
-            <Marker
-              key={pin.id}
-              position={pin.coordinates}
-              icon={createCustomIcon(isSelected, pin.type as keyof typeof pinTypeStyles)}
-              zIndexOffset={isSelected ? 1000 : 0}
-              eventHandlers={{
-                click: (e) => {
-                  L.DomEvent.stopPropagation(e.originalEvent);
-                  handlePinClick(pin);
-                },
-              }}
-            />
-          );
-        })}
+        {/* ピンマーカー: 非選択ピンをクラスタ化 */}
+        <MarkerClusterGroup
+          maxClusterRadius={40}
+          disableClusteringAtZoom={18}
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick={true}
+          iconCreateFunction={createClusterIcon}
+        >
+          {(isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins)
+            .filter((pin) => selectedPin?.id !== pin.id)
+            .map((pin) => (
+              <Marker
+                key={pin.id}
+                position={pin.coordinates}
+                icon={createCustomIcon(false, pin.type as keyof typeof pinTypeStyles)}
+                eventHandlers={{
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                    handlePinClick(pin);
+                  },
+                }}
+              />
+            ))}
+        </MarkerClusterGroup>
+
+        {/* 選択中のピンはクラスタ外に単独表示（リップルエフェクト・zIndex維持） */}
+        {selectedPin && (
+          <Marker
+            key={`selected-${selectedPin.id}`}
+            position={selectedPin.coordinates}
+            icon={createCustomIcon(true, selectedPin.type as keyof typeof pinTypeStyles)}
+            zIndexOffset={1000}
+            eventHandlers={{
+              click: (e) => {
+                L.DomEvent.stopPropagation(e.originalEvent);
+                handlePinClick(selectedPin);
+              },
+            }}
+          />
+        )}
 
         {/* 選択ピンのリップルエフェクト（Canvas + rAF でiOS Safari対応） */}
         {selectedPin && (
