@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MdForward5, MdPause, MdPlayArrow, MdReplay5 } from 'react-icons/md';
+import { MdForward5, MdPause, MdPlayArrow, MdReplay5, MdScreenRotation } from 'react-icons/md';
 import { type AudioTrack, audioTracks } from '../../data/audio-tracks';
+
+function useIsLandscape(): boolean {
+  const [isLandscape, setIsLandscape] = useState(
+    () => window.innerWidth > window.innerHeight
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia('(orientation: landscape)');
+    const handler = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return isLandscape;
+}
 
 const STORAGE_KEY = 'audio-player-last-track';
 
@@ -11,6 +26,7 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPlayerPage() {
+  const isLandscape = useIsLandscape();
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +136,15 @@ export function AudioPlayerPage() {
       <h1 style={styles.srOnly}>-奥多摩 小河内の民話-</h1>
       {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration, no captions available */}
       <audio ref={audioRef} preload="metadata" />
+
+      {isLandscape && (
+        <div style={styles.landscapeOverlay}>
+          <MdScreenRotation size={48} color="#f8f1e6" />
+          <p style={styles.landscapeText}>
+            画面を縦向きにしてください
+          </p>
+        </div>
+      )}
 
       <div style={styles.container}>
         <div style={styles.header}>-奥多摩 小河内の民話-</div>
@@ -320,5 +345,23 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(248,241,230,0.8)',
     fontSize: '12px',
     marginBottom: '24px',
+  },
+  landscapeOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 10000,
+    background: 'rgba(0, 0, 0, 0.85)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '16px',
+  },
+  landscapeText: {
+    color: '#f8f1e6',
+    fontSize: '18px',
+    fontWeight: 700,
+    fontFamily: '"Noto Sans JP", sans-serif',
+    margin: 0,
   },
 };

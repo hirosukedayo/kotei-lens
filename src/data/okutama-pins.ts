@@ -505,7 +505,7 @@ export const okutamaPins: PinData[] = [
     "description": "移転はされず、日指地区・山のふるさと村敷地内に現存する石仏です。大工・左官・建具・木挽・杣職人などが多かった小河内村では、聖徳太子信仰、太子講が盛んでした。\n「女の髪の毛と大石」という民話も残されています。",
     "mapUrl": "https://maps.app.goo.gl/fv2nGbAWHSP3pfVR7",
     "folktaleTitle": "女の髪の毛と大石",
-    "folktaleId": "onnanokaminoketo-oish",
+    "folktaleId": "onnanokaminoketo-oishi",
     "coordinates": [
       35.760225588950014,
       139.02449369430545
