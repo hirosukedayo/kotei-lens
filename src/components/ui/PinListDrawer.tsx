@@ -101,7 +101,7 @@ export default function PinListDrawer({
       audio.removeEventListener('ended', onEnded);
       audio.pause();
     };
-  }, [folktaleTrack]);
+  }, [folktaleTrack, sheetMode]);
 
   const ftTogglePlay = useCallback(() => {
     const audio = folktaleAudioRef.current;
@@ -723,18 +723,13 @@ export default function PinListDrawer({
                         {/* 前へ */}
                         <button
                           type="button"
+                          className="pin-pager-btn"
                           disabled={!prevPin}
                           onClick={() => prevPin && onSelectPin(prevPin)}
                           aria-label="前の地点"
                           style={{
                             flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
                             gap: 6,
-                            minHeight: 0,
-                            padding: 0,
-                            border: 'none',
-                            background: 'transparent',
                             cursor: prevPin ? 'pointer' : 'default',
                             opacity: prevPin ? 1 : 0,
                           }}
@@ -772,19 +767,14 @@ export default function PinListDrawer({
                         {/* 次へ */}
                         <button
                           type="button"
+                          className="pin-pager-btn"
                           disabled={!nextPin}
                           onClick={() => nextPin && onSelectPin(nextPin)}
                           aria-label="次の地点"
                           style={{
                             flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
                             justifyContent: 'flex-end',
                             gap: 6,
-                            minHeight: 0,
-                            padding: 0,
-                            border: 'none',
-                            background: 'transparent',
                             cursor: nextPin ? 'pointer' : 'default',
                             opacity: nextPin ? 1 : 0,
                           }}
