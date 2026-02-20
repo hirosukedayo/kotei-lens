@@ -215,11 +215,17 @@ export default function PinListDrawer({
     }
   }, [selectedPin, setSheetMode, setImageOpen, stopSpeech]);
 
-  // ドロワーが閉じられたら音声を停止（スワイプ閉じ等あらゆるケースに対応）
+  // ドロワーが閉じられたら音声を停止しプレーヤーをリセット（スワイプ閉じ等あらゆるケースに対応）
   React.useEffect(() => {
     if (!open) {
       stopSpeech();
-      folktaleAudioRef.current?.pause();
+      const audio = folktaleAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      setFtPlaying(false);
+      setFtCurrentTime(0);
     }
   }, [open, stopSpeech]);
 
@@ -267,6 +273,9 @@ export default function PinListDrawer({
 
   return (
     <>
+      {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration */}
+      <audio ref={folktaleAudioRef} preload="metadata" style={{ display: 'none' }} />
+
       {/* 画像オーバーレイ: ドロワーの下層 */}
       <div
         style={{
@@ -592,8 +601,6 @@ export default function PinListDrawer({
                         >
                           <FaExternalLinkAlt size={10} />
                         </a>
-                        {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration */}
-                        <audio ref={folktaleAudioRef} preload="metadata" />
                         <div style={{ textAlign: 'center', marginBottom: 10 }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
                             {folktaleTrack.title}
