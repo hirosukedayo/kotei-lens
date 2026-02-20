@@ -619,7 +619,7 @@ export default function PinListDrawer({
                             style={{
                               height: '100%',
                               borderRadius: 3,
-                              background: '#e07028',
+                              background: '#ff4900',
                               width: ftDuration > 0 ? `${(ftCurrentTime / ftDuration) * 100}%` : '0%',
                               transition: 'width 0.1s linear',
                             }}
