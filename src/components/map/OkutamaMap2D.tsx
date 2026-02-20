@@ -412,9 +412,9 @@ export default function OkutamaMap2D({
       // Drawerの上端と画面上端の中央にピンが表示されるようにする
       const targetPoint = map.project(coords as [number, number], currentZoom);
       const mapHeight = map.getSize().y;
-      // Drawer が最大 50vh を占めるため、可視領域（上半分）の中央 = 画面上端から25%の位置にピンを配置
-      // flyToは指定座標を画面中央(50%)に置くので、25%分下にオフセットする
-      targetPoint.y += mapHeight * 0.25;
+      // Drawer が最大 50vh を占めるため、可視領域（上半分）の中央付近にピンを配置
+      // flyToは指定座標を画面中央(50%)に置くので、20%分下にオフセットする
+      targetPoint.y += mapHeight * 0.2;
       const offsetLatLng = map.unproject(targetPoint, currentZoom);
       map.flyTo(offsetLatLng, currentZoom, { duration: 0.6 });
     }
