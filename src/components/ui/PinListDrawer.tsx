@@ -58,32 +58,36 @@ export default function PinListDrawer({
   const [drawerTopY, setDrawerTopY] = useState(0);
 
   const [imageOpen, _setImageOpen] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
   const setImageOpen = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     _setImageOpen((prev) => {
       const next = typeof value === 'function' ? value(prev) : value;
+      if (!next) setImageReady(false);
       onImageOpenChange?.(next);
       return next;
     });
   }, [onImageOpenChange]);
 
-  // 画像表示の切り替え時にドロワー上端のY座標を測定
+  // 画像表示の切り替え時にドロワー上端のY座標を測定し、測定完了後にフェードイン
   // biome-ignore lint/correctness/useExhaustiveDependencies: selectedPinの切り替え時にもドロワー位置を再計測する必要がある
   useEffect(() => {
     if (!imageOpen) {
       setDrawerTopY(0);
+      setImageReady(false);
       return;
     }
-    const measure = () => {
+    // Vaulのアニメーション完了を待ってから測定 → フェードイン開始
+    const timerId = setTimeout(() => {
       const el = drawerContentRef.current;
       if (el) {
         setDrawerTopY(el.getBoundingClientRect().top);
       }
-    };
-    // Vaulのアニメーション完了後に測定（2フレーム待機）
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(measure);
-    });
-    return () => cancelAnimationFrame(id);
+      // 測定後、次フレームでフェードイン開始（DOMに反映させてからopacityを変更）
+      requestAnimationFrame(() => {
+        setImageReady(true);
+      });
+    }, 350);
+    return () => clearTimeout(timerId);
   }, [imageOpen, selectedPin]);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -273,9 +277,9 @@ export default function PinListDrawer({
           bottom: 0,
           zIndex: 10999,
           background: 'rgba(0, 0, 0, 0.75)',
-          opacity: imageOpen && selectedPin?.image ? 1 : 0,
-          pointerEvents: imageOpen && selectedPin?.image ? 'auto' : 'none',
-          transition: 'opacity 0.25s ease',
+          opacity: imageReady && selectedPin?.image ? 1 : 0,
+          pointerEvents: imageReady && selectedPin?.image ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease',
         }}
       >
         {/* 画像表示エリア: 画面上端〜記事上端の空間に収まるよう写真を配置 */}
