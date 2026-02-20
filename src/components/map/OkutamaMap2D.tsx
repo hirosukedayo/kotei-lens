@@ -394,8 +394,10 @@ export default function OkutamaMap2D({
     });
   }, []);
 
-  // 一覧を開く
+  // 一覧を開く（選択状態を解除してリスト表示に戻す）
   const openPinList = () => {
+    onDeselectPin();
+    setSheetMode('pin-list');
     setSheetOpen(true);
   };
   // 一覧から選択 → 詳細 + 地図パン
