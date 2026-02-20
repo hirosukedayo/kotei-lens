@@ -117,16 +117,37 @@ export function AudioPlayerPage() {
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.srOnly}>奥多摩の民話</h1>
+      <h1 style={styles.srOnly}>-奥多摩 小河内の民話-</h1>
       {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration, no captions available */}
       <audio ref={audioRef} preload="metadata" />
 
       <div style={styles.container}>
-        <div style={styles.header}>奥多摩の民話</div>
+        <div style={styles.header}>-奥多摩 小河内の民話-</div>
+
+        <div style={styles.photoWrapper}>
+          <img
+            src={`${import.meta.env.BASE_URL}images/arasawa_hiroshi.jpg`}
+            alt="荒澤弘"
+            style={styles.photo}
+          />
+          <div style={styles.narrator}>語り：荒澤弘</div>
+        </div>
 
         <div style={styles.card}>
-          <div style={styles.trackTitle}>{selectedTrack.title}</div>
-          <div style={styles.narrator}>語り：荒澤弘</div>
+          <select
+            style={styles.trackSelect}
+            value={selectedTrack.id}
+            onChange={(e) => {
+              const track = audioTracks.find((t) => t.id === e.target.value);
+              if (track) selectTrack(track);
+            }}
+          >
+            {audioTracks.map((track) => (
+              <option key={track.id} value={track.id}>
+                {track.emoji} {track.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={styles.controls}>
@@ -164,30 +185,6 @@ export function AudioPlayerPage() {
           <span>{formatTime(duration)}</span>
         </div>
 
-        <div style={styles.trackList}>
-          {audioTracks.map((track) => {
-            const isActive = track.id === selectedTrack.id;
-            return (
-              <button
-                type="button"
-                key={track.id}
-                ref={(el) => {
-                  if (isActive && el) {
-                    el.scrollIntoView({ block: 'nearest' });
-                  }
-                }}
-                style={{
-                  ...styles.trackItem,
-                  ...(isActive ? styles.trackItemActive : {}),
-                }}
-                onClick={() => selectTrack(track)}
-              >
-                <span style={styles.trackIcon}>{isActive && isPlaying ? '🔊' : track.emoji}</span>
-                <span>{track.title}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
@@ -198,7 +195,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     padding: '16px',
     height: '100dvh',
-    background: 'linear-gradient(180deg, #3d5a3e 0%, #6b4d35 100%)',
+    background: 'linear-gradient(180deg, #5a7a4e 0%, #8b6340 100%)',
     fontFamily: '"Noto Sans JP", sans-serif',
     boxSizing: 'border-box',
     display: 'flex',
@@ -229,7 +226,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '24px',
     fontWeight: 700,
     textAlign: 'center',
-    padding: '16px 0',
+    padding: '4px 0 16px',
+  },
+  photoWrapper: {
+    margin: '0 auto 16px',
+    textAlign: 'center' as const,
+  },
+  photo: {
+    width: '150px',
+    height: '150px',
+    borderRadius: '50%',
+    objectFit: 'cover' as const,
+    display: 'block',
+    margin: '0 auto',
+    border: '3px solid #f8f1e6',
+    boxShadow: '0 4px 16px rgba(30,20,10,0.3)',
   },
   card: {
     background: '#f8f1e6',
@@ -239,14 +250,22 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 8px 32px rgba(30,20,10,0.25)',
     marginBottom: '24px',
   },
-  trackTitle: {
-    fontSize: '34px',
+  trackSelect: {
+    width: '100%',
+    fontSize: '20px',
     fontWeight: 700,
     color: '#3e2c1a',
+    background: 'transparent',
+    border: 'none',
+    textAlign: 'center',
+    textAlignLast: 'center',
+    fontFamily: '"Noto Sans JP", sans-serif',
+    cursor: 'pointer',
+    appearance: 'auto' as const,
   },
   narrator: {
-    fontSize: '13px',
-    color: '#9e8a72',
+    fontSize: '12px',
+    color: 'rgba(248,241,230,0.8)',
     marginTop: '8px',
   },
   controls: {
@@ -254,7 +273,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     alignItems: 'center',
     gap: '24px',
-    marginBottom: '16px',
+    marginBottom: '32px',
   },
   controlBtn: {
     background: '#f8f1e6',
@@ -301,36 +320,5 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(248,241,230,0.8)',
     fontSize: '12px',
     marginBottom: '24px',
-  },
-  trackList: {
-    background: '#f8f1e6',
-    borderRadius: '16px',
-    boxShadow: '0 8px 32px rgba(30,20,10,0.25)',
-    flex: 1,
-    minHeight: 0,
-    overflowY: 'auto',
-  },
-  trackItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    width: '100%',
-    padding: '14px 20px',
-    border: 'none',
-    borderBottom: '1px solid #ebe3d5',
-    background: 'transparent',
-    fontSize: '15px',
-    color: '#3e2c1a',
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontFamily: '"Noto Sans JP", sans-serif',
-  },
-  trackItemActive: {
-    background: '#d4742c',
-    color: '#f8f1e6',
-  },
-  trackIcon: {
-    fontSize: '18px',
-    flexShrink: 0,
   },
 };
