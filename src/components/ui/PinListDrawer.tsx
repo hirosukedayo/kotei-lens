@@ -295,6 +295,7 @@ export default function PinListDrawer({
         <div
           style={{
             height: drawerTopY > 0 ? `${drawerTopY}px` : '50vh',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
