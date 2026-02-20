@@ -12,8 +12,8 @@ export default defineConfig(({ command }) => ({
       name: 'mpa-rewrite',
       configureServer(server) {
         server.middlewares.use((req, _res, next) => {
-          if (req.url === '/audio') {
-            req.url = '/audio/index.html';
+          if (req.url === '/minwa') {
+            req.url = '/minwa/index.html';
           }
           next();
         });
@@ -35,7 +35,7 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        audio: resolve(__dirname, 'audio/index.html'),
+        minwa: resolve(__dirname, 'minwa/index.html'),
       },
       output: {
         manualChunks: {
