@@ -166,12 +166,12 @@ export default function PinListDrawer({
           transition: 'opacity 0.25s ease',
         }}
       >
-        {/* 画像表示エリア: 上部45vhに限定 */}
+        {/* 画像表示エリア: ドロワー上部に限定 */}
         <div
           style={{
-            height: '45vh',
+            height: '50vh',
             display: 'flex',
-            alignItems: 'flex-end',
+            alignItems: 'center',
             justifyContent: 'center',
             padding: 16,
             position: 'relative',
@@ -208,7 +208,7 @@ export default function PinListDrawer({
               alt={selectedPin.title}
               style={{
                 maxWidth: '100%',
-                maxHeight: 'calc(45vh - 32px)',
+                maxHeight: 'calc(50vh - 32px)',
                 objectFit: 'contain',
                 borderRadius: 8,
               }}
