@@ -211,20 +211,19 @@ const CurrentLocationMarker = ({
   return <Marker position={[gps.latitude, gps.longitude]} icon={icon} />;
 };
 
-// Drawer表示中にマップのタッチドラッグを無効化するコンポーネント
-// vaulのドラッグとLeafletのパンが競合するのを防ぐ
-const MapTouchGuard = ({ drawerOpen }: { drawerOpen: boolean }) => {
+// 画像オーバーレイ表示中にマップのタッチドラッグを無効化するコンポーネント
+const MapTouchGuard = ({ disabled }: { disabled: boolean }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (drawerOpen) {
+    if (disabled) {
       map.dragging.disable();
       map.touchZoom.disable();
     } else {
       map.dragging.enable();
       map.touchZoom.enable();
     }
-  }, [map, drawerOpen]);
+  }, [map, disabled]);
 
   return null;
 };
@@ -289,6 +288,7 @@ export default function OkutamaMap2D({
 }: OkutamaMap2DProps) {
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [sheetMode, setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
+  const [imageOverlayOpen, setImageOverlayOpen] = useState(false);
   const pinClickGuardRef = useRef(false);
   // propsから選択ピンを取得、なければローカルstateを使用
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
@@ -739,7 +739,7 @@ export default function OkutamaMap2D({
         style={{ width: '100%', height: '100%' }}
       >
         <MapRefBinder />
-        <MapTouchGuard drawerOpen={sheetOpen} />
+        <MapTouchGuard disabled={imageOverlayOpen} />
 
         {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
         <MapClickHandler
@@ -1125,6 +1125,7 @@ export default function OkutamaMap2D({
         onSelectPin={handleSelectPin}
         onDeselectPin={onDeselectPin}
         onSheetModeChange={setSheetMode}
+        onImageOpenChange={setImageOverlayOpen}
       />
 
       {/* センサー権限要求モーダル (統一UI) */}
