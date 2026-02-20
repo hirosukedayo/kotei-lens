@@ -262,12 +262,12 @@ export default function PinListDrawer({
               position: 'absolute',
               top: 12,
               right: 12,
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               minHeight: 0,
               borderRadius: 9999,
               border: 'none',
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: '#000000',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -277,7 +277,7 @@ export default function PinListDrawer({
               padding: 0,
             }}
           >
-            <FaTimes size={14} />
+            <FaTimes size={16} />
           </button>
           {selectedPin?.image && (
             <img
