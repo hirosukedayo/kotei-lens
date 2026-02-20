@@ -168,6 +168,19 @@
   outline-offset: -2px;
 }
 
+/* ページネーションボタン（ホバー効果なし） */
+.pin-pager-btn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.pin-pager-btn:hover {
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Vaulがbody/htmlに付与するスタイルを完全に無効化（画面ズレ防止） */
 body[vaul-drawer-visible],
 body[vaul-drawer-visible][style] {
