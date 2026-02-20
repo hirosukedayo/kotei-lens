@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Drawer } from 'vaul';
 const VDrawer = Drawer as unknown as any; // 型の都合でネストコンポーネントを any 扱い
 import type { PinData } from '../../types/pins';
 import { okutamaPins } from '../../data/okutama-pins';
 import { pinTypeStyles } from '../../types/pins';
+import { audioTracks } from '../../data/audio-tracks';
 import {
   FaMapMarkerAlt,
   FaExternalLinkAlt,
@@ -11,8 +12,11 @@ import {
   FaChevronLeft,
   FaImage,
   FaTimes,
+  FaPlay,
+  FaPause,
 } from 'react-icons/fa';
 import { FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { MdReplay5, MdForward5 } from 'react-icons/md';
 
 type ListTab = 'all' | 'folktale' | 'performing-art';
 
@@ -51,6 +55,78 @@ export default function PinListDrawer({
   const [imageOpen, setImageOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 民話オーディオプレーヤー
+  const folktaleAudioRef = useRef<HTMLAudioElement>(null);
+  const [ftPlaying, setFtPlaying] = useState(false);
+  const [ftCurrentTime, setFtCurrentTime] = useState(0);
+  const [ftDuration, setFtDuration] = useState(0);
+
+  const folktaleTrack = useMemo(
+    () => (selectedPin?.folktaleId ? audioTracks.find((t) => t.id === selectedPin.folktaleId) : null),
+    [selectedPin?.folktaleId],
+  );
+
+  // 民話プレーヤーのイベントバインド
+  useEffect(() => {
+    const audio = folktaleAudioRef.current;
+    if (!audio || !folktaleTrack) return;
+
+    audio.src = `${import.meta.env.BASE_URL}audio/${folktaleTrack.filename}`;
+    audio.load();
+    setFtPlaying(false);
+    setFtCurrentTime(0);
+    setFtDuration(0);
+
+    const onTimeUpdate = () => setFtCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setFtDuration(audio.duration);
+    const onPlay = () => setFtPlaying(true);
+    const onPause = () => setFtPlaying(false);
+    const onEnded = () => {
+      setFtPlaying(false);
+      setFtCurrentTime(0);
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      audio.pause();
+    };
+  }, [folktaleTrack]);
+
+  const ftTogglePlay = useCallback(() => {
+    const audio = folktaleAudioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }, []);
+
+  const ftSkip = useCallback((seconds: number) => {
+    const audio = folktaleAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, audio.duration || 0));
+  }, []);
+
+  const ftSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = folktaleAudioRef.current;
+    const bar = e.currentTarget;
+    if (!audio || !audio.duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+  }, []);
 
   const stopSpeech = useCallback(() => {
     window.speechSynthesis.cancel();
@@ -104,6 +180,7 @@ export default function PinListDrawer({
   React.useEffect(() => {
     if (!open) {
       stopSpeech();
+      folktaleAudioRef.current?.pause();
     }
   }, [open, stopSpeech]);
 
@@ -447,30 +524,134 @@ export default function PinListDrawer({
                     {selectedPin.description}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {selectedPin.folktaleId && (
-                      <a
-                        href={`${import.meta.env.BASE_URL}audio/?id=${selectedPin.folktaleId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    {/* 民話インラインプレーヤー */}
+                    {folktaleTrack && (
+                      <div
                         style={{
-                          flex: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 6,
-                          padding: '10px 12px',
-                          background: '#fff0f6',
-                          borderRadius: 10,
-                          textDecoration: 'none',
-                          color: '#D55DF4',
-                          fontWeight: 600,
-                          fontSize: '12px',
-                          border: 'none',
+                          background: '#f5f5f5',
+                          borderRadius: 14,
+                          padding: '14px 16px 16px',
+                          position: 'relative',
                         }}
                       >
-                        <FiVolume2 size={12} />
-                        <span>民話を聴く</span>
-                      </a>
+                        {/* 民話ページリンク */}
+                        <a
+                          href={`${import.meta.env.BASE_URL}minwa/?id=${selectedPin.folktaleId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="民話ページを開く"
+                          style={{
+                            position: 'absolute',
+                            top: 10,
+                            right: 12,
+                            color: '#c0c0c0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <FaExternalLinkAlt size={10} />
+                        </a>
+                        {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration */}
+                        <audio ref={folktaleAudioRef} preload="metadata" />
+                        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
+                            {folktaleTrack.title}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginTop: 2 }}>
+                            語り：荒澤弘
+                          </div>
+                        </div>
+                        {/* プログレスバー */}
+                        <div
+                          onClick={ftSeek}
+                          onKeyDown={undefined}
+                          style={{
+                            height: 6,
+                            borderRadius: 3,
+                            background: '#3a3a3a',
+                            cursor: 'pointer',
+                            marginBottom: 14,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: '100%',
+                              borderRadius: 3,
+                              background: '#e07028',
+                              width: ftDuration > 0 ? `${(ftCurrentTime / ftDuration) * 100}%` : '0%',
+                              transition: 'width 0.1s linear',
+                            }}
+                          />
+                        </div>
+                        {/* コントロールボタン */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+                          <button
+                            type="button"
+                            onClick={() => ftSkip(-5)}
+                            aria-label="5秒戻る"
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 9999,
+                              border: 'none',
+                              background: '#9ca3af',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              padding: 0,
+                              minHeight: 0,
+                            }}
+                          >
+                            <MdReplay5 size={30} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={ftTogglePlay}
+                            aria-label={ftPlaying ? '一時停止' : '再生'}
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 9999,
+                              border: 'none',
+                              background: '#6b7280',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              padding: 0,
+                              minHeight: 0,
+                            }}
+                          >
+                            {ftPlaying ? <FaPause size={22} /> : <FaPlay size={22} style={{ marginLeft: 3 }} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => ftSkip(5)}
+                            aria-label="5秒進む"
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 9999,
+                              border: 'none',
+                              background: '#9ca3af',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              padding: 0,
+                              minHeight: 0,
+                            }}
+                          >
+                            <MdForward5 size={30} />
+                          </button>
+                        </div>
+                      </div>
                     )}
                     {selectedPin.externalUrl && (
                       <a
