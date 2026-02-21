@@ -2,6 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MdForward5, MdPause, MdPlayArrow, MdReplay5, MdScreenRotation } from 'react-icons/md';
 import { type AudioTrack, audioTracks } from '../../data/audio-tracks';
 
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(hover: none) and (pointer: coarse)').matches
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia('(hover: none) and (pointer: coarse)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return isMobile;
+}
+
 function useIsLandscape(): boolean {
   const [isLandscape, setIsLandscape] = useState(
     () => window.innerWidth > window.innerHeight
@@ -26,6 +41,7 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPlayerPage() {
+  const isMobile = useIsMobile();
   const isLandscape = useIsLandscape();
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -132,12 +148,15 @@ export function AudioPlayerPage() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div style={styles.page}>
+    <div style={{
+      ...styles.page,
+      alignItems: isMobile ? 'flex-start' : 'center',
+    }}>
       <h1 style={styles.srOnly}>-奥多摩 小河内の民話-</h1>
       {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration, no captions available */}
       <audio ref={audioRef} preload="metadata" />
 
-      {isLandscape && (
+      {isMobile && isLandscape && (
         <div style={styles.landscapeOverlay}>
           <MdScreenRotation size={48} color="#f8f1e6" />
           <p style={styles.landscapeText}>
@@ -146,70 +165,92 @@ export function AudioPlayerPage() {
         </div>
       )}
 
-      <div style={styles.container}>
+      <div style={{
+        ...styles.container,
+        maxWidth: isMobile ? '480px' : '720px',
+        height: isMobile ? '100%' : 'auto',
+      }}>
         <div style={styles.header}>-奥多摩 小河内の民話-</div>
 
-        <div style={styles.photoWrapper}>
-          <img
-            src={`${import.meta.env.BASE_URL}images/arasawa_hiroshi.jpg`}
-            alt="荒澤弘"
-            style={styles.photo}
-          />
-          <div style={styles.narrator}>語り：荒澤弘</div>
-        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' as const : 'row' as const,
+          alignItems: isMobile ? 'stretch' : 'center',
+          gap: isMobile ? 0 : '40px',
+        }}>
+          {/* 写真セクション */}
+          <div style={{
+            ...styles.photoWrapper,
+            margin: isMobile ? '0 auto 16px' : '0',
+            flexShrink: 0,
+          }}>
+            <img
+              src={`${import.meta.env.BASE_URL}images/arasawa_hiroshi.jpg`}
+              alt="荒澤弘"
+              style={{
+                ...styles.photo,
+                width: isMobile ? '150px' : '180px',
+                height: isMobile ? '150px' : '180px',
+              }}
+            />
+            <div style={styles.narrator}>語り：荒澤弘</div>
+          </div>
 
-        <div style={styles.card}>
-          <select
-            style={styles.trackSelect}
-            value={selectedTrack.id}
-            onChange={(e) => {
-              const track = audioTracks.find((t) => t.id === e.target.value);
-              if (track) selectTrack(track);
-            }}
-          >
-            {audioTracks.map((track) => (
-              <option key={track.id} value={track.id}>
-                {track.emoji} {track.title}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* プレーヤーセクション */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={styles.card}>
+              <select
+                style={styles.trackSelect}
+                value={selectedTrack.id}
+                onChange={(e) => {
+                  const track = audioTracks.find((t) => t.id === e.target.value);
+                  if (track) selectTrack(track);
+                }}
+              >
+                {audioTracks.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.emoji} {track.title}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div style={styles.controls}>
-          <button type="button" style={styles.controlBtn} onClick={() => skip(-5)}>
-            <MdReplay5 />
-          </button>
-          <button type="button" style={styles.playBtn} onClick={togglePlay}>
-            {isPlaying ? <MdPause /> : <MdPlayArrow />}
-          </button>
-          <button type="button" style={styles.controlBtn} onClick={() => skip(5)}>
-            <MdForward5 />
-          </button>
-        </div>
+            <div style={styles.controls}>
+              <button type="button" style={styles.controlBtn} onClick={() => skip(-5)}>
+                <MdReplay5 />
+              </button>
+              <button type="button" style={styles.playBtn} onClick={togglePlay}>
+                {isPlaying ? <MdPause /> : <MdPlayArrow />}
+              </button>
+              <button type="button" style={styles.controlBtn} onClick={() => skip(5)}>
+                <MdForward5 />
+              </button>
+            </div>
 
-        <div
-          ref={progressRef}
-          style={styles.progressBar}
-          onClick={handleProgressClick}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowRight') skip(5);
-            if (e.key === 'ArrowLeft') skip(-5);
-          }}
-          role="slider"
-          aria-label="再生位置"
-          aria-valuenow={Math.round(currentTime)}
-          aria-valuemin={0}
-          aria-valuemax={Math.round(duration)}
-          tabIndex={0}
-        >
-          <div style={{ ...styles.progressFill, width: `${progress}%` }} />
-        </div>
+            <div
+              ref={progressRef}
+              style={styles.progressBar}
+              onClick={handleProgressClick}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight') skip(5);
+                if (e.key === 'ArrowLeft') skip(-5);
+              }}
+              role="slider"
+              aria-label="再生位置"
+              aria-valuenow={Math.round(currentTime)}
+              aria-valuemin={0}
+              aria-valuemax={Math.round(duration)}
+              tabIndex={0}
+            >
+              <div style={{ ...styles.progressFill, width: `${progress}%` }} />
+            </div>
 
-        <div style={styles.timeDisplay}>
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+            <div style={styles.timeDisplay}>
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
         </div>
-
       </div>
     </div>
   );
@@ -225,7 +266,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: 'border-box',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'flex-start',
     overflow: 'hidden',
   },
   srOnly: {
@@ -241,8 +281,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   container: {
     width: '100%',
-    maxWidth: '480px',
-    height: '100%',
     display: 'flex',
     flexDirection: 'column' as const,
   },
@@ -254,12 +292,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 0 16px',
   },
   photoWrapper: {
-    margin: '0 auto 16px',
     textAlign: 'center' as const,
   },
   photo: {
-    width: '150px',
-    height: '150px',
     borderRadius: '50%',
     objectFit: 'cover' as const,
     display: 'block',

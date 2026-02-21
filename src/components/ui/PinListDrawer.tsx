@@ -33,6 +33,7 @@ interface PinListDrawerProps {
   onSelectPin: (pin: PinData) => void;
   onDeselectPin: () => void;
   onSheetModeChange?: (mode: 'pin-list' | 'pin-detail') => void;
+  onImageOpenChange?: (open: boolean) => void;
 }
 
 /** ピンのサブタイトル（民話 or 伝統芸能タイトル）を返す */
@@ -49,10 +50,46 @@ export default function PinListDrawer({
   onSelectPin,
   onDeselectPin,
   onSheetModeChange,
+  onImageOpenChange,
 }: PinListDrawerProps) {
   const [sheetMode, _setSheetMode] = useState<'pin-list' | 'pin-detail'>('pin-list');
   const [activeTab, _setActiveTab] = useState<ListTab>('all');
-  const [imageOpen, setImageOpen] = useState(false);
+  const drawerContentRef = useRef<HTMLDivElement>(null);
+  const [drawerTopY, setDrawerTopY] = useState(0);
+
+  const [imageOpen, _setImageOpen] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
+  const setImageOpen = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    _setImageOpen((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      if (!next) setImageReady(false);
+      onImageOpenChange?.(next);
+      return next;
+    });
+  }, [onImageOpenChange]);
+
+  // 画像表示の切り替え時にドロワー上端のY座標を測定し、測定完了後にフェードイン
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedPinの切り替え時にもドロワー位置を再計測する必要がある
+  useEffect(() => {
+    if (!imageOpen) {
+      setDrawerTopY(0);
+      setImageReady(false);
+      return;
+    }
+    // Vaulのアニメーション完了を待ってから測定 → フェードイン開始
+    const timerId = setTimeout(() => {
+      const el = drawerContentRef.current;
+      if (el) {
+        setDrawerTopY(el.getBoundingClientRect().top);
+      }
+      // 測定後、次フレームでフェードイン開始（DOMに反映させてからopacityを変更）
+      requestAnimationFrame(() => {
+        setImageReady(true);
+      });
+    }, 350);
+    return () => clearTimeout(timerId);
+  }, [imageOpen, selectedPin]);
+
   const [isSpeaking, setIsSpeaking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -173,14 +210,22 @@ export default function PinListDrawer({
       setSheetMode('pin-detail');
       setImageOpen(!!selectedPin.image);
       stopSpeech();
+    } else {
+      setImageOpen(false);
     }
-  }, [selectedPin, setSheetMode, stopSpeech]);
+  }, [selectedPin, setSheetMode, setImageOpen, stopSpeech]);
 
-  // ドロワーが閉じられたら音声を停止（スワイプ閉じ等あらゆるケースに対応）
+  // ドロワーが閉じられたら音声を停止しプレーヤーをリセット（スワイプ閉じ等あらゆるケースに対応）
   React.useEffect(() => {
     if (!open) {
       stopSpeech();
-      folktaleAudioRef.current?.pause();
+      const audio = folktaleAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      setFtPlaying(false);
+      setFtCurrentTime(0);
     }
   }, [open, stopSpeech]);
 
@@ -228,6 +273,9 @@ export default function PinListDrawer({
 
   return (
     <>
+      {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration */}
+      <audio ref={folktaleAudioRef} preload="metadata" style={{ display: 'none' }} />
+
       {/* 画像オーバーレイ: ドロワーの下層 */}
       <div
         style={{
@@ -238,15 +286,16 @@ export default function PinListDrawer({
           bottom: 0,
           zIndex: 10999,
           background: 'rgba(0, 0, 0, 0.75)',
-          opacity: imageOpen && selectedPin?.image ? 1 : 0,
-          pointerEvents: imageOpen && selectedPin?.image ? 'auto' : 'none',
-          transition: 'opacity 0.25s ease',
+          opacity: imageReady && selectedPin?.image ? 1 : 0,
+          pointerEvents: imageReady && selectedPin?.image ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease',
         }}
       >
-        {/* 画像表示エリア: ドロワー上部に限定 */}
+        {/* 画像表示エリア: 画面上端〜記事上端の空間に収まるよう写真を配置 */}
         <div
           style={{
-            height: '50vh',
+            height: drawerTopY > 0 ? `${drawerTopY}px` : '50vh',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -262,12 +311,12 @@ export default function PinListDrawer({
               position: 'absolute',
               top: 12,
               right: 12,
-              width: 32,
-              height: 32,
+              width: 48,
+              height: 48,
               minHeight: 0,
               borderRadius: 9999,
               border: 'none',
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: '#ff4900',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -277,7 +326,7 @@ export default function PinListDrawer({
               padding: 0,
             }}
           >
-            <FaTimes size={14} />
+            <FaTimes size={20} />
           </button>
           {selectedPin?.image && (
             <img
@@ -285,7 +334,7 @@ export default function PinListDrawer({
               alt={selectedPin.title}
               style={{
                 maxWidth: '100%',
-                maxHeight: 'calc(50vh - 32px)',
+                maxHeight: '100%',
                 objectFit: 'contain',
                 borderRadius: 8,
               }}
@@ -316,6 +365,7 @@ export default function PinListDrawer({
           </VDrawer.Description>
 
           <div
+            ref={drawerContentRef}
             style={{
               background: '#ffffff',
               borderTopLeftRadius: 16,
@@ -552,8 +602,6 @@ export default function PinListDrawer({
                         >
                           <FaExternalLinkAlt size={10} />
                         </a>
-                        {/* biome-ignore lint/a11y/useMediaCaption: audio-only folk tale narration */}
-                        <audio ref={folktaleAudioRef} preload="metadata" />
                         <div style={{ textAlign: 'center', marginBottom: 10 }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
                             {folktaleTrack.title}
@@ -579,7 +627,7 @@ export default function PinListDrawer({
                             style={{
                               height: '100%',
                               borderRadius: 3,
-                              background: '#e07028',
+                              background: '#ff4900',
                               width: ftDuration > 0 ? `${(ftCurrentTime / ftDuration) * 100}%` : '0%',
                               transition: 'width 0.1s linear',
                             }}
