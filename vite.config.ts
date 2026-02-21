@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => ({
       },
     },
   ],
-  base: command === 'serve' ? '/' : '/kotei-lens/',
+  base: command === 'serve' ? '/' : (process.env.VITE_BASE_PATH || '/kotei-lens/'),
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
