@@ -1,7 +1,7 @@
 import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import React, { useState, useEffect, Suspense, useMemo, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useMemo, useRef, useCallback } from 'react';
 import type { WebGLSupport } from '../../utils/webgl-detector';
 import {
   detectWebGLSupport,
@@ -101,6 +101,27 @@ export default function Scene3D({
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
   const [terrainModel, setTerrainModel] = useState<'wireframe' | 'realscale'>('wireframe');
+
+  // FBXオブジェクト表示切り替え用State
+  const [fbxObjectNames, setFbxObjectNames] = useState<string[]>([]);
+  const [fbxHiddenObjects, setFbxHiddenObjects] = useState<Set<string>>(new Set());
+  const stableFbxHiddenObjects = useMemo(() => fbxHiddenObjects, [fbxHiddenObjects]);
+
+  const handleFbxObjectsLoaded = useCallback((names: string[]) => {
+    setFbxObjectNames(names);
+  }, []);
+
+  const toggleFbxObject = useCallback((name: string) => {
+    setFbxHiddenObjects(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }, []);
 
   // ワイヤーフレーム位置調整用State
   const [wfPos, setWfPos] = useState(() => {
@@ -434,24 +455,19 @@ export default function Scene3D({
           {/* 地形の中心点を[0, 0, 0]に配置するため、positionをTERRAIN_SCALE_FACTORに応じて動的に計算 */}
           <LakeModel
             position={terrainPosition}
-            scale={[1, 1, 1]} // 全体のスケール
+            scale={[1, 1, 1]}
             rotation={[0, 0, 0]}
             visible={terrainModel === 'realscale'}
-            showTerrain={true} // 地形を表示
-            showWater={false} // 水面を表示
             wireframe={isWireframe}
             waterLevelOffset={waterLevelOffset}
             terrainScale={[
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-            ]} // 地形のスケール（TERRAIN_SCALE_FACTORで調整可能）
-            waterScale={[
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-            ]} // 水面のスケール（地形と同じスケール）
-            waterPosition={WATER_CENTER_OFFSET} // 水面の位置（WATER_CENTER_OFFSETで調整可能）
+            ]}
+            waterPosition={WATER_CENTER_OFFSET}
+            hiddenObjects={stableFbxHiddenObjects}
+            onObjectsLoaded={handleFbxObjectsLoaded}
           />
 
           {/* ワイヤーフレームモデル */}
@@ -1087,6 +1103,43 @@ export default function Scene3D({
                 </button>
               </div>
             </div>
+
+            {/* FBXオブジェクト表示切り替え */}
+            {fbxObjectNames.length > 0 && terrainModel === 'realscale' && (
+              <div>
+                <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FaMountain size={12} /> オブジェクト表示
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {fbxObjectNames.map((name) => {
+                    const isHidden = fbxHiddenObjects.has(name);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => toggleFbxObject(name)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                          background: isHidden ? 'rgba(255,255,255,0.05)' : 'rgba(96,165,250,0.3)',
+                          color: isHidden ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.9)',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: '8px' }}>{isHidden ? '○' : '●'}</span>
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1242,9 +1295,9 @@ function CameraPositionSetter({
     }
 
     // 高速化: まず名前で検索（これが最も速い）
-    // LakeModel側で 'Displacement.001' という名前のオブジェクトを扱っている
+    // LakeModel側で 'Retopo_OriginalMap001' という名前のオブジェクトを扱っている
     let terrainMesh: THREE.Mesh | null = null;
-    const knownTerrainName = 'Displacement.001';
+    const knownTerrainName = 'Retopo_OriginalMap001';
 
     // シーンから直接取得を試みる
     const namedMesh = scene.getObjectByName(knownTerrainName);

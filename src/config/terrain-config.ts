@@ -7,23 +7,25 @@
 export const TERRAIN_SCALE_FACTOR = 5.34;
 
 // 地形と水面の中心位置オフセット（メートル単位）
-// 地形と水面の中心位置をずらしたい場合は、この値を変更してください
-// 例: [10, 0, 5] = X方向（東）に10m、Z方向（南）に5mずらす
-// 現在は[-30.94, 0, -101.01]で調整済み (Scale: 0.89x)
-export const TERRAIN_CENTER_OFFSET: [number, number, number] = [-30.94, 0, -101.01];
+// FBX正規化後のモデル中心は原点に配置されるため、このオフセットでワールド位置を調整
+export const TERRAIN_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
 export const WATER_CENTER_OFFSET: [number, number, number] = TERRAIN_CENTER_OFFSET;
 
 // 地形のベーススケール（モデルファイルの元のスケール）
 export const TERRAIN_BASE_SCALE = 10;
 
 // 地形の元の中心位置（スケール適用前、ローカル座標系）
-// terrainScale=[10,10,10]適用後の中心: [-744.9999975831743, 177.19751206980436, 744.9999975831743]
-// したがって、元の中心 = スケール適用後の中心 / 10
+// FBX正規化でモデル中心は原点に配置されるため (0, 0, 0)
 export const TERRAIN_ORIGINAL_CENTER = {
-  x: -744.9999975831743 / TERRAIN_BASE_SCALE,
-  y: 177.19751206980436 / TERRAIN_BASE_SCALE,
-  z: 744.9999975831743 / TERRAIN_BASE_SCALE,
+  x: 0,
+  y: 0,
+  z: 0,
 };
+
+// FBX正規化ターゲットサイズ（XZ方向の最大寸法をこの値にスケール）
+// terrainScale (TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR = 53.4) を掛けた後の
+// 可視サイズは約 150 * 53.4 ≈ 8010 ユニットになる
+export const FBX_NORMALIZATION_TARGET = 150;
 
 // カメラとピンの地表からの高さオフセット（メートル単位）
 // カメラとピンは地形の高さにこの値を加算した位置に配置されます
