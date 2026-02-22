@@ -14,9 +14,12 @@
 
 - **イマーシブ3Dビュー**: デバイスの向きに連動し、その方向に存在した建物や風景を3D空間で表示
 - **GPS連動**: 現在地に基づいて、当時の村の中での位置を特定
-- **タイムトラベルモード**: 年代を切り替えて、村の変遷を体験
-- **ストーリーモード**: 村にまつわる物語や証言を場所と紐づけて表示
-- **オフライン対応**: Service Workerとプログレッシブローディングにより、現地でもスムーズに利用可能
+- **2Dマップビュー**: Leafletとクラスタリングによるピン表示で、情報地点を一覧できる地図ビュー
+- **民話オーディオプレーヤー**: 小河内村に伝わる10話の民話を音声で再生
+- **ピン情報表示**: 歴史・インタビュー・民話・伝統芸能・現代の5カテゴリに対応し、画像・外部リンク付きの詳細ドロワーで情報を表示
+- **水面降下アニメーション**: ダムの水面が下降し、湖底に沈んだ村の姿が現れる演出
+- **地形連動カメラ**: 3Dモデルの地形高さに合わせたカメラ・ピンの高さ自動調整
+- **古地図オーバーレイ**: 透明度を調整しながら当時の地図を重ねて表示
 
 ## 技術スタック
 
@@ -25,10 +28,15 @@
 - **3Dレンダリング**: Three.js r163+ (WebGPU/WebGL2)
 - **状態管理**: Zustand
 - **ビルドツール**: Vite 5.2+
+- **ルーティング**: React Router DOM
+- **アニメーション**: Framer Motion
+- **3Dユーティリティ**: @react-three/drei
+- **UI**: vaul (ドロワー), react-icons (アイコン)
 - **地図/位置情報**: Leaflet, Geolocation API
 - **デバイスセンサー**: DeviceOrientation API, DeviceMotion API
+- **アクセス解析**: Google Analytics (gtag.js)
 - **ホスティング**: GitHub Pages + CDN
-- **データ形式**: GeoJSON, glTF 2.0 (Draco圧縮、KTX2テクスチャ対応)
+- **データ形式**: glTF 2.0 (Draco圧縮、KTX2テクスチャ対応), JSON
 
 ## 使い方
 
@@ -39,7 +47,7 @@
 
 ## 開発状況
 
-現在、プロジェクトは初期開発段階です。詳細な開発計画については[開発ロードマップ](docs/roadmap.md)をご覧ください。
+主要機能の実装が完了し、現地での体験テストおよび機能拡張を進めている段階です。詳細な開発計画については[開発ロードマップ](docs/roadmap.md)をご覧ください。
 
 ## ドキュメント
 
@@ -48,8 +56,12 @@
 - [データ仕様](docs/data-spec.md)
 - [開発ロードマップ](docs/roadmap.md)
 - [コンポーネント仕様](docs/components/)
+  - [Scene3D コンポーネント](docs/components/scene3d.md)
+  - [useSensors フック](docs/components/use-sensors.md)
   - [Toast コンポーネント](docs/components/toast.md)
   - [地形モデルの座標系](docs/components/lake-model-coordinates.md)
+- [センサーサービス](docs/services/sensors.md)
+- [3D方位システム](docs/3d_orientation/orientation_system.md)
 
 ## 貢献
 
