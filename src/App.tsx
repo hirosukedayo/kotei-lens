@@ -5,6 +5,7 @@ import Scene3D from './components/viewer/Scene3D';
 import OkutamaMap2D, { type Initial3DPosition } from './components/map/OkutamaMap2D';
 import { useDevModeStore } from './stores/devMode';
 import type { PinData } from './types/pins';
+import { trackEnter3DView, trackBackTo2D } from './utils/analytics';
 import './App.css';
 
 type AppState = '2d-view' | 'permissions' | '3d-view' | 'permission-error';
@@ -94,10 +95,12 @@ function App() {
   const handleStart3D = (initialPosition: Initial3DPosition) => {
     setInitial3DPosition(initialPosition);
     setAppState('3d-view');
+    trackEnter3DView(true);
   };
 
   const handleBackTo2D = () => {
     setAppState('2d-view');
+    trackBackTo2D();
   };
 
   const handlePermissionsGranted = () => {
