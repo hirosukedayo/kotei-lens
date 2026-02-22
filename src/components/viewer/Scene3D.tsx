@@ -37,6 +37,7 @@ import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
 import CompassCalibration from '../ui/CompassCalibration';
+import { trackPinSelect } from '../../utils/analytics';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -76,7 +77,11 @@ export default function Scene3D({
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [localSelectedPin, setLocalSelectedPin] = useState<PinData | null>(null);
   const selectedPin = propSelectedPin ?? localSelectedPin;
-  const handleSelectPin = propOnSelectPin ?? setLocalSelectedPin;
+  const baseSelectPin = propOnSelectPin ?? setLocalSelectedPin;
+  const handleSelectPin = useCallback((pin: PinData) => {
+    baseSelectPin(pin);
+    trackPinSelect(pin.id, pin.title, pin.type, '3d');
+  }, [baseSelectPin]);
   const handleDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');

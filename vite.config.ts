@@ -1,13 +1,29 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { resolve } from 'path';
+
+function googleAnalytics(): Plugin {
+  const measurementId = process.env.VITE_GA_MEASUREMENT_ID;
+  return {
+    name: 'google-analytics',
+    transformIndexHtml(html) {
+      if (!measurementId) {
+        return html.replace('<!-- __GA_SCRIPT__ -->', '');
+      }
+      const gaSnippet = `<script async src="https://www.googletagmanager.com/gtag/js?id=${measurementId}"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${measurementId}');</script>`;
+      return html.replace('<!-- __GA_SCRIPT__ -->', gaSnippet);
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     basicSsl(),
+    googleAnalytics(),
     {
       name: 'mpa-rewrite',
       configureServer(server) {

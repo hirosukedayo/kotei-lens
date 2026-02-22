@@ -25,6 +25,7 @@ import { okutamaPins } from '../../data/okutama-pins';
 import { debugPins } from '../../data/debug-pins';
 import { pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
+import { trackPinSelect, trackAreaDetection } from '../../utils/analytics';
 
 export interface Initial3DPosition {
   latitude: number;
@@ -404,6 +405,7 @@ export default function OkutamaMap2D({
   // Drawerが画面下半分を占めるため、ピンを画面上部寄りに表示する
   const handleSelectPin = (pin: PinData) => {
     setSelectedPin(pin);
+    trackPinSelect(pin.id, pin.title, pin.type, '2d');
     const coords = Array.isArray(pin.coordinates) ? pin.coordinates : [0, 0];
     if (Array.isArray(coords) && coords.length === 2 && mapRef.current) {
       const map = mapRef.current;
@@ -644,6 +646,7 @@ export default function OkutamaMap2D({
       mapRef.current?.flyTo(startCenter, 16, { duration: 0.6 });
     }
     setIsOutsideArea(!isInArea);
+    trackAreaDetection(isInArea);
     setHasInitialCenterSet(true);
   }, [sensorData.gps, sensorManager.locationService, hasInitialCenterSet]);
 

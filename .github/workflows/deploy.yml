@@ -38,6 +38,7 @@ jobs:
         run: pnpm build
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
