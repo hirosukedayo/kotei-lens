@@ -19,12 +19,12 @@ export class LocationService {
   private errorCallbacks: GPSErrorCallback[] = [];
   private lastPosition: GPSPosition | null = null;
 
-  // 小河内ダム周辺の座標範囲（テスト用）
+  // 奥多摩湖周辺の座標範囲（湖全体＋周辺道路をカバー）
   private readonly OKUTAMA_BOUNDS = {
-    north: 35.795,
-    south: 35.785,
-    east: 139.055,
-    west: 139.045,
+    north: 35.81,
+    south: 35.765,
+    east: 139.07,
+    west: 138.99,
   };
 
   constructor(customOptions?: Partial<GPSOptions>) {
