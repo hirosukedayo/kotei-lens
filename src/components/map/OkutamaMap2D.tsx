@@ -503,6 +503,9 @@ export default function OkutamaMap2D({
   };
 
   const transitionTo3D = (headingOffset?: number) => {
+    // 3D遷移前にドロワーを閉じる（画像オーバーレイもドロワー閉じに連動して解除される）
+    setSheetOpen(false);
+
     const [targetLat, targetLng] = get3DTargetPosition();
     const initialPosition: Initial3DPosition = {
       latitude: targetLat,
