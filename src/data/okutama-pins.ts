@@ -136,18 +136,6 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "103",
-    "title": "水車（こんにゃく製粉工場）",
-    "type": "photo",
-    "description": "",
-    "image": "/images/103.jpg",
-    "bearing": 90,
-    "coordinates": [
-      35.77597,
-      138.997532
-    ]
-  },
-  {
     "id": "41",
     "title": "エブチ(江淵)",
     "type": "folktale",
@@ -198,11 +186,11 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "102",
-    "title": "河内集落全景",
+    "id": "103",
+    "title": "水車（こんにゃく製粉工場）",
     "type": "photo",
     "description": "",
-    "image": "/images/102.jpg",
+    "image": "/images/103.jpg",
     "bearing": 90,
     "coordinates": [
       35.7745241146614,
@@ -597,10 +585,11 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "101",
-    "title": "女の湯の河原",
+    "id": "102",
+    "title": "河内集落全景",
     "type": "photo",
     "description": "",
+    "image": "/images/102.jpg",
     "bearing": 180,
     "coordinates": [
       35.78034725232944,
@@ -659,11 +648,11 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "100",
-    "title": "温泉街の全景",
+    "id": "101",
+    "title": "女の湯の河原",
     "type": "photo",
     "description": "",
-    "image": "/images/100.jpg",
+    "image": "/images/101.jpg",
     "bearing": 270,
     "coordinates": [
       35.7799947426702,
@@ -720,18 +709,6 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "98",
-    "title": "出野・原全景",
-    "type": "photo",
-    "description": "",
-    "image": "/images/98.jpg",
-    "bearing": 225,
-    "coordinates": [
-      35.78104356311262,
-      139.03346300125125
-    ]
-  },
-  {
     "id": "99",
     "title": "老梅と温泉宿",
     "type": "photo",
@@ -739,16 +716,28 @@ export const okutamaPins: PinData[] = [
     "image": "/images/99.jpg",
     "bearing": 225,
     "coordinates": [
+      35.78104356311262,
+      139.03346300125125
+    ]
+  },
+  {
+    "id": "100",
+    "title": "温泉街の全景",
+    "type": "photo",
+    "description": "",
+    "image": "/images/100.jpg",
+    "bearing": 225,
+    "coordinates": [
       35.78174421968205,
       139.0346270799637
     ]
   },
   {
-    "id": "97",
-    "title": "熱海下流多摩電取入口",
+    "id": "98",
+    "title": "出野・原全景",
     "type": "photo",
     "description": "",
-    "image": "/images/97.jpg",
+    "image": "/images/98.jpg",
     "bearing": 90,
     "coordinates": [
       35.77923749441325,
@@ -848,11 +837,11 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "95",
-    "title": "木材の搬出（筏づくり）",
+    "id": "96",
+    "title": "ダム建設のために建てられた宿舎",
     "type": "photo",
     "description": "",
-    "image": "/images/95.jpg",
+    "image": "/images/96.jpg",
     "bearing": 135,
     "coordinates": [
       35.78277996155988,
@@ -907,11 +896,11 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
-    "id": "96",
-    "title": "ダム建設のために建てられた宿舎",
+    "id": "97",
+    "title": "熱海下流多摩電取入口",
     "type": "photo",
     "description": "",
-    "image": "/images/96.jpg",
+    "image": "/images/97.jpg",
     "bearing": 0,
     "coordinates": [
       35.7837808757626,
@@ -947,7 +936,7 @@ export const okutamaPins: PinData[] = [
     "type": "photo",
     "description": "",
     "image": "/images/83.jpg",
-    "bearing": 135,
+    "bearing": 225,
     "coordinates": [
       35.7967916134664,
       139.05185222625735
