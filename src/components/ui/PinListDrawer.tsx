@@ -144,11 +144,12 @@ export default function PinListDrawer({
     const audio = folktaleAudioRef.current;
     if (!audio) return;
     if (audio.paused) {
+      stopSpeech();
       audio.play().catch(() => {});
     } else {
       audio.pause();
     }
-  }, []);
+  }, [stopSpeech]);
 
   const ftSkip = useCallback((seconds: number) => {
     const audio = folktaleAudioRef.current;
@@ -176,6 +177,10 @@ export default function PinListDrawer({
       return;
     }
     if (!selectedPin) return;
+    const audio = folktaleAudioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+    }
     const text = selectedPin.reading ?? `${selectedPin.title}。${selectedPin.description}`;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ja-JP';
