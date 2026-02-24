@@ -140,15 +140,21 @@ export default function PinListDrawer({
     };
   }, [folktaleTrack, sheetMode]);
 
+  const stopSpeech = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
   const ftTogglePlay = useCallback(() => {
     const audio = folktaleAudioRef.current;
     if (!audio) return;
     if (audio.paused) {
+      stopSpeech();
       audio.play().catch(() => {});
     } else {
       audio.pause();
     }
-  }, []);
+  }, [stopSpeech]);
 
   const ftSkip = useCallback((seconds: number) => {
     const audio = folktaleAudioRef.current;
@@ -165,17 +171,16 @@ export default function PinListDrawer({
     audio.currentTime = ratio * audio.duration;
   }, []);
 
-  const stopSpeech = useCallback(() => {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-  }, []);
-
   const toggleSpeech = useCallback(() => {
     if (isSpeaking) {
       stopSpeech();
       return;
     }
     if (!selectedPin) return;
+    const audio = folktaleAudioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+    }
     const text = selectedPin.reading ?? `${selectedPin.title}。${selectedPin.description}`;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ja-JP';
@@ -210,6 +215,7 @@ export default function PinListDrawer({
       setSheetMode('pin-detail');
       setImageOpen(!!selectedPin.image);
       stopSpeech();
+      scrollRef.current?.scrollTo(0, 0);
     } else {
       setImageOpen(false);
     }
