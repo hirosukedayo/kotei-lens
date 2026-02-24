@@ -253,6 +253,7 @@ const MapClickHandler = ({
     const HIT_RADIUS_PX = 28; // ピンアイコン半径(56/2)
 
     const handleClick = (e: L.LeafletMouseEvent) => {
+      console.log(`[${e.latlng.lat},${e.latlng.lng}]`);
       const clickPoint = map.latLngToContainerPoint(e.latlng);
       let closest: { pin: PinData; dist: number } | null = null;
 
@@ -351,16 +352,33 @@ export default function OkutamaMap2D({
 
 
   // カスタムアイコン（選択時に強調表示）- メモ化で不要な再生成を回避
-  const createCustomIcon = useCallback((isSelected: boolean, pinType: keyof typeof pinTypeStyles) => {
+  const createCustomIcon = useCallback((isSelected: boolean, pinType: keyof typeof pinTypeStyles, bearing?: number) => {
     const style = pinTypeStyles[pinType];
     const baseColor = style.color;
     const color = isSelected ? '#ff4900' : baseColor; // 選択時の強調色
     const size = isSelected ? 40 : 36;
     const border = isSelected ? '3px solid #ffb899' : '3px solid white';
     const ringSize = 56; // 円環のサイズ
+
+    // photo タイプ + bearing ありの場合、方向矢印を描画
+    const showArrow = pinType === 'photo' && bearing != null;
+    const arrowHtml = showArrow
+      ? `<div style="
+          position:absolute; top:50%; left:50%;
+          width:${ringSize}px; height:${ringSize}px;
+          transform: translate(-50%, -50%) rotate(${bearing}deg);
+          pointer-events:none; z-index:0;
+        ">
+          <svg viewBox="0 0 56 56" width="${ringSize}" height="${ringSize}" style="overflow:visible;">
+            <polygon points="28,0 22,12 34,12" fill="${color}" stroke="white" stroke-width="1.5" />
+          </svg>
+        </div>`
+      : '';
+
     return L.divIcon({
       html: `
         <div style="position:relative; width:${ringSize}px; height:${ringSize}px; display:flex; align-items:center; justify-content:center; overflow:visible;">
+          ${arrowHtml}
           <div style="
             width:${size}px; height:${size}px; background:${color}; ${border ? `border:${border};` : ''}
             border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -804,7 +822,7 @@ export default function OkutamaMap2D({
               <Marker
                 key={pin.id}
                 position={pin.coordinates}
-                icon={createCustomIcon(false, pin.type as keyof typeof pinTypeStyles)}
+                icon={createCustomIcon(false, pin.type as keyof typeof pinTypeStyles, pin.bearing)}
                 interactive={false}
               />
             ))}
@@ -815,7 +833,7 @@ export default function OkutamaMap2D({
           <Marker
             key={`selected-${selectedPin.id}`}
             position={selectedPin.coordinates}
-            icon={createCustomIcon(true, selectedPin.type as keyof typeof pinTypeStyles)}
+            icon={createCustomIcon(true, selectedPin.type as keyof typeof pinTypeStyles, selectedPin.bearing)}
             zIndexOffset={1000}
             interactive={false}
           />

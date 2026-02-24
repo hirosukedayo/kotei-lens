@@ -6,6 +6,7 @@ import {
   PiFilmStripFill,
   PiMapPinFill,
   PiBugBeetleFill,
+  PiCameraFill,
 } from 'react-icons/pi';
 
 // ピン情報の型定義
@@ -15,6 +16,7 @@ export type PinType =
   | 'folktale'
   | 'heritage'
   | 'current'
+  | 'photo'
   | 'debug';
 
 export interface PinData {
@@ -28,6 +30,7 @@ export interface PinData {
   mapUrl?: string; // マップアプリで開くURL（オプション）
   externalUrl?: string; // 外部リンクURL（ブログなど）（オプション）
   externalUrlTitle?: string; // 外部リンクのタイトル（オプション）
+  bearing?: number; // 撮影方向（0-360度、北が0）
   hasLocation?: boolean; // 現在位置として表示するかどうか
   reading?: string; // 読み上げ用テキスト（タイトル＋本文の読み仮名付き）
   folktaleTitle?: string; // 関連する民話のタイトル（オプション）
@@ -68,6 +71,11 @@ export const pinTypeStyles: Record<
     color: '#49B5D2',
     IconComponent: PiMapPinFill,
     label: '現代',
+  },
+  photo: {
+    color: '#2d8659',
+    IconComponent: PiCameraFill,
+    label: '写真',
   },
   debug: {
     color: '#000',

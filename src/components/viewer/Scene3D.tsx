@@ -1573,6 +1573,7 @@ function PinMarkers3D({
         id: pin.id,
         title: pin.title,
         type: pin.type,
+        bearing: pin.bearing,
         basePosition: [worldPos.x, worldPos.y, worldPos.z] as [number, number, number],
         gps: { latitude, longitude },
         worldPos,
@@ -1589,6 +1590,7 @@ function PinMarkers3D({
           id={pin.id}
           title={pin.title}
           type={pin.type}
+          bearing={pin.bearing}
           basePosition={pin.basePosition}
           scene={scene}
           isSelected={selectedPin?.id === pin.id}
@@ -1604,6 +1606,7 @@ function PinMarker({
   id,
   title,
   type,
+  bearing,
   basePosition,
   // scene,
   isSelected = false,
@@ -1612,6 +1615,7 @@ function PinMarker({
   id: string;
   title: string;
   type: PinType;
+  bearing?: number;
   basePosition: [number, number, number];
   scene: THREE.Scene;
   isSelected?: boolean;
@@ -1736,11 +1740,29 @@ function PinMarker({
         {/* デバッグピンは小さく表示 */}
         <sphereGeometry args={[type === 'debug' ? 10 : 30, 16, 16]} />
         <meshStandardMaterial
-          color={type === 'debug' ? '#333333' : '#ef4444'}
-          emissive={type === 'debug' ? '#000000' : '#ef4444'}
+          color={type === 'debug' ? '#333333' : (type === 'photo' ? '#2d8659' : '#ef4444')}
+          emissive={type === 'debug' ? '#000000' : (type === 'photo' ? '#2d8659' : '#ef4444')}
           emissiveIntensity={isSelected ? 0.8 : 0.5}
         />
       </mesh>
+      {/* photo タイプの方向コーン */}
+      {type === 'photo' && bearing != null && (
+        <group
+          position={[0, isSelected ? 20 : 0, 0]}
+          rotation={[0, -((bearing * Math.PI) / 180), 0]}
+        >
+          <mesh position={[0, 0, -50]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[15, 40, 8]} />
+            <meshStandardMaterial
+              color="#2d8659"
+              emissive="#2d8659"
+              emissiveIntensity={0.5}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+        </group>
+      )}
       {/* ラベル（テキスト） - 常にカメラを向く (デバッグピン以外) */}
       {type !== 'debug' && (
         <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
