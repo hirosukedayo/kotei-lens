@@ -773,6 +773,8 @@ export default function OkutamaMap2D({
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           className="base-tiles"
+          maxNativeZoom={18}
+          maxZoom={20}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
         />
         {/* オーバーレイ: ローカル歴史タイル（opacity は UI で調整） */}
