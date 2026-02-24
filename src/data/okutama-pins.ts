@@ -710,14 +710,15 @@ export const okutamaPins: PinData[] = [
   },
   {
     "id": "99",
-    "title": "老梅と温泉宿",
-    "type": "photo",
-    "description": "",
+    "title": "温泉宿の老梅",
+    "type": "historical",
+    "description": "湯場のシンボルツリーであった老梅は、水没を惜しむ住民たちにより熱海の上の山に移されました。",
+    "mapUrl": "https://maps.app.goo.gl/GqE6wWVaBPfqrfiQ7",
     "image": "/images/99.jpg",
     "bearing": 225,
     "coordinates": [
-      35.78104356311262,
-      139.03346300125125
+      35.78092823706055,
+      139.03313308954242
     ]
   },
   {
