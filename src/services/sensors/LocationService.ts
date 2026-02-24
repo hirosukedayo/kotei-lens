@@ -21,10 +21,10 @@ export class LocationService {
 
   // 奥多摩湖周辺の座標範囲（湖全体＋周辺道路をカバー）
   private readonly OKUTAMA_BOUNDS = {
-    north: 35.81,
-    south: 35.765,
+    north: 35.83,
+    south: 35.73,
     east: 139.07,
-    west: 138.99,
+    west: 138.91,
   };
 
   constructor(customOptions?: Partial<GPSOptions>) {
