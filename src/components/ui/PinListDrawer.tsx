@@ -221,10 +221,11 @@ export default function PinListDrawer({
     }
   }, [selectedPin, setSheetMode, setImageOpen, stopSpeech]);
 
-  // ドロワーが閉じられたら音声を停止しプレーヤーをリセット（スワイプ閉じ等あらゆるケースに対応）
+  // ドロワーが閉じられたら音声を停止しプレーヤーをリセット、画像オーバーレイも閉じる（スワイプ閉じ等あらゆるケースに対応）
   React.useEffect(() => {
     if (!open) {
       stopSpeech();
+      setImageOpen(false);
       const audio = folktaleAudioRef.current;
       if (audio) {
         audio.pause();
@@ -233,7 +234,7 @@ export default function PinListDrawer({
       setFtPlaying(false);
       setFtCurrentTime(0);
     }
-  }, [open, stopSpeech]);
+  }, [open, stopSpeech, setImageOpen]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
