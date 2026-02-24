@@ -210,6 +210,7 @@ export default function PinListDrawer({
       setSheetMode('pin-detail');
       setImageOpen(!!selectedPin.image);
       stopSpeech();
+      scrollRef.current?.scrollTo(0, 0);
     } else {
       setImageOpen(false);
     }
