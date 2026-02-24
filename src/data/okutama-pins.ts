@@ -861,6 +861,18 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "95",
+    "title": "木材の搬出（筏づくり）",
+    "type": "photo",
+    "description": "",
+    "image": "/images/95.jpg",
+    "bearing": 180,
+    "coordinates": [
+      35.783537176073956,
+      139.04739975929263
+    ]
+  },
+  {
     "id": "0",
     "title": "小河内ダム専用鉄道水根沢駅",
     "type": "interview",
