@@ -140,6 +140,11 @@ export default function PinListDrawer({
     };
   }, [folktaleTrack, sheetMode]);
 
+  const stopSpeech = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
   const ftTogglePlay = useCallback(() => {
     const audio = folktaleAudioRef.current;
     if (!audio) return;
@@ -164,11 +169,6 @@ export default function PinListDrawer({
     const rect = bar.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     audio.currentTime = ratio * audio.duration;
-  }, []);
-
-  const stopSpeech = useCallback(() => {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
   }, []);
 
   const toggleSpeech = useCallback(() => {
