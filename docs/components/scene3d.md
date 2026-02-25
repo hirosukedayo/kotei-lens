@@ -2,7 +2,7 @@
 
 ## 概要
 
-`Scene3D` は、湖底レンズの 3D 体験を提供するメイン 3D シーンコンポーネントです。  
+`Scene3D` は、小河内タイムレンズの 3D 体験を提供するメイン 3D シーンコンポーネントです。  
 WebGL / WebGPU 対応状況の検出、PC / モバイル別のカメラ操作、`LakeModel` の描画などを統合的に制御します。
 
 - 実装ファイル: `src/components/viewer/Scene3D.tsx`
