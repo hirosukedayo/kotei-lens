@@ -39,6 +39,7 @@ jobs:
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_GA_MEASUREMENT_ID: ${{ secrets.VITE_GA_MEASUREMENT_ID }}
+          VITE_ALLOW_INDEXING: ${{ vars.VITE_ALLOW_INDEXING }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

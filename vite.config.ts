@@ -3,6 +3,29 @@ import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { resolve } from 'path';
 
+function robotsMeta(): Plugin {
+  const allowIndexing = process.env.VITE_ALLOW_INDEXING === 'true';
+  return {
+    name: 'robots-meta',
+    transformIndexHtml(html) {
+      const tag = allowIndexing
+        ? '<meta name="robots" content="index, follow" />'
+        : '<meta name="robots" content="noindex, nofollow" />';
+      return html.replace('<!-- __ROBOTS_META__ -->', tag);
+    },
+    generateBundle() {
+      const content = allowIndexing
+        ? 'User-agent: *\nAllow: /\n'
+        : 'User-agent: *\nDisallow: /\n';
+      this.emitFile({
+        type: 'asset',
+        fileName: 'robots.txt',
+        source: content,
+      });
+    },
+  };
+}
+
 function googleAnalytics(): Plugin {
   const measurementId = process.env.VITE_GA_MEASUREMENT_ID;
   return {
@@ -23,6 +46,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     basicSsl(),
+    robotsMeta(),
     googleAnalytics(),
     {
       name: 'mpa-rewrite',
