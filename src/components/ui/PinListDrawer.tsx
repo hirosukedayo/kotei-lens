@@ -265,6 +265,7 @@ export default function PinListDrawer({
     setSheetMode('pin-list');
     setImageOpen(false);
     stopSpeech();
+    onDeselectPin();
   };
 
   const handleOpenChange = (isOpen: boolean) => {
