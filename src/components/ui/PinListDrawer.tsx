@@ -59,6 +59,8 @@ export default function PinListDrawer({
 
   const [imageOpen, _setImageOpen] = useState(false);
   const [imageReady, setImageReady] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const currentImageSrc = useRef<string | null>(null);
   const setImageOpen = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     _setImageOpen((prev) => {
       const next = typeof value === 'function' ? value(prev) : value;
@@ -212,12 +214,22 @@ export default function PinListDrawer({
   // 選択されたピンが変更されたら詳細モードに切り替え、画像付きなら自動表示
   React.useEffect(() => {
     if (selectedPin) {
+      // ピン切替時に画像ソースが変わったらロード状態をリセット
+      const newSrc = selectedPin.image
+        ? `${import.meta.env.BASE_URL}${selectedPin.image.replace(/^\//, '')}`
+        : null;
+      if (newSrc !== currentImageSrc.current) {
+        setImageLoaded(false);
+        currentImageSrc.current = newSrc;
+      }
       setSheetMode('pin-detail');
       setImageOpen(!!selectedPin.image);
       stopSpeech();
       scrollRef.current?.scrollTo(0, 0);
     } else {
       setImageOpen(false);
+      setImageLoaded(false);
+      currentImageSrc.current = null;
     }
   }, [selectedPin, setSheetMode, setImageOpen, stopSpeech]);
 
@@ -308,6 +320,7 @@ export default function PinListDrawer({
             justifyContent: 'center',
             padding: 16,
             position: 'relative',
+            transition: 'height 0.3s ease',
           }}
         >
           <button
@@ -335,15 +348,42 @@ export default function PinListDrawer({
           >
             <FaTimes size={20} />
           </button>
+          {selectedPin?.image && !imageLoaded && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  border: '3px solid rgba(255, 255, 255, 0.2)',
+                  borderTopColor: '#ffffff',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
+            </div>
+          )}
           {selectedPin?.image && (
             <img
+              key={selectedPin.id}
               src={`${import.meta.env.BASE_URL}${selectedPin.image.replace(/^\//, '')}`}
               alt={selectedPin.title}
+              onLoad={() => setImageLoaded(true)}
               style={{
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain',
                 borderRadius: 8,
+                opacity: imageLoaded ? 1 : 0,
+                transition: 'opacity 0.3s ease',
               }}
             />
           )}

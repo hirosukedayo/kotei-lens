@@ -191,6 +191,7 @@ function App() {
       <SensorPermissionRequest
         onPermissionsGranted={handlePermissionsGranted}
         onPermissionsDenied={handlePermissionsDenied}
+        onCancel={handleBackTo2D}
       />
     );
   }
