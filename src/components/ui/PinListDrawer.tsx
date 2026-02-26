@@ -238,6 +238,9 @@ export default function PinListDrawer({
     if (!open) {
       stopSpeech();
       setImageOpen(false);
+      const deselectTimer = setTimeout(() => {
+        onDeselectPin();
+      }, 300);
       const audio = folktaleAudioRef.current;
       if (audio) {
         audio.pause();
@@ -245,8 +248,9 @@ export default function PinListDrawer({
       }
       setFtPlaying(false);
       setFtCurrentTime(0);
+      return () => clearTimeout(deselectTimer);
     }
-  }, [open, stopSpeech, setImageOpen]);
+  }, [open, stopSpeech, setImageOpen, onDeselectPin]);
 
   // Vaulの仕様でbodyにpointer-events: noneが付与されるのを防ぐ
   React.useEffect(() => {
@@ -277,6 +281,7 @@ export default function PinListDrawer({
     setSheetMode('pin-list');
     setImageOpen(false);
     stopSpeech();
+    onDeselectPin();
   };
 
   const handleOpenChange = (isOpen: boolean) => {
