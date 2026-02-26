@@ -463,10 +463,12 @@ export default function PinListDrawer({
                         fontWeight: 700,
                         color: '#111827',
                         lineHeight: 1.35,
-                        whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
                       }}
                     >
                       {selectedPin.title}
