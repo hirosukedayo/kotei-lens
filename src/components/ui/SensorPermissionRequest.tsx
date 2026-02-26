@@ -8,11 +8,13 @@ import { FaMapMarkerAlt, FaCompass, FaWalking, FaCheck, FaInfoCircle, FaCamera }
 interface SensorPermissionRequestProps {
   onPermissionsGranted: () => void;
   onPermissionsDenied?: (errors: string[]) => void;
+  onCancel?: () => void;
 }
 
 export default function SensorPermissionRequest({
   onPermissionsGranted,
   onPermissionsDenied, // used for future error handling
+  onCancel,
 }: SensorPermissionRequestProps) {
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>({
     gps: { available: false, permission: 'unknown', lastUpdate: null, error: null },
@@ -313,6 +315,16 @@ export default function SensorPermissionRequest({
           >
             {isAllGranted ? '開始する' : '許可せずに開始'}
           </button>
+
+          {onCancel && (
+            <button
+              type="button"
+              className="modal-btn-skip"
+              onClick={onCancel}
+            >
+              キャンセル
+            </button>
+          )}
 
           <button
             type="button"
