@@ -356,11 +356,11 @@ export default function PinListDrawer({
           {selectedPin?.image && !imageLoaded && (
             <div
               style={{
+                position: 'absolute',
+                inset: 0,
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 12,
               }}
             >
               <div
