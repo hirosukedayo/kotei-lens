@@ -37,6 +37,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "106",
+    "title": "留浦駐車場",
+    "type": "current",
+    "description": "近くにドラム缶橋があります。",
+    "mapUrl": "https://maps.app.goo.gl/oRRey43T2LkrdBy67",
+    "coordinates": [
+      35.778345,
+      138.989554
+    ]
+  },
+  {
     "id": "92",
     "title": "留浦集落",
     "type": "photo",
@@ -62,7 +73,7 @@ export const okutamaPins: PinData[] = [
   },
   {
     "id": "6",
-    "title": "島勝",
+    "title": "観光で賑わった島勝",
     "type": "interview",
     "description": "川野地区から留浦地区へ移転し、令和６（2024）年まで親しまれていたお食事処「島勝」。雑貨店や食堂と幅広い営業をされていました。\nかつての奥多摩湖には、釣りを目当てに訪れる人が多くいました。釣り大会も開かれ、留浦浮橋（ドラム缶橋）で釣りをしている人が130人もいたそうです。\n「とくにワカサギはよく釣れたよ。当時の冬はいまより寒くて、夜なんか水温の方が温かいから、釣り上げたワカサギが凍ってピタッと動きが止まったもんだね。奥多摩湖は遊覧船を走らせてないから、水がきれいで魚がおいしい。だから釣り人に人気でした。うちも朝６時から店を開けて釣り人に朝ごはんを出したり、ワカサギの餌や釣具なんかを売っていた。」\nその他に、「切符を売る仕事も委託されてやっていました。手数料３%だから、いい仕事ではなかったんだけどね。土日は臨時バスが出ていて、山登り客がバス停にずらーっと並んでいた。そんな感じで、当時の奥多摩には登山をする大学生とか若い人がいっぱいいた。」〔島崎軍司さん／81才（昭和20年生まれ）。川野地区出身〕\nと、観光客のみなさんのニーズに応えてくれたお店でした。",
     "mapUrl": "https://maps.app.goo.gl/6GUSC8CSETAcpwym6",
@@ -74,7 +85,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "22",
     "title": "貴船神社",
-    "type": "folktale",
+    "type": "current",
     "description": "元留浦地区の鎮守。小河内ダム建設により、小河内神社に合祀されましたが、移転することなく本殿もそのまま現存しています 。昭和59年に本殿の内外部、雨屋の補修が行われ、拝殿が新築されました。本殿横に天神様が祀られ、逆隣には留浦生活館があります。",
     "mapUrl": "https://maps.app.goo.gl/mz2sMm9wYDu4ReuWA",
     "image": "/images/22.jpg",
@@ -86,11 +97,10 @@ export const okutamaPins: PinData[] = [
   {
     "id": "20",
     "title": "太子堂",
-    "type": "heritage",
+    "type": "historical",
     "description": "小留浦地区にある回転舞台を持つ農村舞台で、聖徳太子像を安置しています 。ダム建設により同じ小留浦地区に移転しました。都指定有形文化財。かつては、農村芝居や現在は休止中の花神楽（例祭は９月第２日曜小河内神社へ奉納）、人々の娯楽施設として見るものを楽しませました。",
     "mapUrl": "https://maps.app.goo.gl/DSkzFEm7RCSRJaBD7",
     "image": "/images/20.jpg",
-    "performingArtTitle": "花神楽",
     "coordinates": [
       35.77657401221181,
       138.99421691894534
@@ -152,7 +162,7 @@ export const okutamaPins: PinData[] = [
     "id": "19",
     "title": "箭芎神社",
     "type": "heritage",
-    "description": "小河内ダム建設により、小河内神社に合祀されました。川野地区の鎮守で、９月第２日曜の例祭に川野獅子舞が奉納されます。境内には、同じく小河内神社へ合祀された熊野神社（青木地区）、その他に熊野神社（川野地区）・川上神社が鎮座されています。",
+    "description": "小河内ダム建設により、小河内神社に合祀されました。川野地区の鎮守で、９月第２日曜の例祭に川野獅子舞が奉納されます。境内には、同じく小河内神社へ合祀された熊野神社（青木地区）、その他に熊野神社（川野地区）・川上神社が鎮座されています。移転後は川野地区の飲食店「矢弓亭」になり、地元の山菜を使った山菜蕎麦、かつ丼が人気です。",
     "mapUrl": "https://maps.app.goo.gl/5DPJm4pUJSycKtoU7",
     "externalUrl": "https://youtu.be/3sWN0PwAtVY",
     "externalUrlTitle": "川野獅子舞(YouTube)",
@@ -161,17 +171,6 @@ export const okutamaPins: PinData[] = [
     "coordinates": [
       35.77427168200917,
       138.9990341663361
-    ]
-  },
-  {
-    "id": "50",
-    "title": "箭芎神社",
-    "type": "historical",
-    "description": "かつては川野地区・箭芎神社の社家でした。移転後は川野地区の飲食店「矢弓亭」になり、地元の山菜を使った山菜蕎麦、かつ丼が人気です。",
-    "mapUrl": "https://maps.app.goo.gl/A2wdn2PtHzJfYZ8Y8",
-    "coordinates": [
-      35.77436743241987,
-      138.9991629123688
     ]
   },
   {
@@ -200,7 +199,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "58",
     "title": "カキの木",
-    "type": "historical",
+    "type": "current",
     "description": "峰地区にあるカキの木。ここは「柿干」と呼ばれ、現在の道路ができる以前は下り地区からつづら折りの急坂を登り、一息つく場所でした。秋には沢山の赤い実をつけ、見て食べてこの道を通る人々を楽しませたのではないでしょうか。樹高10ｍ、幹囲2.7ｍ。",
     "mapUrl": "https://maps.app.goo.gl/HpDNpdUhgMQWubrK9",
     "coordinates": [
@@ -243,9 +242,9 @@ export const okutamaPins: PinData[] = [
   },
   {
     "id": "80",
-    "title": "ツネの泣坂",
+    "title": "ツネの泣坂（登山道）",
     "type": "folktale",
-    "description": "川野の頭領杉田入道重長の館の女中おつねが、修行僧香蘭に会いにくために登ったとされる急坂。",
+    "description": "川野の頭領杉田入道重長の館の女中おつねが、修行僧香蘭に会いにくために通ったとされる坂です。危険な急坂ですので、登るには登山装備が必要です。",
     "folktaleTitle": "おつねの泣き坂",
     "folktaleId": "otsuneno-nakizaka",
     "coordinates": [
@@ -276,6 +275,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "108",
+    "title": "川野駐車場（周遊道路）",
+    "type": "current",
+    "description": "夜間通行止めです。",
+    "mapUrl": "https://maps.app.goo.gl/AGjGMf5cPgeTvxmv7",
+    "coordinates": [
+      35.771879,
+      139.002464
+    ]
+  },
+  {
     "id": "38",
     "title": "ほうで橋（川野）",
     "type": "historical",
@@ -299,6 +309,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "104",
+    "title": "川野駐車場",
+    "type": "current",
+    "description": "トイレあります。",
+    "mapUrl": "https://maps.app.goo.gl/GSJqzhgkK3io8GXR9",
+    "coordinates": [
+      35.777033,
+      139.002891
+    ]
+  },
+  {
     "id": "30",
     "title": "浄光院",
     "type": "heritage",
@@ -314,9 +335,9 @@ export const okutamaPins: PinData[] = [
   },
   {
     "id": "47",
-    "title": "丸井亭",
+    "title": "こんにゃく製造所",
     "type": "historical",
-    "description": "川野地区にある飲食店。移転前も川野地区にあり、こんにゃくの製造に力を入れていました。今は大型駐車場もあり、ツーリングやドライブの観光客で賑わいます。釜飯が人気で、奥多摩では珍しいカブトムシの販売もしています。",
+    "description": "小河内では「こんにゃく」の製造に力を入れていました。この「こんにゃく」の製造所は、同じ川野地区の大型駐車場に移り、ツーリングやドライブの観光客で賑わいます。釜飯が人気で、奥多摩では珍しいカブトムシの販売もしています。",
     "mapUrl": "https://maps.app.goo.gl/ZAF6BQoRHbTnn4oU9",
     "coordinates": [
       35.774776546512264,
@@ -351,7 +372,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "7",
     "title": "峰谷川渓流釣場",
-    "type": "interview",
+    "type": "current",
     "description": "峰地区。昭和32年10月、小河内村内の小学校と中学校は、ダム竣工とともに小河内小学校・小河内中学校としてそれぞれ１つに統合されました。役目を終えた峰分教場（分校）は、浴場を備えたヘルスセンターとして改装し、開業しました。\n昭和57年、ヘルスセンターはさらにリニューアルし、峰谷川渓流釣場として開業しました。現在は、3月～11月に開設し、営業しています。",
     "mapUrl": "https://maps.app.goo.gl/dVwJtpaa1mnDnCiFA",
     "image": "/images/07.jpg",
@@ -464,6 +485,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "78",
+    "title": "峰谷橋駐車場",
+    "type": "current",
+    "description": "トイレあります。",
+    "mapUrl": "https://maps.app.goo.gl/nEBn7ped9cHYcSwy6",
+    "coordinates": [
+      35.780116,
+      139.015973
+    ]
+  },
+  {
     "id": "93",
     "title": "坂本集落（峰谷橋下）",
     "type": "photo",
@@ -487,6 +519,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "79",
+    "title": "岬の駐車場",
+    "type": "current",
+    "description": "小河内神社に行くなら、ここに停めます。",
+    "mapUrl": "https://maps.app.goo.gl/bjWctoFLBtuqgg329",
+    "coordinates": [
+      35.776599,
+      139.019699
+    ]
+  },
+  {
     "id": "81",
     "title": "南集落",
     "type": "folktale",
@@ -502,7 +545,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "17",
     "title": "小河内神社",
-    "type": "historical",
+    "type": "current",
     "description": "河内地区・奥多摩湖河内岬。小河内ダム建設のため水没対象地域にあった、温泉・金御岳・箭芎・貴船・愛宕・熊野（青木）・御霊・加茂・御岳（留浦）神社の９社11祭神を合祀し、昭和33年に遷座された小河内地区の総鎮守です。合祀後の９社の内７社の社殿は、住民の希望により各地域に移設されています。９月第２日曜の例祭で、川野獅子舞・原獅子舞・小河内の鹿島踊が奉納されます（坂本の獅子舞・小留浦の花神楽は現在休止中）。首都用水を守護するパワースポットとして人気を集めています。",
     "mapUrl": "https://maps.app.goo.gl/hcG4JmfGTg4XSnGW6",
     "image": "/images/17.jpg",
@@ -561,6 +604,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "110",
+    "title": "山のふるさと村駐車場第2駐車場",
+    "type": "current",
+    "description": "トイレあります。メインの駐車場がいっぱいのときはこちらを案内されます。夜間通行止めです。",
+    "mapUrl": "https://maps.app.goo.gl/ta4y5MEwUSmmj9Q67",
+    "coordinates": [
+      35.764368,
+      139.022597
+    ]
+  },
+  {
     "id": "71",
     "title": "東尋常高等小学校",
     "type": "interview",
@@ -606,6 +660,17 @@ export const okutamaPins: PinData[] = [
     "coordinates": [
       35.78034725232944,
       139.02319550514224
+    ]
+  },
+  {
+    "id": "109",
+    "title": "山のふるさと村駐車場",
+    "type": "current",
+    "description": "夜間通行止めです。",
+    "mapUrl": "https://maps.app.goo.gl/6JCXLZi3yZ52G5YA7",
+    "coordinates": [
+      35.766198,
+      139.023197
     ]
   },
   {
@@ -663,7 +728,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "69",
     "title": "河内集落",
-    "type": "historical",
+    "type": "interview",
     "description": "住人の移転先で最も多かったのは昭島市でした。昭島市では河内集落の郷土会が結成され、かつて暮らしていた街並みを思い出しながら地図にするプロジェクトがありました。（協力：昭島市教育委員会）",
     "image": "/images/69.jpg",
     "coordinates": [
@@ -698,7 +763,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "16",
     "title": "温泉神社",
-    "type": "historical",
+    "type": "heritage",
     "description": "元は湯場地区・鶴の湯の湯壺の傍に祀られたことから、湯の権現（のちに熊野三社権現）と呼ばれていました。小河内ダム建設のため小河内神社に合祀され、現在地へ移転しました。社殿は明治６年の再建で、町内では珍しい見事な彫刻が施されています。原地区の鎮守で、９月第２日曜の例祭で原獅子舞が奉納されます。境内には文政４（1821）年の小河内温泉神社の碑があります。",
     "mapUrl": "https://maps.app.goo.gl/fSvSHZfDuZrWXEQF6",
     "externalUrl": "https://youtu.be/VVBUzBivv6c",
@@ -712,7 +777,7 @@ export const okutamaPins: PinData[] = [
   {
     "id": "46",
     "title": "のんきや",
-    "type": "historical",
+    "type": "interview",
     "description": "原地区にある飲食店。かつては、湯場地区の温泉神社向いにありました。\n「七五三のお参りに温泉神社に行って、そのあとにのんきやでお蕎麦を食べた記憶があるよ。」（岡部義重さん）\n現在は店から見える眺望も抜群で、手打ち蕎麦やラーメンが人気です。",
     "mapUrl": "https://maps.app.goo.gl/mNC2z8cN1CubZWBy6",
     "coordinates": [
@@ -743,6 +808,17 @@ export const okutamaPins: PinData[] = [
     "coordinates": [
       35.78092823706055,
       139.03313308954242
+    ]
+  },
+  {
+    "id": "111",
+    "title": "月夜見第一駐車場",
+    "type": "current",
+    "description": "奥多摩湖が一望できます。かつての小河内村に思いを馳せてみませんか？\n夜間通行止めです。",
+    "mapUrl": "https://maps.app.goo.gl/guNkWZVdtSwPyuFj6",
+    "coordinates": [
+      35.766694,
+      139.033681
     ]
   },
   {
@@ -797,7 +873,7 @@ export const okutamaPins: PinData[] = [
     "id": "29",
     "title": "真光寺",
     "type": "folktale",
-    "description": "熱海向かいにあるとされる真光寺平にある寺",
+    "description": "熱海向かいにあるとされる真光寺平にある伝説の寺の名前です。武田信玄から預かったとされる金の茶釜が埋められているとされています。",
     "mapUrl": "https://maps.app.goo.gl/UzG5Bg4ubb5wawcr8",
     "folktaleTitle": "金の茶釜",
     "folktaleId": "kinno-chagama",
@@ -815,18 +891,6 @@ export const okutamaPins: PinData[] = [
     "coordinates": [
       35.78258412904612,
       139.03854846954349
-    ]
-  },
-  {
-    "id": "87",
-    "title": "新道と旧道（熱海トンネル）",
-    "type": "photo",
-    "description": "",
-    "image": "/images/87.jpg",
-    "bearing": 135,
-    "coordinates": [
-      35.78058660984906,
-      139.0391278266907
     ]
   },
   {
@@ -862,6 +926,17 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "77",
+    "title": "大麦代駐車場",
+    "type": "current",
+    "description": "毎月第3日曜日に旧車がたくさん集まります。売店、トイレあります。",
+    "mapUrl": "https://maps.app.goo.gl/t8fKb8M1gmqKhmhB9",
+    "coordinates": [
+      35.789601,
+      139.043035
+    ]
+  },
+  {
     "id": "96",
     "title": "ダム建設のために建てられた宿舎",
     "type": "photo",
@@ -886,6 +961,29 @@ export const okutamaPins: PinData[] = [
     ]
   },
   {
+    "id": "87",
+    "title": "ダムの建設予定図",
+    "type": "photo",
+    "description": "",
+    "image": "/images/87.jpg",
+    "bearing": 90,
+    "coordinates": [
+      35.790334376450055,
+      139.04582262039187
+    ]
+  },
+  {
+    "id": "76",
+    "title": "水と緑のふれあい館駐車場",
+    "type": "current",
+    "description": "少し歩くとトイレあります。",
+    "mapUrl": "https://maps.app.goo.gl/LFrAeTgpgdVW8RKw7",
+    "coordinates": [
+      35.792303,
+      139.047241
+    ]
+  },
+  {
     "id": "95",
     "title": "木材の搬出（筏づくり）",
     "type": "photo",
@@ -907,6 +1005,17 @@ export const okutamaPins: PinData[] = [
     "coordinates": [
       35.794035,
       139.047422
+    ]
+  },
+  {
+    "id": "75",
+    "title": "水根駐車場",
+    "type": "current",
+    "description": "水と緑のふれあい館駐車場がいっぱいなときには、ここに停めることになります。",
+    "mapUrl": "https://maps.app.goo.gl/ivdY3dS9v9kyWsmx7",
+    "coordinates": [
+      35.793757,
+      139.047612
     ]
   },
   {
