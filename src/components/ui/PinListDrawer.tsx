@@ -226,7 +226,9 @@ export default function PinListDrawer({
     if (!open) {
       stopSpeech();
       setImageOpen(false);
-      onDeselectPin();
+      const deselectTimer = setTimeout(() => {
+        onDeselectPin();
+      }, 300);
       const audio = folktaleAudioRef.current;
       if (audio) {
         audio.pause();
@@ -234,6 +236,7 @@ export default function PinListDrawer({
       }
       setFtPlaying(false);
       setFtCurrentTime(0);
+      return () => clearTimeout(deselectTimer);
     }
   }, [open, stopSpeech, setImageOpen, onDeselectPin]);
 
