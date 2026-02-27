@@ -7,6 +7,7 @@ import {
   PiMapPinFill,
   PiBugBeetleFill,
   PiCameraFill,
+  PiCarSimpleFill,
 } from 'react-icons/pi';
 
 // ピン情報の型定義
@@ -17,6 +18,7 @@ export type PinType =
   | 'heritage'
   | 'current'
   | 'photo'
+  | 'parking'
   | 'debug';
 
 export interface PinData {
@@ -76,6 +78,11 @@ export const pinTypeStyles: Record<
     color: '#2d8659',
     IconComponent: PiCameraFill,
     label: '写真',
+  },
+  parking: {
+    color: '#49B5D2',
+    IconComponent: PiCarSimpleFill,
+    label: '駐車場',
   },
   debug: {
     color: '#000',
