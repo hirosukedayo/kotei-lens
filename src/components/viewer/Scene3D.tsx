@@ -9,7 +9,6 @@ import {
   getRendererConfig,
 } from '../../utils/webgl-detector';
 import LakeModel from '../3d/LakeModel';
-import WireframeModel from '../3d/WireframeModel';
 import {
   gpsToWorldCoordinate,
   SCENE_CENTER,
@@ -28,6 +27,7 @@ import {
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
+  PIN_HEIGHT_OFFSET,
   DEFAULT_FOV,
 } from '../../config/terrain-config';
 import OrientationCamera from '../ar/OrientationCamera';
@@ -100,12 +100,10 @@ export default function Scene3D({
   // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
   const [isRecalibrating, setIsRecalibrating] = useState(false);
 
-  const [isWireframe, setIsWireframe] = useState(false);
   const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [showCameraControls, setShowCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
-  const [terrainModel, setTerrainModel] = useState<'wireframe' | 'realscale'>('wireframe');
 
   // FBXオブジェクト表示切り替え用State
   const [fbxObjectNames, setFbxObjectNames] = useState<string[]>([]);
@@ -116,25 +114,31 @@ export default function Scene3D({
     setFbxObjectNames(names);
   }, []);
 
-  const toggleFbxObject = useCallback((name: string) => {
+  // Cube系をグループ化した表示用リスト
+  const fbxDisplayGroups = useMemo(() => {
+    const cubeNames = fbxObjectNames.filter(n => n.startsWith('Cube'));
+    const otherNames = fbxObjectNames.filter(n => !n.startsWith('Cube'));
+    const groups: { label: string; names: string[] }[] = otherNames.map(n => ({ label: n, names: [n] }));
+    if (cubeNames.length > 0) {
+      groups.push({ label: `Cube (${cubeNames.length}個)`, names: cubeNames });
+    }
+    return groups;
+  }, [fbxObjectNames]);
+
+  const toggleFbxGroup = useCallback((names: string[]) => {
     setFbxHiddenObjects(prev => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
+      const allHidden = names.every(n => next.has(n));
+      for (const name of names) {
+        if (allHidden) {
+          next.delete(name);
+        } else {
+          next.add(name);
+        }
       }
       return next;
     });
   }, []);
-
-  // ワイヤーフレーム位置調整用State
-  const [wfPos, setWfPos] = useState(() => {
-    // ターゲット: 奥多摩ダム (okutama-dam)
-    return { x: 2307, y: -428, z: -489 };
-  });
-  const [wfScale, setWfScale] = useState(0.005);
-  const [wfScaleY, setWfScaleY] = useState(0.01);
 
   // UIドラッグ移動用State
   const [uiPosition, setUiPosition] = useState({ x: 20, y: 80 }); // 初期位置 (左上)
@@ -462,8 +466,7 @@ export default function Scene3D({
             position={terrainPosition}
             scale={[1, 1, 1]}
             rotation={[0, 0, 0]}
-            visible={terrainModel === 'realscale'}
-            wireframe={isWireframe}
+            visible={true}
             waterLevelOffset={waterLevelOffset}
             terrainScale={[
               TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
@@ -473,16 +476,6 @@ export default function Scene3D({
             waterPosition={WATER_CENTER_OFFSET}
             hiddenObjects={stableFbxHiddenObjects}
             onObjectsLoaded={handleFbxObjectsLoaded}
-          />
-
-          {/* ワイヤーフレームモデル */}
-          <WireframeModel
-            position={[wfPos.x, wfPos.y, wfPos.z]}
-            scale={[wfScale, wfScaleY, wfScale]}
-            rotation={[0, 0, 0]}
-            followCamera={false}
-            yOffset={-20}
-            visible={terrainModel === 'wireframe'}
           />
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
@@ -639,145 +632,8 @@ export default function Scene3D({
               userSelect: 'none'
             }}
           >
-            ワイヤーフレーム調整 (ドラッグ移動可)
+            カメラ調整 (ドラッグ移動可)
           </h3>
-
-          {/* ワイヤーフレーム X */}
-          <div style={{ width: '100%' }}>
-            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>X 位置 (東西):</span>
-              <input
-                type="number"
-                value={wfPos.x}
-                onChange={(e) => setWfPos({ ...wfPos, x: Number(e.target.value) })}
-                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="2207"
-              max="2407"
-              step="1"
-              value={wfPos.x}
-              onChange={(e) => setWfPos({ ...wfPos, x: Number(e.target.value) })}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* ワイヤーフレーム Z */}
-          <div style={{ width: '100%' }}>
-            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Z 位置 (南北):</span>
-              <input
-                type="number"
-                value={wfPos.z}
-                onChange={(e) => setWfPos({ ...wfPos, z: Number(e.target.value) })}
-                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="-589"
-              max="-389"
-              step="1"
-              value={wfPos.z}
-              onChange={(e) => setWfPos({ ...wfPos, z: Number(e.target.value) })}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* ワイヤーフレーム Y (高さ) */}
-          <div style={{ width: '100%' }}>
-            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Y 高さ:</span>
-              <input
-                type="number"
-                value={wfPos.y}
-                onChange={(e) => setWfPos({ ...wfPos, y: Number(e.target.value) })}
-                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="-575"
-              max="-375"
-              step="1"
-              value={wfPos.y}
-              onChange={(e) => setWfPos({ ...wfPos, y: Number(e.target.value) })}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* ワイヤーフレーム Scale (XZ) */}
-          <div style={{ width: '100%' }}>
-            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>スケール (XZ):</span>
-              <input
-                type="number"
-                value={wfScale}
-                step="0.0005"
-                onChange={(e) => setWfScale(Number(e.target.value))}
-                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="0.001"
-              max="0.02"
-              step="0.0005"
-              value={wfScale}
-              onChange={(e) => setWfScale(Number(e.target.value))}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* ワイヤーフレーム Scale (Y) */}
-          <div style={{ width: '100%' }}>
-            <div style={{ color: 'white', fontSize: '12px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>スケール (Y):</span>
-              <input
-                type="number"
-                value={wfScaleY}
-                step="0.0005"
-                onChange={(e) => setWfScaleY(Number(e.target.value))}
-                style={{ width: '60px', background: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '2px' }}
-              />
-            </div>
-            <input
-              type="range"
-              min="0.001"
-              max="0.02"
-              step="0.0005"
-              value={wfScaleY}
-              onChange={(e) => setWfScaleY(Number(e.target.value))}
-              style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* パラメータ出力エリア */}
-          <div style={{ background: '#222', padding: '10px', borderRadius: '8px', marginTop: '10px' }}>
-            <div style={{ color: '#aaa', fontSize: '10px', marginBottom: '5px' }}>現在のパラメータ (コピー用):</div>
-            <div style={{ color: '#4ade80', fontFamily: 'monospace', fontSize: '12px', userSelect: 'all', wordBreak: 'break-all' }}>
-              {`position: [${wfPos.x}, ${wfPos.y}, ${wfPos.z}]\nscale: [${wfScale}, ${wfScaleY}, ${wfScale}]`}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                // Reset to user defined target
-                setWfPos({ x: 2307, y: -428, z: -489 });
-                setWfScale(0.005);
-                setWfScaleY(0.01);
-              }}
-              style={{ flex: 1, padding: '8px', borderRadius: '8px', background: '#555', color: 'white', border: 'none', cursor: 'pointer' }}
-            >
-              リセット
-            </button>
-          </div>
-
-          <hr style={{ borderColor: '#555', margin: '15px 0' }} />
 
           {/* 画角(FOV)スライダー */}
           <div style={{ width: '100%' }}>
@@ -881,24 +737,6 @@ export default function Scene3D({
               }}
             >
               AR背景: {isArBackgroundActive ? 'ON' : 'OFF'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsWireframe(!isWireframe)}
-              style={{
-                background: isWireframe ? '#2B6CB0' : 'rgba(255,255,255,0.2)',
-                border: 'none',
-                color: 'white',
-                fontSize: '11px',
-                padding: '6px 12px',
-                borderRadius: '15px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                flex: 1,
-                maxWidth: '120px',
-              }}
-            >
-              線画: {isWireframe ? 'ON' : 'OFF'}
             </button>
           </div>
 
@@ -1066,63 +904,20 @@ export default function Scene3D({
               />
             </div>
 
-            {/* 地形モデル切り替え */}
-            <div>
-              <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <FaMountain size={12} /> 地形モデル
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setTerrainModel('wireframe')}
-                  style={{
-                    flex: 1,
-                    padding: '6px 0',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    background: terrainModel === 'wireframe' ? 'rgba(96,165,250,0.8)' : 'rgba(255,255,255,0.1)',
-                    color: terrainModel === 'wireframe' ? 'white' : 'rgba(255,255,255,0.6)',
-                  }}
-                >
-                  ワイヤーフレーム
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTerrainModel('realscale')}
-                  style={{
-                    flex: 1,
-                    padding: '6px 0',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    background: terrainModel === 'realscale' ? 'rgba(96,165,250,0.8)' : 'rgba(255,255,255,0.1)',
-                    color: terrainModel === 'realscale' ? 'white' : 'rgba(255,255,255,0.6)',
-                  }}
-                >
-                  リアルスケール
-                </button>
-              </div>
-            </div>
-
             {/* FBXオブジェクト表示切り替え */}
-            {fbxObjectNames.length > 0 && terrainModel === 'realscale' && (
+            {fbxObjectNames.length > 0 && (
               <div>
                 <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <FaMountain size={12} /> オブジェクト表示
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {fbxObjectNames.map((name) => {
-                    const isHidden = fbxHiddenObjects.has(name);
+                  {fbxDisplayGroups.map((group) => {
+                    const isHidden = group.names.every(n => fbxHiddenObjects.has(n));
                     return (
                       <button
-                        key={name}
+                        key={group.label}
                         type="button"
-                        onClick={() => toggleFbxObject(name)}
+                        onClick={() => toggleFbxGroup(group.names)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -1138,7 +933,7 @@ export default function Scene3D({
                         }}
                       >
                         <span style={{ fontSize: '8px' }}>{isHidden ? '○' : '●'}</span>
-                        {name}
+                        {group.label}
                       </button>
                     );
                   })}
@@ -1289,20 +1084,20 @@ function CameraPositionSetter({
     const cameraZ = initialCameraConfig.position[2];
     let finalCameraY = initialCameraConfig.position[1]; // デフォルトの高さ
 
-    // 調整モードなどで上空から俯瞰する場合（Y > 500）または固定高さ（-350）の場合は地形判定をスキップしてその高さを維持する
-    if (finalCameraY > 500 || finalCameraY === -350) {
-      // baseTerrainHeightRef を設定して、heightOffset スライダーが動作するようにする
+    // 調整モードなどで上空から俯瞰する場合（Y > 500）は地形判定をスキップしてその高さを維持する
+    if (finalCameraY > 500) {
       baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
+      console.log('[Camera] 固定高さモード: カメラ高さ =', finalCameraY.toFixed(2), 'm');
       if (onReady) onReady();
       return;
     }
 
     // 高速化: まず名前で検索（これが最も速い）
-    // LakeModel側で 'Retopo_OriginalMap001' という名前のオブジェクトを扱っている
+    // LakeModel側で 'GroundModeling03_Scaling' という名前のオブジェクトを扱っている
     let terrainMesh: THREE.Mesh | null = null;
-    const knownTerrainName = 'Retopo_OriginalMap001';
+    const knownTerrainName = 'GroundModeling03_Scaling';
 
     // シーンから直接取得を試みる
     const namedMesh = scene.getObjectByName(knownTerrainName);
@@ -1317,6 +1112,17 @@ function CameraPositionSetter({
       const maxSizeLimit = 10000;
       const maxHeightLimit = 1000;
       const scaledMaxHeightLimit = maxHeightLimit * TERRAIN_SCALE_FACTOR * 2;
+
+      // デバッグ: シーン内の全メッシュをリストアップ（初回のみ）
+      if (frameCount.current <= 10) {
+        const meshNames: string[] = [];
+        scene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            meshNames.push(child.name || '(unnamed)');
+          }
+        });
+        console.log('[Camera] シーン内メッシュ一覧:', meshNames.join(', '));
+      }
 
       scene.traverse((child) => {
         if (terrainMesh) return; // 既に見つかっていればスキップ
@@ -1404,7 +1210,7 @@ function CameraPositionSetter({
       // タイムアウト前でも、一定時間経過したら強制的にセットしてReadyにする
       // そうしないとローディングが終わらない
       if (frameCount.current > 150 && !hasSetPosition.current) {
-        console.warn('Terrain not found, forcing camera position and ready state');
+        console.warn('[Camera] 地形未検出、強制配置: カメラ高さ =', (finalCameraY + 100).toFixed(2), 'm');
         camera.position.set(cameraX, finalCameraY + 100, cameraZ);
         hasSetPosition.current = true;
         if (onReady) onReady();
@@ -1418,7 +1224,7 @@ function CameraPositionSetter({
       hasSetPosition.current = true;
       baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
 
-      console.warn('=== カメラ高さ調整（タイムアウト） ===');
+      console.warn('[Camera] タイムアウト: カメラ高さ =', finalCameraY.toFixed(2), 'm');
       if (onReady) onReady();
     }
   });
@@ -1601,6 +1407,38 @@ function PinMarkers3D({
   );
 }
 
+// 距離にかかわらず一定の見た目サイズで表示されるテキスト
+function FixedSizeText({ text, pinWorldPosition }: { text: string; pinWorldPosition: [number, number, number] }) {
+  const groupRef = React.useRef<THREE.Group>(null);
+  const { camera } = useThree();
+  // 基準距離（この距離で scale=1 相当の大きさになる）
+  const baseDistance = 500;
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const pinPos = new THREE.Vector3(...pinWorldPosition);
+    const dist = camera.position.distanceTo(pinPos);
+    const s = dist / baseDistance;
+    groupRef.current.scale.setScalar(s);
+  });
+
+  return (
+    <group ref={groupRef} position={[50, 100, 0]}>
+      <Text
+        fontSize={14}
+        color="white"
+        anchorX="left"
+        anchorY="middle"
+        outlineWidth={1.5}
+        outlineColor="black"
+        material-fog={false}
+      >
+        {text}
+      </Text>
+    </group>
+  );
+}
+
 // 個別のピンマーカーコンポーネント（地形の高さを計算）
 function PinMarker({
   id,
@@ -1608,7 +1446,7 @@ function PinMarker({
   type,
   bearing,
   basePosition,
-  // scene,
+  scene,
   isSelected = false,
   pinGpsPosition,
 }: {
@@ -1621,23 +1459,67 @@ function PinMarker({
   isSelected?: boolean;
   pinGpsPosition?: { latitude: number; longitude: number };
 }) {
-  /* ユーザー要望により全ピンの高さを -350 に固定 (レイキャストによる地形判定を無効化) */
-  const pinHeight = -350;
-
-  // const [pinHeight, setPinHeight] = React.useState<number | null>(null);
-  // const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
-  // const frameCount = React.useRef(0);
+  const [pinHeight, setPinHeight] = React.useState<number | null>(null);
+  const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
+  const frameCount = React.useRef(0);
   const groupRef = React.useRef<THREE.Group>(null);
   const lightBeamRef = React.useRef<THREE.Mesh>(null);
   const lightBeamIntensity = React.useRef(0.5);
 
-  /*
+  // 地形レイキャストでピンの高さを決定
   useFrame(() => {
-    // 地形の高さを一度だけ計算
     if (pinHeight !== null) return;
-    // ... (raycasting logic removed for fixed height)
+
+    frameCount.current += 1;
+    // 負荷軽減: 30フレームに1回（最初の10フレームは毎フレーム）
+    if (frameCount.current > 10 && frameCount.current % 30 !== 0) return;
+
+    // 地形メッシュを名前で検索
+    const knownTerrainName = 'GroundModeling03_Scaling';
+    let terrainMesh: THREE.Mesh | null = null;
+    const namedObj = scene.getObjectByName(knownTerrainName);
+    if (namedObj && namedObj instanceof THREE.Mesh) {
+      terrainMesh = namedObj;
+    }
+
+    if (!terrainMesh) {
+      // タイムアウト: 300フレーム経過したらフォールバック高さを使用
+      if (frameCount.current >= 300) {
+        console.warn(`[PinMarker] ${id}: Terrain not found, using fallback height`);
+        setPinHeight(-350);
+      }
+      return;
+    }
+
+    const terrainBox = new THREE.Box3().setFromObject(terrainMesh);
+    const rayStartY = terrainBox.max.y + 1000 * TERRAIN_SCALE_FACTOR;
+    const rayStart = new THREE.Vector3(basePosition[0], rayStartY, basePosition[2]);
+    const rayDirection = new THREE.Vector3(0, -1, 0);
+    raycaster.set(rayStart, rayDirection);
+
+    let intersects = raycaster.intersectObject(terrainMesh, false);
+    if (intersects.length === 0 && terrainMesh.children.length > 0) {
+      const childMeshes: THREE.Mesh[] = [];
+      terrainMesh.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.geometry) childMeshes.push(child);
+      });
+      for (const childMesh of childMeshes) {
+        const childIntersects = raycaster.intersectObject(childMesh, false);
+        if (childIntersects.length > 0) {
+          intersects = childIntersects;
+          break;
+        }
+      }
+    }
+
+    if (intersects.length > 0) {
+      const terrainHeight = intersects[0].point.y;
+      setPinHeight(terrainHeight + PIN_HEIGHT_OFFSET);
+    } else if (frameCount.current >= 300) {
+      console.warn(`[PinMarker] ${id}: Raycast missed terrain, using fallback height`);
+      setPinHeight(-350);
+    }
   });
-  */
 
   // 光の柱のアニメーション
   useFrame((state) => {
@@ -1704,18 +1586,10 @@ function PinMarker({
     }
 
     return (
-      <Text
-        position={[50, 100, 0]}
-        fontSize={40}
-        color="white"
-        anchorX="left"
-        anchorY="middle"
-        outlineWidth={2}
-        outlineColor="black"
-        material-fog={false}
-      >
-        {labelText}
-      </Text>
+      <FixedSizeText
+        text={labelText}
+        pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
+      />
     );
   };
 
@@ -1738,7 +1612,7 @@ function PinMarker({
       {/* マーカー（選択時は位置を上げる） */}
       <mesh position={[0, isSelected ? 20 : 0, 0]}>
         {/* デバッグピンは小さく表示 */}
-        <sphereGeometry args={[type === 'debug' ? 10 : 30, 16, 16]} />
+        <sphereGeometry args={[type === 'debug' ? 3.3 : 10, 16, 16]} />
         <meshStandardMaterial
           color={type === 'debug' ? '#333333' : (type === 'photo' ? '#2d8659' : '#ef4444')}
           emissive={type === 'debug' ? '#000000' : (type === 'photo' ? '#2d8659' : '#ef4444')}
