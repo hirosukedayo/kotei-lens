@@ -1,4 +1,4 @@
-import { Environment, Sky, Text, Billboard, useProgress } from '@react-three/drei';
+import { Environment, Sky, Text, Billboard, useProgress, OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React, { useState, useEffect, Suspense, useMemo, useRef, useCallback } from 'react';
@@ -402,8 +402,8 @@ export default function Scene3D({
               setTimeout(() => setIsReady(true), 500);
             }}
           />
-          {/* PC用キーボード移動コントロール */}
-          {!isMobile && <PCKeyboardControls />}
+          {/* PC用キーボード移動コントロール（OrbitControls使用時は無効） */}
+          {/* {!isMobile && <PCKeyboardControls />} */}
 
           {/* デバイス向きコントロール（モバイルのみ、かつ許可済み） */}
           {isMobile && permissionGranted && sensorData.orientation && (
@@ -415,18 +415,15 @@ export default function Scene3D({
             />
           )}
 
-          {/* FPSスタイルカメラコントロール（PCのみ） */}
-          {!isMobile && <FPSCameraControls />}
-
-          {/* 調整用 OrbitControls (PCのみ) - 無効化 */}
-          {/* {!isMobile && (
+          {/* OrbitControls（PCのみ）: マウスドラッグで回転、ホイールでズーム、右クリックでパン */}
+          {!isMobile && (
             <OrbitControls
               makeDefault
-              target={[wfPos.x, wfPos.y, wfPos.z]}
+              target={[0, 0, 0]}
               enableDamping={true}
               dampingFactor={0.1}
             />
-          )} */ }
+          )}
 
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
           {(!isArBackgroundActive || !isMobile) && (
@@ -442,22 +439,19 @@ export default function Scene3D({
           {isArBackgroundActive && isMobile && <SceneBackgroundCleaner />}
 
           {/* 環境マップ（反射などに使用）- 背景には表示しない */}
-          <Environment preset="sunset" background={false} />
+          <Environment preset="city" background={false} />
 
-          {/* 環境光を強化 */}
-          <ambientLight intensity={0.6} color="#ffffff" />
+          {/* 環境光 */}
+          <ambientLight intensity={0.3} color="#ffffff" />
 
-          {/* 距離フォグ - 遠くを白く/薄くフェードさせる */}
-          <fog attach="fog" args={['#ffffff', 10, 5000]} />
+          {/* 距離フォグ */}
+          <fog attach="fog" args={['#c8ddf0', 500, 10000]} />
 
-          {/* 指向性ライト（太陽光）を追加 */}
+          {/* 太陽光（Skyの太陽位置と方向を揃える） */}
           <directionalLight
-            position={[1000, 100, 50]}
-            intensity={1.0}
-            color="#ffffff"
-            castShadow={true}
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
+            position={[500, 800, 500]}
+            intensity={1.5}
+            color="#fff5e6"
           />
 
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
@@ -1232,137 +1226,11 @@ function CameraPositionSetter({
   return null;
 }
 
-// FPSスタイルカメラコントロール
-// FPSスタイルカメラコントロール
-function FPSCameraControls() {
-  const { camera } = useThree();
-  const [isPointerLocked, setIsPointerLocked] = React.useState(false);
-  const pitchRef = React.useRef(0);
-  const yawRef = React.useRef(0);
+// FPSスタイルカメラコントロール（OrbitControls使用時は無効化）
+// function FPSCameraControls() { ... }
 
-  React.useEffect(() => {
-    // URLパラメータからの初期位置設定 (初期回転を維持)
-    camera.rotation.order = 'YXZ';
-    // 初期回転をRefに反映
-    yawRef.current = camera.rotation.y;
-    pitchRef.current = camera.rotation.x;
-
-    const handlePointerLockChange = () => {
-      setIsPointerLocked(document.pointerLockElement !== null);
-    };
-
-    const handleMouseMove = (event: MouseEvent) => {
-      if (isPointerLocked) {
-        const sensitivity = 0.002;
-        const deltaX = event.movementX * sensitivity;
-        const deltaY = event.movementY * sensitivity;
-
-        yawRef.current -= deltaX;
-        pitchRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchRef.current - deltaY));
-
-        // カメラの回転を更新（Z軸回転は0に固定）
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = yawRef.current;
-        camera.rotation.x = pitchRef.current;
-        camera.rotation.z = 0;
-      }
-    };
-
-    const handleClick = (event: MouseEvent) => {
-      // UI要素（ボタンなど）がクリックされた場合はポインターロックをリクエストしない
-      const target = event.target as HTMLElement;
-      if (
-        target.tagName === 'BUTTON' ||
-        target.closest('button') !== null ||
-        target.closest('[role="button"]') !== null ||
-        target.style.zIndex !== '' ||
-        target.closest('[style*="z-index"]') !== null
-      ) {
-        return;
-      }
-
-      if (!isPointerLocked) {
-        document.body.requestPointerLock();
-      }
-    };
-
-    document.addEventListener('pointerlockchange', handlePointerLockChange);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('click', handleClick);
-
-    return () => {
-      document.removeEventListener('pointerlockchange', handlePointerLockChange);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('click', handleClick);
-    };
-  }, [camera, isPointerLocked]);
-
-  return null;
-}
-
-// PC用キーボード移動コントロール
-function PCKeyboardControls() {
-  const { camera } = useThree();
-  React.useEffect(() => {
-    const moveSpeed = 5;
-    const dir = new THREE.Vector3();
-    const right = new THREE.Vector3();
-
-    const handleKey = (e: KeyboardEvent) => {
-      let moved = false;
-      switch (e.key) {
-        // 前進・後退（カメラの向きに沿って移動）
-        case 'w':
-        case 'W':
-          camera.getWorldDirection(dir).normalize();
-          camera.position.addScaledVector(dir, moveSpeed);
-          moved = true;
-          break;
-        case 's':
-        case 'S':
-          camera.getWorldDirection(dir).normalize();
-          camera.position.addScaledVector(dir, -moveSpeed);
-          moved = true;
-          break;
-        // 左右移動（カメラの右方向）
-        case 'a':
-        case 'A':
-          camera.getWorldDirection(dir).normalize();
-          right.set(dir.z, 0, -dir.x).normalize();
-          camera.position.addScaledVector(right, -moveSpeed);
-          moved = true;
-          break;
-        case 'd':
-        case 'D':
-          camera.getWorldDirection(dir).normalize();
-          right.set(dir.z, 0, -dir.x).normalize();
-          camera.position.addScaledVector(right, moveSpeed);
-          moved = true;
-          break;
-        // 上下移動
-        case 'q':
-        case 'Q':
-          camera.position.y += moveSpeed;
-          moved = true;
-          break;
-        case 'e':
-        case 'E':
-          camera.position.y -= moveSpeed;
-          moved = true;
-          break;
-        default:
-          break;
-      }
-      if (moved) {
-        camera.updateProjectionMatrix();
-      }
-    };
-
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [camera]);
-  return null;
-}
+// PC用キーボード移動コントロール（OrbitControls使用時は無効化）
+// function PCKeyboardControls() { ... }
 
 // devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
 function PinMarkers3D({
@@ -1536,15 +1404,13 @@ function PinMarker({
     }
   });
 
-  // カメラとの距離を計算して表示・非表示を切り替え（50m未満は非表示）
+  // カメラとの距離を計算して表示・非表示を切り替え（200m未満・3km以上は非表示）
   useFrame(({ camera }) => {
     if (groupRef.current && pinHeight !== null) {
-      // 3D空間上の位置を基準に距離を計算
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
-      // 二乗距離で判定（1m = 1m^2）
-      // ユーザー要望により 200m (200 * 200) 以内は非表示に変更
       const distSq = camera.position.distanceToSquared(pinPosition);
-      groupRef.current.visible = distSq >= 40000;
+      // 200m未満 (200^2=40000) または 2km以上 (2000^2=4000000) は非表示
+      groupRef.current.visible = distSq >= 40000 && distSq < 4000000;
     }
   });
 

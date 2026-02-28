@@ -101,21 +101,22 @@ const loadFbxModel = (path: string): Promise<THREE.Group> => {
               mesh.scale.set(1, 1, 1);
               mesh.updateMatrix();
 
-              // 頂点カラーの適用
+              // マテリアルの設定（頂点カラー＋テクスチャの両方を活用）
               const hasVertexColors = mesh.geometry.hasAttribute('color');
-              if (hasVertexColors) {
-                const applyVertexColor = (mat: THREE.Material) => {
-                  if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
+              const applyMaterialSettings = (mat: THREE.Material) => {
+                if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
+                  if (hasVertexColors) {
                     mat.vertexColors = true;
-                    mat.color.set(0xffffff); // 頂点カラーがそのまま出るように白に
-                    mat.needsUpdate = true;
+                    mat.color.set(0xffffff); // ベースカラーを白にして頂点カラー・テクスチャをそのまま反映
                   }
-                };
-                if (Array.isArray(mesh.material)) {
-                  mesh.material.forEach(applyVertexColor);
-                } else {
-                  applyVertexColor(mesh.material);
+                  mat.needsUpdate = true;
+                  console.log(`[LakeModel] Material for "${mesh.name}": vertexColors=${hasVertexColors}, map=${!!mat.map}, type=${mat.type}`);
                 }
+              };
+              if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(applyMaterialSettings);
+              } else {
+                applyMaterialSettings(mesh.material);
               }
             }
           }
