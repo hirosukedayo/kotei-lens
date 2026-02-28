@@ -282,6 +282,7 @@ export const okutamaPins: PinData[] = [
     "description": "下り地区にあるカフェ・売店。下り・奥・峰地区は小河内ダム建設による水没対象外地域でした。「清流荘」は奥多摩湖の完成後に旅館として営業されてきました。令和７年に峰谷ショップ清流荘として、売店を併設したカフェへとリニューアルオープンしました。ホットサンドやケーキ、コーヒー、甘酒などの軽食から、店の外には酒類もある飲み物の自動販売機も設置。ティッシュペーパーやキッチンペーパーなどの日用品からオリジナルグッズや熊鈴などのお土産品まで、いざという時に頼りになるお店です。",
     "mapUrl": "https://maps.app.goo.gl/fzUWv3rc4HZjmUam7",
     "externalUrl": "https://www.instagram.com/minedanishop_seiryuso/",
+    "externalUrlTitle": "Instagram",
     "coordinates": [
       35.794688,
       139.001756
