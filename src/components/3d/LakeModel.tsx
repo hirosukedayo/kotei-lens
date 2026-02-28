@@ -13,7 +13,6 @@ interface LakeModelProps {
   visible?: boolean;
   terrainScale?: [number, number, number];
   waterPosition?: [number, number, number];
-  wireframe?: boolean;
   waterLevelOffset?: number;
   /** 非表示にするオブジェクト名のSet */
   hiddenObjects?: Set<string>;
@@ -33,7 +32,7 @@ const fbxCache = new Map<string, { fbx: THREE.Group | null; promise: Promise<THR
 // eslint-disable-next-line react-refresh/only-export-components
 export const preloadLakeModel = () => {
   const basePath = getBasePath();
-  const fbxPath = `${basePath}models/OkutamaLake_allmodel_test.fbx`;
+  const fbxPath = `${basePath}models/OkutamaLake_allmodel_test0227.fbx`;
 
   if (fbxCache.has(fbxPath)) {
     return;
@@ -176,7 +175,6 @@ export function LakeModel({
   visible = true,
   terrainScale = [1, 1, 1],
   waterPosition = [0, 0, 0],
-  wireframe = false,
   waterLevelOffset = 0,
   hiddenObjects,
   onObjectsLoaded,
@@ -210,7 +208,7 @@ export function LakeModel({
 
   // FBXファイルの読み込み（キャッシュを使用）
   useEffect(() => {
-    const fbxPath = `${basePath}models/OkutamaLake_allmodel_test.fbx`;
+    const fbxPath = `${basePath}models/OkutamaLake_allmodel_test0227.fbx`;
 
     const cached = fbxCache.get(fbxPath);
 
@@ -389,30 +387,6 @@ export function LakeModel({
     });
   });
 
-  // ワイヤーフレーム表示の切り替え
-  useEffect(() => {
-    const applyWireframe = (obj: THREE.Object3D | null) => {
-      if (!obj) return;
-      obj.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material) {
-          if (Array.isArray(child.material)) {
-            for (const mat of child.material) {
-              if ('wireframe' in mat) {
-                (mat as any).wireframe = wireframe;
-              }
-            }
-          } else if ('wireframe' in child.material) {
-            (child.material as any).wireframe = wireframe;
-          }
-        }
-      });
-    };
-
-    for (const { object } of clonedMeshes) {
-      applyWireframe(object);
-    }
-  }, [wireframe, clonedMeshes]);
-
   // 地形bboxの計算
   // biome-ignore lint/correctness/useExhaustiveDependencies: positionはデフォルト引数で変化しないがbbox再計算のトリガーとして必要
   useEffect(() => {
@@ -461,7 +435,7 @@ export function LakeModel({
       {isLoaded && renderableMeshes.map(({ name, object }) => (
         <primitive
           key={name}
-          ref={name === 'Retopo_OriginalMap001' ? ((ref: THREE.Group | null) => {
+          ref={name === 'GroundModeling03_Scaling' ? ((ref: THREE.Group | null) => {
             if (ref) {
               (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
             }
