@@ -2,9 +2,10 @@
 import type React from 'react';
 import { useEffect, useState, useRef, memo, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { TERRAIN_SCALE_FACTOR, WATER_INITIAL_OFFSET, FBX_NORMALIZATION_TARGET } from '../../config/terrain-config';
+import { createTerrainSplatMaterial } from './TerrainSplatMaterial';
 
 interface LakeModelProps {
   position?: [number, number, number];
@@ -25,57 +26,58 @@ const getBasePath = () => {
   return import.meta.env.BASE_URL || '/';
 };
 
-// FBXファイルの読み込み結果をキャッシュ（グローバル）
-const fbxCache = new Map<string, { fbx: THREE.Group | null; promise: Promise<THREE.Group> }>();
+// モデルファイルの読み込み結果をキャッシュ（グローバル）
+const modelCache = new Map<string, { model: THREE.Group | null; promise: Promise<THREE.Group> }>();
 
 // プリロード用の関数をエクスポート
 // eslint-disable-next-line react-refresh/only-export-components
 export const preloadLakeModel = () => {
   const basePath = getBasePath();
-  const fbxPath = `${basePath}models/OkutamaLake_allmodel_test0227.fbx`;
+  const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
 
-  if (fbxCache.has(fbxPath)) {
+  if (modelCache.has(modelPath)) {
     return;
   }
 
   console.log('[LakeModel] Preload: Starting...');
-  loadFbxModel(fbxPath);
+  loadModel(modelPath);
 };
 
 /**
- * FBXモデルをロードし、ジオメトリを正規化する。
- * - ワールド変換をジオメトリにベイク（FBX内部スケール100等を含む）
+ * GLBモデルをロードし、ジオメトリを正規化する。
+ * - ワールド変換をジオメトリにベイク
  * - 全体のbbox中心を原点に移動
  * - XZ最大寸法を FBX_NORMALIZATION_TARGET (~150) にスケール
- * - 頂点カラーがあればマテリアルに反映
+ * - COLOR_1 をスプラットマップとして使用
  */
-const loadFbxModel = (path: string): Promise<THREE.Group> => {
-  console.log('[LakeModel] Loading FBX:', path);
-  const fbxLoader = new FBXLoader();
+const loadModel = (path: string): Promise<THREE.Group> => {
+  console.log('[LakeModel] Loading GLB:', path);
+  const gltfLoader = new GLTFLoader();
 
   const loadPromise = new Promise<THREE.Group>((resolve, reject) => {
-    fbxLoader.load(
+    gltfLoader.load(
       path,
-      (loadedFbx) => {
-        console.log('[LakeModel] FBX loaded, normalizing...');
+      (gltf) => {
+        const loadedScene = gltf.scene;
+        console.log('[LakeModel] GLB loaded, normalizing...');
 
         // 全ワールドマトリクスを計算
-        loadedFbx.updateMatrixWorld(true);
+        loadedScene.updateMatrixWorld(true);
 
         // 正規化前のbboxを計算
-        const box = new THREE.Box3().setFromObject(loadedFbx);
+        const box = new THREE.Box3().setFromObject(loadedScene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        console.log('[LakeModel] FBX raw bbox size:', size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
+        console.log('[LakeModel] GLB raw bbox size:', size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
 
-        // FBX内の全オブジェクトをリストアップ
+        // GLB内の全オブジェクトをリストアップ
         const objectNames: string[] = [];
-        loadedFbx.traverse((child) => {
+        loadedScene.traverse((child) => {
           if ((child as THREE.Mesh).isMesh && child.name) {
             objectNames.push(child.name);
           }
         });
-        console.log('[LakeModel] FBX mesh objects:', objectNames.join(', '));
+        console.log('[LakeModel] GLB mesh objects:', objectNames.join(', '));
 
         // 正規化行列: まず中心を原点に移動、次にスケール
         const maxDim = Math.max(size.x, size.z);
@@ -86,12 +88,16 @@ const loadFbxModel = (path: string): Promise<THREE.Group> => {
           new THREE.Matrix4().makeScale(normFactor, normFactor, normFactor)
         );
 
-        // メッシュのワールド変換をジオメトリにベイクし、正規化・頂点カラーを適用
-        loadedFbx.traverse((child) => {
+        // スプラットマップマテリアルを事前作成
+        const basePath = getBasePath();
+        const splatMaterial = createTerrainSplatMaterial(basePath);
+
+        // メッシュのワールド変換をジオメトリにベイクし、正規化・マテリアルを適用
+        loadedScene.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
             if (mesh.geometry) {
-              // ワールド変換をベイク（FBX内部scale=100等を含む）
+              // ワールド変換をベイク
               mesh.geometry.applyMatrix4(mesh.matrixWorld);
               // 正規化（中心を原点、サイズを~150に）
               mesh.geometry.applyMatrix4(normMatrix);
@@ -101,29 +107,71 @@ const loadFbxModel = (path: string): Promise<THREE.Group> => {
               mesh.scale.set(1, 1, 1);
               mesh.updateMatrix();
 
-              // マテリアルの設定（頂点カラー＋テクスチャの両方を活用）
-              const hasVertexColors = mesh.geometry.hasAttribute('color');
-              const applyMaterialSettings = (mat: THREE.Material) => {
-                if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
-                  if (hasVertexColors) {
-                    mat.vertexColors = true;
-                    mat.color.set(0xffffff); // ベースカラーを白にして頂点カラー・テクスチャをそのまま反映
-                  }
-                  mat.needsUpdate = true;
-                  console.log(`[LakeModel] Material for "${mesh.name}": vertexColors=${hasVertexColors}, map=${!!mat.map}, type=${mat.type}`);
-                }
-              };
-              if (Array.isArray(mesh.material)) {
-                mesh.material.forEach(applyMaterialSettings);
+              // GLTFLoaderはTEXCOORD_1を"uv1"として読み込む場合がある
+              if (mesh.geometry.hasAttribute('uv1') && !mesh.geometry.hasAttribute('uv2')) {
+                mesh.geometry.setAttribute('uv2', mesh.geometry.getAttribute('uv1'));
+              }
+
+              // COLOR_1 を持つメッシュ: スプラットマップマテリアルを適用
+              // GLTFLoaderはCOLOR_1を "color_1" として読み込む（ATTRIBUTES未定義→toLowerCase()）
+              const color1Attr = mesh.geometry.getAttribute('color_1');
+              if (mesh.geometry.hasAttribute('uv2') && color1Attr) {
+                // COLOR_1 (RGBA) を splatColor attribute として設定
+                mesh.geometry.setAttribute('splatColor', color1Attr);
+
+                mesh.material = splatMaterial;
+              } else if (mesh.name.includes('RiverWater')) {
+                // 水面マテリアル: リアルな水の質感
+                mesh.material = new THREE.MeshPhysicalMaterial({
+                  color: new THREE.Color(0.08, 0.15, 0.25),
+                  metalness: 0.1,
+                  roughness: 0.15,
+                  transmission: 0.3,
+                  transparent: true,
+                  opacity: 0.85,
+                  envMapIntensity: 1.5,
+                  clearcoat: 0.3,
+                  clearcoatRoughness: 0.1,
+                  side: THREE.DoubleSide,
+                });
               } else {
-                applyMaterialSettings(mesh.material);
+                // Cubeメッシュのマテリアル名を確認して防波堤を判定
+                const currentMat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+                const matName = currentMat?.name || '';
+
+                if (matName === '' || !currentMat || !(currentMat as THREE.MeshStandardMaterial).color) {
+                  // マテリアル未設定のCube = 防波堤（コンクリート質感）
+                  mesh.material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(0.6, 0.58, 0.55),
+                    metalness: 0.0,
+                    roughness: 0.85,
+                    side: THREE.DoubleSide,
+                  });
+                } else {
+                  // 通常マテリアルの設定
+                  const hasVertexColors = mesh.geometry.hasAttribute('color');
+                  const applyMaterialSettings = (mat: THREE.Material) => {
+                    if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
+                      if (hasVertexColors) {
+                        mat.vertexColors = true;
+                        mat.color.set(0xffffff);
+                      }
+                      mat.needsUpdate = true;
+                    }
+                  };
+                  if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(applyMaterialSettings);
+                  } else {
+                    applyMaterialSettings(mesh.material);
+                  }
+                }
               }
             }
           }
         });
 
         // 全ての非メッシュノード（Group等）のトランスフォームもリセット
-        loadedFbx.traverse((child) => {
+        loadedScene.traverse((child) => {
           if (!(child as THREE.Mesh).isMesh) {
             child.position.set(0, 0, 0);
             child.rotation.set(0, 0, 0);
@@ -131,33 +179,33 @@ const loadFbxModel = (path: string): Promise<THREE.Group> => {
             child.updateMatrix();
           }
         });
-        loadedFbx.position.set(0, 0, 0);
-        loadedFbx.rotation.set(0, 0, 0);
-        loadedFbx.scale.set(1, 1, 1);
-        loadedFbx.updateMatrix();
-        loadedFbx.updateMatrixWorld(true);
+        loadedScene.position.set(0, 0, 0);
+        loadedScene.rotation.set(0, 0, 0);
+        loadedScene.scale.set(1, 1, 1);
+        loadedScene.updateMatrix();
+        loadedScene.updateMatrixWorld(true);
 
         // 正規化後のbboxを確認
-        const normBox = new THREE.Box3().setFromObject(loadedFbx);
+        const normBox = new THREE.Box3().setFromObject(loadedScene);
         const normSize = normBox.getSize(new THREE.Vector3());
         console.log('[LakeModel] Normalized bbox size:', normSize.x.toFixed(2), normSize.y.toFixed(2), normSize.z.toFixed(2));
 
-        resolve(loadedFbx);
+        resolve(loadedScene);
       },
       undefined,
       (error) => {
-        console.error('[LakeModel] Failed to load FBX:', error);
+        console.error('[LakeModel] Failed to load GLB:', error);
         reject(error);
       }
     );
   });
 
-  fbxCache.set(path, { fbx: null, promise: loadPromise });
+  modelCache.set(path, { model: null, promise: loadPromise });
 
-  loadPromise.then(fbx => {
-    fbxCache.set(path, { fbx, promise: loadPromise });
+  loadPromise.then(model => {
+    modelCache.set(path, { model, promise: loadPromise });
   }).catch(() => {
-    fbxCache.delete(path);
+    modelCache.delete(path);
   });
 
   return loadPromise;
@@ -183,7 +231,7 @@ export function LakeModel({
   const terrainRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fbxScene, setFbxScene] = useState<THREE.Group | null>(null);
+  const [modelScene, setModelScene] = useState<THREE.Group | null>(null);
   /** 全メッシュのクローン: { name, object }[] */
   const [clonedMeshes, setClonedMeshes] = useState<{ name: string; object: THREE.Object3D }[]>([]);
   const terrainBottomYRef = useRef<number | null>(null);
@@ -207,27 +255,27 @@ export function LakeModel({
   const hiddenObjectsRef = useRef(hiddenObjects);
   hiddenObjectsRef.current = hiddenObjects;
 
-  // FBXファイルの読み込み（キャッシュを使用）
+  // モデルファイルの読み込み（キャッシュを使用）
   useEffect(() => {
-    const fbxPath = `${basePath}models/OkutamaLake_allmodel_test0227.fbx`;
+    const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
 
-    const cached = fbxCache.get(fbxPath);
+    const cached = modelCache.get(modelPath);
 
-    if (cached?.fbx) {
-      setFbxScene(cached.fbx);
+    if (cached?.model) {
+      setModelScene(cached.model);
       setIsLoaded(true);
       return;
     }
 
     let promise = cached?.promise;
     if (!promise) {
-      promise = loadFbxModel(fbxPath);
+      promise = loadModel(modelPath);
     }
 
     promise
-      .then((loadedFbx) => {
+      .then((loadedModel) => {
         if (isMounted) {
-          setFbxScene(loadedFbx);
+          setModelScene(loadedModel);
           setIsLoaded(true);
         }
       })
@@ -242,12 +290,12 @@ export function LakeModel({
   // 全メッシュオブジェクトをクローン
   // biome-ignore lint/correctness/useExhaustiveDependencies: clonedMeshesは一度設定されたら変わらない
   useEffect(() => {
-    if (!fbxScene || clonedMeshes.length > 0) return;
+    if (!modelScene || clonedMeshes.length > 0) return;
 
     const meshes: { name: string; object: THREE.Object3D }[] = [];
     const names: string[] = [];
 
-    fbxScene.traverse((child) => {
+    modelScene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh && child.name) {
         const cloned = child.clone();
         meshes.push({ name: child.name, object: cloned });
@@ -263,7 +311,7 @@ export function LakeModel({
       onObjectsLoadedRef.current(names);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fbxScene]);
+  }, [modelScene]);
 
   // 水面(RiverWater)オブジェクトをシーンに直接追加（水面アニメーション用）
   const waterMesh = useMemo(
@@ -350,42 +398,23 @@ export function LakeModel({
     }
     clonedWater.updateMatrixWorld(true);
 
-    // 水面のマテリアル効果
-    clonedWater.traverse((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh && child.material) {
-        const material = child.material as THREE.MeshStandardMaterial;
-
-        if (globalWaterDrainStartTime.value) {
-          const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000;
+    // 水面のマテリアル効果（ドレインアニメーション時の透明度変化のみ）
+    if (globalWaterDrainStartTime.value) {
+      clonedWater.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as THREE.MeshPhysicalMaterial;
+          const elapsed = (Date.now() - (globalWaterDrainStartTime.value ?? 0)) / 1000;
           const delay = 1.0;
           const animationDuration = 120.0;
 
           if (elapsed >= delay) {
             const animationElapsed = elapsed - delay;
             const drainProgress = Math.min(animationElapsed / animationDuration, 1.0);
-            const opacity = Math.max(0.4, 0.8 * (1 - drainProgress));
-            material.opacity = opacity;
-            material.transparent = true;
-          } else {
-            material.opacity = 0.8;
-            material.transparent = true;
+            material.opacity = Math.max(0.3, 0.85 * (1 - drainProgress));
           }
-        } else {
-          material.opacity = 0.8;
-          material.transparent = true;
         }
-
-        if (material.metalness !== undefined) {
-          material.metalness = 0.2;
-        }
-        if (material.roughness !== undefined) {
-          material.roughness = 0.3;
-        }
-        if (material.color) {
-          material.color.setHSL(0.5, 0.8, 0.6);
-        }
-      }
-    });
+      });
+    }
   });
 
   // 地形bboxの計算
@@ -436,7 +465,7 @@ export function LakeModel({
       {isLoaded && renderableMeshes.map(({ name, object }) => (
         <primitive
           key={name}
-          ref={name === 'GroundModeling03_Scaling' ? ((ref: THREE.Group | null) => {
+          ref={name === 'GroundModeling03_Scaling001' ? ((ref: THREE.Group | null) => {
             if (ref) {
               (terrainRef as React.MutableRefObject<THREE.Group | null>).current = ref;
             }

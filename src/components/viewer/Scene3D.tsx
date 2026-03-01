@@ -17,7 +17,7 @@ import {
 } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
-import type { PinData, PinType } from '../../types/pins';
+import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
 import { FaMapSigns, FaCompass, FaEye, FaSlidersH, FaMountain } from 'react-icons/fa';
 import {
@@ -104,6 +104,10 @@ export default function Scene3D({
   const [showCameraControls, setShowCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+  // 地形モデル調整
+  const [terrainOffsetX, setTerrainOffsetX] = useState(0);
+  const [terrainOffsetZ, setTerrainOffsetZ] = useState(0);
+  const [terrainScaleOffset, setTerrainScaleOffset] = useState(0); // -50〜+50 の%オフセット
 
   // FBXオブジェクト表示切り替え用State
   const [fbxObjectNames, setFbxObjectNames] = useState<string[]>([]);
@@ -457,16 +461,19 @@ export default function Scene3D({
           {/* 湖の3Dモデル - 地形と水面を独立して制御 */}
           {/* 地形の中心点を[0, 0, 0]に配置するため、positionをTERRAIN_SCALE_FACTORに応じて動的に計算 */}
           <LakeModel
-            position={terrainPosition}
+            position={[
+              terrainPosition[0] + terrainOffsetX,
+              terrainPosition[1],
+              terrainPosition[2] + terrainOffsetZ,
+            ]}
             scale={[1, 1, 1]}
             rotation={[0, 0, 0]}
             visible={true}
             waterLevelOffset={waterLevelOffset}
-            terrainScale={[
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-              TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR,
-            ]}
+            terrainScale={(() => {
+              const s = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR * (1 + terrainScaleOffset / 100);
+              return [s, s, s] as [number, number, number];
+            })()}
             waterPosition={WATER_CENTER_OFFSET}
             hiddenObjects={stableFbxHiddenObjects}
             onObjectsLoaded={handleFbxObjectsLoaded}
@@ -898,6 +905,56 @@ export default function Scene3D({
               />
             </div>
 
+            {/* 地形モデル調整 */}
+            <div>
+              <div style={{ color: 'white', fontSize: '11px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FaMountain size={12} /> 地形調整
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setTerrainOffsetX(0); setTerrainOffsetZ(0); setTerrainScaleOffset(0); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  リセット
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', marginBottom: '2px' }}>
+                    X: {terrainOffsetX > 0 ? `+${terrainOffsetX}` : terrainOffsetX}
+                  </div>
+                  <input type="range" min="-200" max="200" step="1" value={terrainOffsetX}
+                    onChange={(e) => setTerrainOffsetX(Number(e.target.value))}
+                    style={{ width: '100%', height: '4px', accentColor: '#f87171' }} />
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', marginBottom: '2px' }}>
+                    Z: {terrainOffsetZ > 0 ? `+${terrainOffsetZ}` : terrainOffsetZ}
+                  </div>
+                  <input type="range" min="-200" max="200" step="1" value={terrainOffsetZ}
+                    onChange={(e) => setTerrainOffsetZ(Number(e.target.value))}
+                    style={{ width: '100%', height: '4px', accentColor: '#60a5fa' }} />
+                </div>
+                <div>
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', marginBottom: '2px' }}>
+                    スケール: {terrainScaleOffset > 0 ? `+${terrainScaleOffset}` : terrainScaleOffset}%
+                  </div>
+                  <input type="range" min="-50" max="50" step="1" value={terrainScaleOffset}
+                    onChange={(e) => setTerrainScaleOffset(Number(e.target.value))}
+                    style={{ width: '100%', height: '4px', accentColor: '#c084fc' }} />
+                </div>
+              </div>
+            </div>
+
             {/* FBXオブジェクト表示切り替え */}
             {fbxObjectNames.length > 0 && (
               <div>
@@ -1091,7 +1148,7 @@ function CameraPositionSetter({
     // 高速化: まず名前で検索（これが最も速い）
     // LakeModel側で 'GroundModeling03_Scaling' という名前のオブジェクトを扱っている
     let terrainMesh: THREE.Mesh | null = null;
-    const knownTerrainName = 'GroundModeling03_Scaling';
+    const knownTerrainName = 'GroundModeling03_Scaling001';
 
     // シーンから直接取得を試みる
     const namedMesh = scene.getObjectByName(knownTerrainName);
@@ -1238,7 +1295,8 @@ function PinMarkers3D({
 }: {
   selectedPin?: PinData | null;
 }) {
-  const { scene } = useThree();
+  const { scene, camera } = useThree();
+  const [closestPinId, setClosestPinId] = React.useState<string | null>(null);
   const pinBasePositions = useMemo(() => {
     return okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
@@ -1255,6 +1313,53 @@ function PinMarkers3D({
     });
   }, []);
 
+  // カメラ中心に最も近いピンを毎フレーム計算
+  const frameCounter = React.useRef(0);
+  useFrame(() => {
+    frameCounter.current += 1;
+    // 負荷軽減: 5フレームに1回
+    if (frameCounter.current % 5 !== 0) return;
+
+    const camPos = camera.position;
+
+    // カメラの水平前方方向（Y成分を除外）
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    let bestId: string | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (const pin of pinBasePositions) {
+      // 水平距離を計算（Y成分を無視）
+      const dx = pin.basePosition[0] - camPos.x;
+      const dz = pin.basePosition[2] - camPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      // 表示範囲外（100m未満・2km以上）はスキップ
+      if (dist < 100 || dist > 2000) continue;
+      // デバッグピンはスキップ
+      if (pin.type === 'debug') continue;
+
+      // 水平方向でカメラ中心からの角度を計算
+      const toPin = new THREE.Vector3(dx, 0, dz).normalize();
+      const dot = forward.dot(toPin);
+      // カメラの背面にあるピンはスキップ
+      if (dot <= 0) continue;
+
+      // スコア = 水平方向の中心への近さ + 距離ボーナス
+      const centerScore = dot; // 1.0=真正面、0=真横
+      // 近いピンほどボーナスが大きい（100mで+0.2、2000mで+0）
+      const distBonus = 0.2 * (1 - (dist - 100) / 1900);
+      const score = centerScore + distBonus;
+      if (score > bestScore) {
+        bestScore = score;
+        bestId = pin.id;
+      }
+    }
+
+    setClosestPinId(bestId);
+  });
+
   // 各ピンの地形高さを計算して配置
   return (
     <>
@@ -1268,6 +1373,7 @@ function PinMarkers3D({
           basePosition={pin.basePosition}
           scene={scene}
           isSelected={selectedPin?.id === pin.id}
+          showLabel={pin.id === closestPinId || selectedPin?.id === pin.id}
           pinGpsPosition={pin.gps}
         />
       ))}
@@ -1316,6 +1422,7 @@ function PinMarker({
   basePosition,
   scene,
   isSelected = false,
+  showLabel = false,
   pinGpsPosition,
 }: {
   id: string;
@@ -1325,6 +1432,7 @@ function PinMarker({
   basePosition: [number, number, number];
   scene: THREE.Scene;
   isSelected?: boolean;
+  showLabel?: boolean;
   pinGpsPosition?: { latitude: number; longitude: number };
 }) {
   const [pinHeight, setPinHeight] = React.useState<number | null>(null);
@@ -1343,7 +1451,7 @@ function PinMarker({
     if (frameCount.current > 10 && frameCount.current % 30 !== 0) return;
 
     // 地形メッシュを名前で検索
-    const knownTerrainName = 'GroundModeling03_Scaling';
+    const knownTerrainName = 'GroundModeling03_Scaling001';
     let terrainMesh: THREE.Mesh | null = null;
     const namedObj = scene.getObjectByName(knownTerrainName);
     if (namedObj && namedObj instanceof THREE.Mesh) {
@@ -1404,13 +1512,13 @@ function PinMarker({
     }
   });
 
-  // カメラとの距離を計算して表示・非表示を切り替え（200m未満・3km以上は非表示）
+  // カメラとの距離を計算して表示・非表示を切り替え
   useFrame(({ camera }) => {
     if (groupRef.current && pinHeight !== null) {
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
       const distSq = camera.position.distanceToSquared(pinPosition);
-      // 200m未満 (200^2=40000) または 2km以上 (2000^2=4000000) は非表示
-      groupRef.current.visible = distSq >= 40000 && distSq < 4000000;
+      // 100m未満 (100^2=10000) または 5km以上 (5000^2=25000000) は非表示
+      groupRef.current.visible = distSq >= 10000 && distSq < 25000000;
     }
   });
 
@@ -1461,28 +1569,42 @@ function PinMarker({
 
   return (
     <group ref={groupRef} key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
-      {/* 選択時: 光の柱（三角錐） */}
-      {isSelected && (
+      {/* 選択時 or ラベル表示中: 光の柱（三角錐） */}
+      {(isSelected || (showLabel && type !== 'debug')) && (
         <mesh ref={lightBeamRef} position={[0, 250, 0]}>
           <coneGeometry args={[15, 1000, 32]} />
           <meshStandardMaterial
             color="#ffffff"
-            emissive="#3b82f6"
-            emissiveIntensity={0.5}
+            emissive={isSelected ? '#3b82f6' : '#ffffff'}
+            emissiveIntensity={isSelected ? 0.5 : 0.3}
             transparent={true}
-            opacity={0.3}
+            opacity={isSelected ? 0.3 : 0.15}
             side={THREE.DoubleSide}
           />
         </mesh>
       )}
-      {/* マーカー（選択時は位置を上げる） */}
-      <mesh position={[0, isSelected ? 20 : 0, 0]}>
+      {/* ラベル表示中のピンにリング表示 */}
+      {showLabel && !isSelected && type !== 'debug' && (
+        <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[16, 22, 32]} />
+          <meshStandardMaterial
+            color="#ffffff"
+            emissive="#ffffff"
+            emissiveIntensity={1.0}
+            transparent
+            opacity={0.7}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+      {/* マーカー（選択時・ラベル表示時は位置を上げる） */}
+      <mesh position={[0, isSelected ? 20 : (showLabel ? 10 : 0), 0]}>
         {/* デバッグピンは小さく表示 */}
-        <sphereGeometry args={[type === 'debug' ? 3.3 : 10, 16, 16]} />
+        <sphereGeometry args={[type === 'debug' ? 3.3 : (showLabel && !isSelected ? 14 : 10), 16, 16]} />
         <meshStandardMaterial
-          color={type === 'debug' ? '#333333' : (type === 'photo' ? '#2d8659' : '#ef4444')}
-          emissive={type === 'debug' ? '#000000' : (type === 'photo' ? '#2d8659' : '#ef4444')}
-          emissiveIntensity={isSelected ? 0.8 : 0.5}
+          color={pinTypeStyles[type].color}
+          emissive={pinTypeStyles[type].color}
+          emissiveIntensity={isSelected ? 0.8 : (showLabel ? 0.7 : 0.5)}
         />
       </mesh>
       {/* photo タイプの方向コーン */}
@@ -1503,8 +1625,8 @@ function PinMarker({
           </mesh>
         </group>
       )}
-      {/* ラベル（テキスト） - 常にカメラを向く (デバッグピン以外) */}
-      {type !== 'debug' && (
+      {/* ラベル（テキスト） - カメラ中心に最も近いピン or 選択されたピンのみ表示 */}
+      {type !== 'debug' && showLabel && (
         <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
           <DistanceLabel />
         </Billboard>
