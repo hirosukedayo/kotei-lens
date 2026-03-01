@@ -12,8 +12,6 @@ import LakeModel from '../3d/LakeModel';
 import {
   gpsToWorldCoordinate,
   SCENE_CENTER,
-  worldToGpsCoordinate,
-  calculateDistance,
 } from '../../utils/coordinate-converter';
 import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
@@ -38,6 +36,10 @@ import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
 import CompassCalibration from '../ui/CompassCalibration';
 import { trackPinSelect } from '../../utils/analytics';
+
+// 日本語対応フォント（Noto Sans JP Regular）
+const JAPANESE_FONT_URL =
+  'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf';
 
 interface Scene3DProps {
   initialPosition?: Initial3DPosition | null;
@@ -82,6 +84,13 @@ export default function Scene3D({
     baseSelectPin(pin);
     trackPinSelect(pin.id, pin.title, pin.type, '3d');
   }, [baseSelectPin]);
+  // 3Dラベルからの選択: ドロワーを先に開いてからピンを選択（画像表示のタイミング問題を回避）
+  const handleSelectPinFrom3D = useCallback((pin: PinData) => {
+    setSheetOpen(true);
+    requestAnimationFrame(() => {
+      handleSelectPin(pin);
+    });
+  }, [handleSelectPin]);
   const handleDeselectPin = propOnDeselectPin ?? (() => setLocalSelectedPin(null));
   const [webglSupport, setWebglSupport] = useState<WebGLSupport | null>(null);
   const [renderer, setRenderer] = useState<string>('webgl2');
@@ -384,6 +393,11 @@ export default function Scene3D({
       )}
 
       <Canvas
+        onPointerMissed={() => {
+          if (selectedPin) {
+            setSheetOpen(false);
+          }
+        }}
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
           position: initialCameraConfig.position,
@@ -480,7 +494,7 @@ export default function Scene3D({
           />
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
-          <PinMarkers3D selectedPin={selectedPin} />
+          <PinMarkers3D selectedPin={selectedPin} onSelectPin={handleSelectPinFrom3D} />
 
           {/* 画角(FOV)を動的に更新するコンポーネント */}
           <FovAdjuster fov={fov} />
@@ -1289,14 +1303,18 @@ function CameraPositionSetter({
 // PC用キーボード移動コントロール（OrbitControls使用時は無効化）
 // function PCKeyboardControls() { ... }
 
-// devモード時: 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
+// 2Dマップ上のピン位置を3Dビューに表示するコンポーネント
 function PinMarkers3D({
   selectedPin,
+  onSelectPin,
 }: {
   selectedPin?: PinData | null;
+  onSelectPin?: (pin: PinData) => void;
 }) {
   const { scene, camera } = useThree();
-  const [closestPinId, setClosestPinId] = React.useState<string | null>(null);
+  const [visibleLabelIds, setVisibleLabelIds] = React.useState<Set<string>>(new Set());
+  const pinHeightsRef = useRef<Map<string, number>>(new Map());
+
   const pinBasePositions = useMemo(() => {
     return okutamaPins.map((pin) => {
       const [latitude, longitude] = pin.coordinates;
@@ -1305,7 +1323,6 @@ function PinMarkers3D({
         id: pin.id,
         title: pin.title,
         type: pin.type,
-        bearing: pin.bearing,
         basePosition: [worldPos.x, worldPos.y, worldPos.z] as [number, number, number],
         gps: { latitude, longitude },
         worldPos,
@@ -1313,54 +1330,105 @@ function PinMarkers3D({
     });
   }, []);
 
-  // カメラ中心に最も近いピンを毎フレーム計算
+  const handleHeightResolved = useCallback((pinId: string, height: number) => {
+    pinHeightsRef.current.set(pinId, height);
+  }, []);
+
+  // ラベル重なり判定による複数ラベル表示（8フレームに1回）
   const frameCounter = React.useRef(0);
+  const tmpVec3 = useMemo(() => new THREE.Vector3(), []);
+
   useFrame(() => {
     frameCounter.current += 1;
-    // 負荷軽減: 5フレームに1回
-    if (frameCounter.current % 5 !== 0) return;
+    if (frameCounter.current % 8 !== 0) return;
 
     const camPos = camera.position;
-
-    // カメラの水平前方方向（Y成分を除外）
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     forward.y = 0;
     forward.normalize();
 
-    let bestId: string | null = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
+    // 1. 候補ピンを収集しスコア計算
+    const candidates: { id: string; score: number; screenX: number; screenY: number }[] = [];
 
     for (const pin of pinBasePositions) {
-      // 水平距離を計算（Y成分を無視）
+      if (pin.type === 'debug') continue;
+
       const dx = pin.basePosition[0] - camPos.x;
       const dz = pin.basePosition[2] - camPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      // 表示範囲外（100m未満・2km以上）はスキップ
-      if (dist < 100 || dist > 2000) continue;
-      // デバッグピンはスキップ
-      if (pin.type === 'debug') continue;
+      if (dist < 100 || dist > 5000) continue;
 
-      // 水平方向でカメラ中心からの角度を計算
       const toPin = new THREE.Vector3(dx, 0, dz).normalize();
       const dot = forward.dot(toPin);
-      // カメラの背面にあるピンはスキップ
       if (dot <= 0) continue;
 
-      // スコア = 水平方向の中心への近さ + 距離ボーナス
-      const centerScore = dot; // 1.0=真正面、0=真横
-      // 近いピンほどボーナスが大きい（100mで+0.2、2000mで+0）
-      const distBonus = 0.2 * (1 - (dist - 100) / 1900);
+      // ピンの実際の高さを取得（未解決ならbasePositionのYを使う）
+      const pinY = pinHeightsRef.current.get(pin.id) ?? pin.basePosition[1];
+      tmpVec3.set(pin.basePosition[0], pinY, pin.basePosition[2]);
+      tmpVec3.project(camera);
+
+      // NDC範囲外ならスキップ
+      if (tmpVec3.x < -1.2 || tmpVec3.x > 1.2 || tmpVec3.y < -1.2 || tmpVec3.y > 1.2 || tmpVec3.z > 1) continue;
+
+      const centerScore = dot;
+      const distBonus = 0.2 * (1 - Math.min((dist - 100) / 4900, 1));
       const score = centerScore + distBonus;
-      if (score > bestScore) {
-        bestScore = score;
-        bestId = pin.id;
+
+      candidates.push({
+        id: pin.id,
+        score,
+        screenX: tmpVec3.x,
+        screenY: tmpVec3.y,
+      });
+    }
+
+    // 2. スコア順にソート
+    candidates.sort((a, b) => b.score - a.score);
+
+    // 3. 貪欲法でラベル配置（AABB重なり判定）
+    // ラベルのNDC空間でのおおよそサイズ
+    const labelW = 0.15;
+    const labelH = 0.06;
+    const placed: { x: number; y: number; w: number; h: number }[] = [];
+    const newVisibleIds = new Set<string>();
+
+    // 選択ピンは常に表示
+    if (selectedPin) {
+      const sel = candidates.find((c) => c.id === selectedPin.id);
+      if (sel) {
+        newVisibleIds.add(sel.id);
+        placed.push({ x: sel.screenX, y: sel.screenY, w: labelW, h: labelH });
       }
     }
 
-    setClosestPinId(bestId);
+    for (const c of candidates) {
+      if (newVisibleIds.has(c.id)) continue;
+
+      // AABB重なり判定
+      let overlaps = false;
+      for (const p of placed) {
+        if (
+          Math.abs(c.screenX - p.x) < (labelW + p.w) * 0.5 &&
+          Math.abs(c.screenY - p.y) < (labelH + p.h) * 0.5
+        ) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) {
+        newVisibleIds.add(c.id);
+        placed.push({ x: c.screenX, y: c.screenY, w: labelW, h: labelH });
+      }
+    }
+
+    // Set内容が変わらない場合はsetStateをスキップ
+    const prev = visibleLabelIds;
+    if (newVisibleIds.size !== prev.size || [...newVisibleIds].some((id) => !prev.has(id))) {
+      setVisibleLabelIds(newVisibleIds);
+    }
   });
 
-  // 各ピンの地形高さを計算して配置
   return (
     <>
       {pinBasePositions.map((pin) => (
@@ -1369,12 +1437,12 @@ function PinMarkers3D({
           id={pin.id}
           title={pin.title}
           type={pin.type}
-          bearing={pin.bearing}
           basePosition={pin.basePosition}
           scene={scene}
           isSelected={selectedPin?.id === pin.id}
-          showLabel={pin.id === closestPinId || selectedPin?.id === pin.id}
-          pinGpsPosition={pin.gps}
+          showLabel={visibleLabelIds.has(pin.id) || selectedPin?.id === pin.id}
+          onHeightResolved={handleHeightResolved}
+          onSelect={onSelectPin}
         />
       ))}
     </>
@@ -1382,10 +1450,19 @@ function PinMarkers3D({
 }
 
 // 距離にかかわらず一定の見た目サイズで表示されるテキスト
-function FixedSizeText({ text, pinWorldPosition }: { text: string; pinWorldPosition: [number, number, number] }) {
+function FixedSizeText({
+  text,
+  pinWorldPosition,
+  isSelected = false,
+  onClick,
+}: {
+  text: string;
+  pinWorldPosition: [number, number, number];
+  isSelected?: boolean;
+  onClick?: () => void;
+}) {
   const groupRef = React.useRef<THREE.Group>(null);
   const { camera } = useThree();
-  // 基準距離（この距離で scale=1 相当の大きさになる）
   const baseDistance = 500;
 
   useFrame(() => {
@@ -1397,15 +1474,24 @@ function FixedSizeText({ text, pinWorldPosition }: { text: string; pinWorldPosit
   });
 
   return (
-    <group ref={groupRef} position={[50, 100, 0]}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       <Text
-        fontSize={14}
-        color="white"
-        anchorX="left"
-        anchorY="middle"
-        outlineWidth={1.5}
-        outlineColor="black"
+        font={JAPANESE_FONT_URL}
+        fontSize={isSelected ? 14 : 10}
+        color="rgba(255,255,255,0.75)"
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={isSelected ? 0.8 : 0.3}
+        outlineColor="rgba(0,0,0,0.5)"
         material-fog={false}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.nativeEvent.stopImmediatePropagation();
+          onClick?.();
+        }}
       >
         {text}
       </Text>
@@ -1418,39 +1504,43 @@ function PinMarker({
   id,
   title,
   type,
-  bearing,
   basePosition,
   scene,
   isSelected = false,
   showLabel = false,
-  pinGpsPosition,
+  onHeightResolved,
+  onSelect,
 }: {
   id: string;
   title: string;
   type: PinType;
-  bearing?: number;
   basePosition: [number, number, number];
   scene: THREE.Scene;
   isSelected?: boolean;
   showLabel?: boolean;
-  pinGpsPosition?: { latitude: number; longitude: number };
+  onHeightResolved?: (pinId: string, height: number) => void;
+  onSelect?: (pin: PinData) => void;
 }) {
   const [pinHeight, setPinHeight] = React.useState<number | null>(null);
   const raycaster = React.useMemo(() => new THREE.Raycaster(), []);
   const frameCount = React.useRef(0);
   const groupRef = React.useRef<THREE.Group>(null);
-  const lightBeamRef = React.useRef<THREE.Mesh>(null);
-  const lightBeamIntensity = React.useRef(0.5);
+
+  const pinColor = pinTypeStyles[type].color;
+
+  const handleClick = useCallback(() => {
+    if (!onSelect) return;
+    const pinData = okutamaPins.find((p) => p.id === id);
+    if (pinData) onSelect(pinData);
+  }, [onSelect, id]);
 
   // 地形レイキャストでピンの高さを決定
   useFrame(() => {
     if (pinHeight !== null) return;
 
     frameCount.current += 1;
-    // 負荷軽減: 30フレームに1回（最初の10フレームは毎フレーム）
     if (frameCount.current > 10 && frameCount.current % 30 !== 0) return;
 
-    // 地形メッシュを名前で検索
     const knownTerrainName = 'GroundModeling03_Scaling001';
     let terrainMesh: THREE.Mesh | null = null;
     const namedObj = scene.getObjectByName(knownTerrainName);
@@ -1459,10 +1549,11 @@ function PinMarker({
     }
 
     if (!terrainMesh) {
-      // タイムアウト: 300フレーム経過したらフォールバック高さを使用
       if (frameCount.current >= 300) {
         console.warn(`[PinMarker] ${id}: Terrain not found, using fallback height`);
-        setPinHeight(-350);
+        const fallback = -350;
+        setPinHeight(fallback);
+        onHeightResolved?.(id, fallback);
       }
       return;
     }
@@ -1490,25 +1581,14 @@ function PinMarker({
 
     if (intersects.length > 0) {
       const terrainHeight = intersects[0].point.y;
-      setPinHeight(terrainHeight + PIN_HEIGHT_OFFSET);
+      const h = terrainHeight + PIN_HEIGHT_OFFSET;
+      setPinHeight(h);
+      onHeightResolved?.(id, h);
     } else if (frameCount.current >= 300) {
       console.warn(`[PinMarker] ${id}: Raycast missed terrain, using fallback height`);
-      setPinHeight(-350);
-    }
-  });
-
-  // 光の柱のアニメーション
-  useFrame((state) => {
-    if (isSelected && lightBeamRef.current) {
-      // 光の強度をアニメーション（sin波で脈動）
-      const time = state.clock.elapsedTime;
-      lightBeamIntensity.current = 0.5 + Math.sin(time * 2) * 0.3;
-
-      const material = lightBeamRef.current.material as THREE.MeshStandardMaterial;
-      if (material) {
-        material.emissiveIntensity = lightBeamIntensity.current;
-        material.opacity = 0.3 + Math.sin(time * 2) * 0.2;
-      }
+      const fallback = -350;
+      setPinHeight(fallback);
+      onHeightResolved?.(id, fallback);
     }
   });
 
@@ -1517,118 +1597,44 @@ function PinMarker({
     if (groupRef.current && pinHeight !== null) {
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
       const distSq = camera.position.distanceToSquared(pinPosition);
-      // 100m未満 (100^2=10000) または 5km以上 (5000^2=25000000) は非表示
       groupRef.current.visible = distSq >= 10000 && distSq < 25000000;
     }
   });
 
-  // 高さが計算されるまで表示しない
   if (pinHeight === null) {
     return null;
   }
 
-  // カメラとの距離を計算するコンポーネント（GPS座標ベース）
-  const DistanceLabel = () => {
-    const { camera } = useThree();
-    const [distance, setDistance] = React.useState<number | null>(null);
+  // ラベル高さ（ピン位置からのオフセット）
+  const labelY = 150;
 
-    useFrame(() => {
-      if (!pinGpsPosition) return;
-
-      // カメラのワールド座標を取得
-      const cameraPosition = new THREE.Vector3();
-      camera.getWorldPosition(cameraPosition);
-
-      // カメラの3D座標をGPS座標に変換
-      const cameraGps = worldToGpsCoordinate(
-        { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
-        SCENE_CENTER
-      );
-
-      // GPS座標ベースで距離を計算（Haversine公式）
-      const dist = calculateDistance(cameraGps, pinGpsPosition);
-      setDistance(dist);
-    });
-
-    let labelText = title;
-    if (distance !== null && pinGpsPosition) {
-      const distanceKm = distance / 1000;
-      // 1km未満はm単位、1km以上はkm単位で表示
-      const distanceText =
-        distanceKm < 1 ? `${Math.round(distance)}m` : `${distanceKm.toFixed(1)}km`;
-      labelText = `${title}\n${distanceText}`;
-    }
-
-    return (
-      <FixedSizeText
-        text={labelText}
-        pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
-      />
-    );
-  };
+  const PinLabel = () => (
+    <FixedSizeText
+      text={title}
+      pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
+      isSelected={isSelected}
+      onClick={handleClick}
+    />
+  );
 
   return (
     <group ref={groupRef} key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
-      {/* 選択時 or ラベル表示中: 光の柱（三角錐） */}
-      {(isSelected || (showLabel && type !== 'debug')) && (
-        <mesh ref={lightBeamRef} position={[0, 250, 0]}>
-          <coneGeometry args={[15, 1000, 32]} />
+      {/* デバッグピン: 小さな球体のみ */}
+      {type === 'debug' && (
+        <mesh>
+          <sphereGeometry args={[3.3, 16, 16]} />
           <meshStandardMaterial
-            color="#ffffff"
-            emissive={isSelected ? '#3b82f6' : '#ffffff'}
-            emissiveIntensity={isSelected ? 0.5 : 0.3}
-            transparent={true}
-            opacity={isSelected ? 0.3 : 0.15}
-            side={THREE.DoubleSide}
+            color={pinColor}
+            emissive={pinColor}
+            emissiveIntensity={0.5}
           />
         </mesh>
       )}
-      {/* ラベル表示中のピンにリング表示 */}
-      {showLabel && !isSelected && type !== 'debug' && (
-        <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[16, 22, 32]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            emissive="#ffffff"
-            emissiveIntensity={1.0}
-            transparent
-            opacity={0.7}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
-      {/* マーカー（選択時・ラベル表示時は位置を上げる） */}
-      <mesh position={[0, isSelected ? 20 : (showLabel ? 10 : 0), 0]}>
-        {/* デバッグピンは小さく表示 */}
-        <sphereGeometry args={[type === 'debug' ? 3.3 : (showLabel && !isSelected ? 14 : 10), 16, 16]} />
-        <meshStandardMaterial
-          color={pinTypeStyles[type].color}
-          emissive={pinTypeStyles[type].color}
-          emissiveIntensity={isSelected ? 0.8 : (showLabel ? 0.7 : 0.5)}
-        />
-      </mesh>
-      {/* photo タイプの方向コーン */}
-      {type === 'photo' && bearing != null && (
-        <group
-          position={[0, isSelected ? 20 : 0, 0]}
-          rotation={[0, -((bearing * Math.PI) / 180), 0]}
-        >
-          <mesh position={[0, 0, -50]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[15, 40, 8]} />
-            <meshStandardMaterial
-              color="#2d8659"
-              emissive="#2d8659"
-              emissiveIntensity={0.5}
-              transparent
-              opacity={0.8}
-            />
-          </mesh>
-        </group>
-      )}
-      {/* ラベル（テキスト） - カメラ中心に最も近いピン or 選択されたピンのみ表示 */}
+
+      {/* 通常ピン: ラベル */}
       {type !== 'debug' && showLabel && (
-        <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
-          <DistanceLabel />
+        <Billboard follow={true} lockX={false} lockY={false} lockZ={false} position={[0, labelY, 0]}>
+          <PinLabel />
         </Billboard>
       )}
     </group>
