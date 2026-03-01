@@ -5,7 +5,7 @@ import type { LatLngBoundsExpression } from 'leaflet';
 import * as L from 'leaflet';
 import { extractTextureFromGLB } from '../../utils/texture-extractor';
 
-const MODEL_PATH = `${import.meta.env.BASE_URL}models/OkutamaLake_realscale.glb`;
+const MODEL_PATH = `${import.meta.env.BASE_URL}models/OkutamaLake_allmodel_test0301.glb`;
 
 interface CalibrationOverlayProps {
     initialBounds: LatLngBoundsExpression;

@@ -4,11 +4,11 @@
 // 地形のスケール設定
 // 現在のスケール [10, 10, 10] を基準（1.0）として、この値を変更することで地形の大きさを調整できます
 // 例: 1.0 = 現在のサイズ、0.5 = 半分のサイズ、2.0 = 2倍のサイズ
-export const TERRAIN_SCALE_FACTOR = 5.34;
+export const TERRAIN_SCALE_FACTOR = 5.337864;
 
 // 地形と水面の中心位置オフセット（メートル単位）
-// FBX正規化後のモデル中心は原点に配置されるため、このオフセットでワールド位置を調整
-export const TERRAIN_CENTER_OFFSET: [number, number, number] = [0, 0, 0];
+// GLB正規化後のモデル中心は原点に配置されるため、このオフセットでワールド位置を調整
+export const TERRAIN_CENTER_OFFSET: [number, number, number] = [-129, 0, -10];
 export const WATER_CENTER_OFFSET: [number, number, number] = TERRAIN_CENTER_OFFSET;
 
 // 地形のベーススケール（モデルファイルの元のスケール）
