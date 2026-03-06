@@ -17,7 +17,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaSlidersH, FaMountain } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -111,7 +111,7 @@ export default function Scene3D({
   const [isRecalibrating, setIsRecalibrating] = useState(false);
 
   const [isControlsVisible] = useState(false); // デフォルトで非表示
-  const [showCameraControls, setShowCameraControls] = useState(false);
+  const [showCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
   const [actualCameraHeight, setActualCameraHeight] = useState<number | null>(null);
