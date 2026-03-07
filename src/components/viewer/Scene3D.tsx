@@ -17,7 +17,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaSlidersH, FaMountain } from 'react-icons/fa';
+import { FaMapSigns, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -25,6 +25,7 @@ import {
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
+  CAMERA_MIN_HEIGHT,
   PIN_HEIGHT_OFFSET,
   DEFAULT_FOV,
 } from '../../config/terrain-config';
@@ -110,9 +111,10 @@ export default function Scene3D({
   const [isRecalibrating, setIsRecalibrating] = useState(false);
 
   const [isControlsVisible] = useState(false); // デフォルトで非表示
-  const [showCameraControls, setShowCameraControls] = useState(false);
+  const [showCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+  const [actualCameraHeight, setActualCameraHeight] = useState<number | null>(null);
   // 地形モデル調整
   const [terrainOffsetX, setTerrainOffsetX] = useState(0);
   const [terrainOffsetZ, setTerrainOffsetZ] = useState(0);
@@ -412,6 +414,7 @@ export default function Scene3D({
           {/* カメラの初期位置を明示的に設定（動的高さ調整対応） */}
           {/* ローディング完了まで位置設定を行わないように制御可能だが、CameraPositionSetter内部でメッシュ検出を行っているので */}
           {/* 基本的にはそのままで良いが、念のため遅延させるフラグを渡すことも検討 */}
+          <CameraHeightReporter onHeightChange={setActualCameraHeight} />
           <CameraPositionSetter
             initialCameraConfig={initialCameraConfig}
             heightOffset={cameraHeightOffset}
@@ -786,6 +789,11 @@ export default function Scene3D({
                 Reset
               </button>
             </div>
+            {actualCameraHeight !== null && (
+              <div style={{ color: '#48bb78', fontSize: '11px', marginBottom: '4px', fontFamily: 'monospace' }}>
+                カメラ Y座標: {actualCameraHeight.toFixed(2)}
+              </div>
+            )}
             <input
               type="range"
               min="-5"
@@ -838,8 +846,8 @@ export default function Scene3D({
           gap: '12px',
         }}
       >
-        {/* カメラ調整パネル（ポップアップ） */}
-        {showCameraControls && (
+        {/* カメラ調整パネル（ポップアップ） — 現在非表示 */}
+        {false && showCameraControls && (
           <div
             style={{
               background: 'rgba(0,0,0,0.75)',
@@ -908,6 +916,11 @@ export default function Scene3D({
                   リセット
                 </button>
               </div>
+              {actualCameraHeight !== null && (
+                <div style={{ color: '#48bb78', fontSize: '11px', marginBottom: '4px', fontFamily: 'monospace' }}>
+                  カメラ Y座標: {actualCameraHeight?.toFixed(2)}
+                </div>
+              )}
               <input
                 type="range"
                 min="-500"
@@ -1008,8 +1021,8 @@ export default function Scene3D({
           </div>
         )}
 
-        {/* カメラ調整ボタン */}
-        <button
+        {/* カメラ調整ボタン — 現在非表示 */}
+        {/* <button
           type="button"
           onClick={() => setShowCameraControls(!showCameraControls)}
           style={{
@@ -1033,7 +1046,7 @@ export default function Scene3D({
         >
           <FaSlidersH size={20} />
           <span style={{ fontSize: '10px', fontWeight: 'bold' }}>カメラ</span>
-        </button>
+        </button> */}
 
         {/* キャリブレーション再実行ボタン */}
         {isMobile && permissionGranted && (
@@ -1087,6 +1100,22 @@ function SceneBackgroundCleaner() {
 }
 
 // 画角(FOV)を動的に更新するためのコンポーネント
+// カメラの実際の高さ(Y座標)をリアルタイムで親に通知するコンポーネント
+function CameraHeightReporter({ onHeightChange }: { onHeightChange: (y: number) => void }) {
+  const { camera } = useThree();
+  const lastReported = React.useRef<number>(0);
+
+  useFrame(() => {
+    const y = Math.round(camera.position.y * 100) / 100;
+    if (y !== lastReported.current) {
+      lastReported.current = y;
+      onHeightChange(y);
+    }
+  });
+
+  return null;
+}
+
 function FovAdjuster({ fov }: { fov: number }) {
   const { camera } = useThree();
 
@@ -1120,7 +1149,7 @@ function CameraPositionSetter({
   // 高さオフセットが変更されたときにカメラ位置を更新
   useEffect(() => {
     if (baseTerrainHeightRef.current !== null) {
-      const newY = baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset;
+      const newY = Math.max(baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset, CAMERA_MIN_HEIGHT);
       // X/Z は現在のカメラ位置を維持（初期位置に戻さない）
       camera.position.setY(newY);
     }
@@ -1254,7 +1283,7 @@ function CameraPositionSetter({
         const firstIntersect = intersects[0];
         const terrainHeight = firstIntersect.point.y;
         baseTerrainHeightRef.current = terrainHeight;
-        finalCameraY = terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset;
+        finalCameraY = Math.max(terrainHeight + CAMERA_HEIGHT_OFFSET + heightOffset, CAMERA_MIN_HEIGHT);
 
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
@@ -1275,8 +1304,8 @@ function CameraPositionSetter({
       // タイムアウト前でも、一定時間経過したら強制的にセットしてReadyにする
       // そうしないとローディングが終わらない
       if (frameCount.current > 150 && !hasSetPosition.current) {
-        console.warn('[Camera] 地形未検出、強制配置: カメラ高さ =', (finalCameraY + 100).toFixed(2), 'm');
-        camera.position.set(cameraX, finalCameraY + 100, cameraZ);
+        console.warn('[Camera] 地形未検出、強制配置: カメラ高さ =', CAMERA_MIN_HEIGHT, 'm');
+        camera.position.set(cameraX, CAMERA_MIN_HEIGHT, cameraZ);
         hasSetPosition.current = true;
         if (onReady) onReady();
       }
@@ -1285,11 +1314,12 @@ function CameraPositionSetter({
     // 最終タイムアウト処理
     const maxFrames = 300; // 5秒程度（60fps想定）→ 10秒程度に延長
     if (frameCount.current >= maxFrames) {
-      camera.position.set(cameraX, finalCameraY, cameraZ);
+      const timeoutY = Math.max(finalCameraY, CAMERA_MIN_HEIGHT);
+      camera.position.set(cameraX, timeoutY, cameraZ);
       hasSetPosition.current = true;
-      baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
+      baseTerrainHeightRef.current = timeoutY - CAMERA_HEIGHT_OFFSET - heightOffset;
 
-      console.warn('[Camera] タイムアウト: カメラ高さ =', finalCameraY.toFixed(2), 'm');
+      console.warn('[Camera] タイムアウト: カメラ高さ =', timeoutY.toFixed(2), 'm');
       if (onReady) onReady();
     }
   });
