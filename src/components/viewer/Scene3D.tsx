@@ -918,7 +918,7 @@ export default function Scene3D({
               </div>
               {actualCameraHeight !== null && (
                 <div style={{ color: '#48bb78', fontSize: '11px', marginBottom: '4px', fontFamily: 'monospace' }}>
-                  カメラ Y座標: {actualCameraHeight.toFixed(2)}
+                  カメラ Y座標: {actualCameraHeight?.toFixed(2)}
                 </div>
               )}
               <input
