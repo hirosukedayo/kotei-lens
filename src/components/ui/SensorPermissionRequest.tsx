@@ -86,11 +86,8 @@ export default function SensorPermissionRequest({
     const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
     const isCameraOk = !sensorStatus.camera.available || sensorStatus.camera.permission === 'granted';
 
-    console.log('Permission check:', { isGpsOk, isOrientationOk, isMotionOk, isCameraOk });
-
     if (isGpsOk && isOrientationOk && isMotionOk && isCameraOk) {
       const timer = setTimeout(() => {
-        console.log('All permissions granted, auto-proceeding');
         onPermissionsGranted();
       }, 500);
       return () => clearTimeout(timer);
@@ -143,10 +140,7 @@ export default function SensorPermissionRequest({
           // ユーザーインタラクション内なので、ここでもリクエスト可能
           const motionPermission = await sensorManager.motionService.requestPermission();
           newStatus.motion = { ...newStatus.motion, permission: motionPermission };
-          console.log('Auto-requested motion permission result:', motionPermission);
-        } catch (e) {
-          console.warn('Auto-request motion permission failed:', e);
-        }
+        } catch { /* ignore */ }
       }
 
       setSensorStatus(newStatus);

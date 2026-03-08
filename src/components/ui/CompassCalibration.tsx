@@ -40,6 +40,8 @@ export default function CompassCalibration({
 
     const lastTimeRef = useRef<number>(Date.now());
     const stabilityTimerRef = useRef<number>(0);
+    const onCalibrationCompleteRef = useRef(onCalibrationComplete);
+    onCalibrationCompleteRef.current = onCalibrationComplete;
 
 
 
@@ -102,23 +104,33 @@ export default function CompassCalibration({
             setStabilityProgress(progress);
 
             if (stabilityTimerRef.current >= STABILITY_DURATION) {
-                if (manualOffset !== 0) {
-                    setManualOffset(0);
+                // 水平時にcompassHeadingとalphaの差分を計算
+                // compassHeading: 0=北, 時計回り → Three.js: 360-compassHeading で反時計回りに変換
+                // alpha: ジャイロベース（任意基準）
+                // offset = (360 - compassHeading) - alpha → alphaに足すと真北基準になる
+                if (compassHeading !== null && orientation?.alpha !== null && orientation?.alpha !== undefined) {
+                    let offset = (360 - compassHeading) - orientation.alpha;
+                    // -180〜180 に正規化
+                    while (offset > 180) offset -= 360;
+                    while (offset <= -180) offset += 360;
+                    // ref経由で最新のコールバックを確実に呼ぶ
+                    setTimeout(() => onCalibrationCompleteRef.current(offset), 0);
+                } else {
+                    setTimeout(() => onCalibrationCompleteRef.current(0), 0);
                 }
-                setStep('complete');
             }
         } else {
             stabilityTimerRef.current = Math.max(0, stabilityTimerRef.current - dt);
             setStabilityProgress((prev) => Math.max(0, prev - (dt / STABILITY_DURATION) * 100));
         }
-    }, [orientation, step, manualOffset]);
+    }, [orientation, step, compassHeading]);
 
     const handleManualComplete = () => {
         onCalibrationComplete(manualOffset);
     };
 
     const handleAutoComplete = () => {
-        onCalibrationComplete(0);
+        onCalibrationComplete(manualOffset);
     };
 
     return (

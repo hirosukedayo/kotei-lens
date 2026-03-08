@@ -524,20 +524,9 @@ export default function OkutamaMap2D({
   };
 
   // キャリブレーション完了時のハンドラ
-  const handleCalibrationComplete = (manualOffset: number) => {
+  // CompassCalibrationが既にオフセット (360 - compassHeading) - alpha を計算済み
+  const handleCalibrationComplete = (offset: number) => {
     setIsCalibrating(false);
-
-    // キャリブレーション時点での 方位（絶対）とAlpha（相対）の差分を計算
-    // offset = Compass - Alpha
-    // これにより、3Dモードでは (CurrentAlpha + offset) = CurrentCompass となる
-    const compass = (sensorData.compassHeading ?? 0) + manualOffset;
-    const alpha = sensorData.orientation?.alpha ?? 0;
-
-    let offset = compass - alpha;
-    // 正規化 (0-360)
-    while (offset < 0) offset += 360;
-    offset = offset % 360;
-
     transitionTo3D(offset);
   };
   // iOSなどで100vhがアドレスバーで縮まないように調整
@@ -1167,7 +1156,6 @@ export default function OkutamaMap2D({
       {showPermissionModal && (
         <SensorPermissionRequest
           onPermissionsGranted={() => {
-            console.log('Permissions granted callback triggered'); // Debug log
             setShowPermissionModal(false);
 
             // モバイル判定を再度行う
@@ -1175,14 +1163,12 @@ export default function OkutamaMap2D({
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
 
             if (isMobile) {
-              console.log('Mobile detected, starting calibration'); // Debug log
               // 許可直後にセンサーを強制再開（リスナーをアタッチするため）
               // force=true, autoRequest=true
               startSensors(true, true).then(() => {
                 setIsCalibrating(true);
               });
             } else {
-              console.log('Desktop detected, transitioning to 3D directly'); // Debug log
               transitionTo3D();
             }
           }}

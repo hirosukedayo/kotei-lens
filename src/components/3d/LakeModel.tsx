@@ -39,7 +39,6 @@ export const preloadLakeModel = () => {
     return;
   }
 
-  console.log('[LakeModel] Preload: Starting...');
   loadModel(modelPath);
 };
 
@@ -51,7 +50,6 @@ export const preloadLakeModel = () => {
  * - COLOR_1 をスプラットマップとして使用
  */
 const loadModel = (path: string): Promise<THREE.Group> => {
-  console.log('[LakeModel] Loading GLB:', path);
   const gltfLoader = new GLTFLoader();
 
   const loadPromise = new Promise<THREE.Group>((resolve, reject) => {
@@ -59,8 +57,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
       path,
       (gltf) => {
         const loadedScene = gltf.scene;
-        console.log('[LakeModel] GLB loaded, normalizing...');
-
         // 全ワールドマトリクスを計算
         loadedScene.updateMatrixWorld(true);
 
@@ -68,8 +64,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
         const box = new THREE.Box3().setFromObject(loadedScene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        console.log('[LakeModel] GLB raw bbox size:', size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
-
         // GLB内の全オブジェクトをリストアップ
         const objectNames: string[] = [];
         loadedScene.traverse((child) => {
@@ -77,8 +71,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
             objectNames.push(child.name);
           }
         });
-        console.log('[LakeModel] GLB mesh objects:', objectNames.join(', '));
-
         // 正規化行列: まず中心を原点に移動、次にスケール
         const maxDim = Math.max(size.x, size.z);
         const normFactor = FBX_NORMALIZATION_TARGET / maxDim;
@@ -184,11 +176,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
         loadedScene.scale.set(1, 1, 1);
         loadedScene.updateMatrix();
         loadedScene.updateMatrixWorld(true);
-
-        // 正規化後のbboxを確認
-        const normBox = new THREE.Box3().setFromObject(loadedScene);
-        const normSize = normBox.getSize(new THREE.Vector3());
-        console.log('[LakeModel] Normalized bbox size:', normSize.x.toFixed(2), normSize.y.toFixed(2), normSize.z.toFixed(2));
 
         resolve(loadedScene);
       },
@@ -304,8 +291,6 @@ export function LakeModel({
     });
 
     setClonedMeshes(meshes);
-    console.log('[LakeModel] 全メッシュクローン完了:', names.join(', '));
-
     // 親コンポーネントにオブジェクト名リストを通知
     if (onObjectsLoadedRef.current) {
       onObjectsLoadedRef.current(names);

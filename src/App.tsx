@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaMapLocationDot } from 'react-icons/fa6';
+import { FaMap } from 'react-icons/fa';
+import './styles/map-controls.css';
 import SensorPermissionRequest from './components/ui/SensorPermissionRequest';
 import Scene3D from './components/viewer/Scene3D';
 import OkutamaMap2D, { type Initial3DPosition } from './components/map/OkutamaMap2D';
@@ -39,6 +40,24 @@ function App() {
       if (rootElement) {
         rootElement.classList.remove('fullscreen');
       }
+    };
+  }, [appState]);
+
+  // 3Dビュー時に画面を縦固定にする
+  useEffect(() => {
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (type: string) => Promise<void>;
+      unlock?: () => void;
+    } | undefined;
+    if (appState === '3d-view') {
+      orientation?.lock?.('portrait').catch(() => {
+        // ブラウザが対応していない場合は無視
+      });
+    } else {
+      orientation?.unlock?.();
+    }
+    return () => {
+      orientation?.unlock?.();
     };
   }, [appState]);
 
@@ -130,34 +149,24 @@ function App() {
           onSelectPin={setSelectedPin}
           onDeselectPin={() => setSelectedPin(null)}
         />
-        {/* 2Dに戻る（右上・円形アイコンボタン） */}
+        {/* 2Dに戻る（上部中央・ピルボタン） */}
         <div
           style={{
             position: 'fixed',
             top: '16px',
-            right: '16px',
-            zIndex: 1000,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
           }}
         >
           <button
             type="button"
+            className="map-btn map-btn--pill"
             aria-label="2Dマップへ戻る"
             onClick={handleBackTo2D}
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 9999,
-              background: '#ffffff',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 3px 10px rgba(60,64,67,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
           >
-            <FaMapLocationDot size={64} />
+            <FaMap size={22} />
+            マップに戻る
           </button>
         </div>
         {/* Devモード表示バッジ */}

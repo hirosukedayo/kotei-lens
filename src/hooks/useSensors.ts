@@ -76,22 +76,13 @@ export function useSensors() {
       return;
     }
 
-    console.log('センサー開始を試行中...', {
-      force,
-      autoRequest,
-      gpsAvailable: sensorManager.locationService.isAvailable(),
-      orientationAvailable: sensorManager.orientationService.isAvailable(),
-      motionAvailable: sensorManager.motionService.isAvailable(),
-    });
 
     try {
-      let startedCount = 0;
 
       // GPS開始
       if (sensorManager.locationService.isAvailable()) {
         try {
           sensorManager.locationService.startWatching(handleGPSUpdate, handleGPSError);
-          startedCount++;
         } catch (gpsError) {
           console.error('GPS開始エラー:', gpsError);
         }
@@ -103,7 +94,6 @@ export function useSensors() {
           // autoRequest引数を利用。forceRestart時は通常trueを渡す想定だが、
           // 初回ロード時は false を渡す。
           await sensorManager.orientationService.startTracking(handleOrientationUpdate, autoRequest);
-          startedCount++;
         } catch (orientationError) {
           console.error('方位センサー開始エラー:', orientationError);
         }
@@ -113,7 +103,6 @@ export function useSensors() {
       if (sensorManager.motionService.isAvailable()) {
         try {
           await sensorManager.motionService.startTracking(handleMotionUpdate, autoRequest);
-          startedCount++;
         } catch (motionError) {
           console.error('モーションセンサー開始エラー:', motionError);
         }
@@ -121,16 +110,7 @@ export function useSensors() {
 
       setIsActive(true);
       isActiveRef.current = true;
-      console.log(`センサー開始完了: ${startedCount}個のセンサーが開始されました`);
 
-      // 5秒後にデータ受信状況をチェック (StateではなくManagerから直接最新値を取得)
-      setTimeout(() => {
-        const status = sensorManager.getStatus();
-        console.log('5秒後のセンサーデータ状況:', {
-          gps: status.location.watching ? '監視中' : '停止',
-          orientation: status.orientation.tracking ? '監視中' : '停止',
-        });
-      }, 5000);
     } catch (error) {
       console.error('センサー開始エラー:', error);
     }

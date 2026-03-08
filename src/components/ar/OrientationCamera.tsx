@@ -9,7 +9,7 @@ interface OrientationCameraProps {
   smoothing?: number; // 0-1の範囲、1が最も速い
   arMode?: boolean; // ARモード：背面カメラ補正を含む
   manualHeadingOffset?: number; // 手動補正（度数法）
-  baseHeadingOffset?: number; // キャリブレーションによる基準方位補正（度数法）
+  baseHeadingOffset?: number; // キャリブレーションで算出した alpha→真北 の補正値（度数法）
 }
 
 export default function OrientationCamera({
@@ -58,13 +58,12 @@ export default function OrientationCamera({
     const { alpha, beta, gamma } = deviceOrientation;
     if (alpha === null || beta === null || gamma === null) return;
 
-    // alphaの計算:
-    // 以前は webkitCompassHeading を使用していたが、デバイスを立てた状態での不安定さを回避するため、
-    // キャリブレーション時に取得したオフセット (baseHeadingOffset) を相対的な alpha に加算する方式に変更。
-    // これにより、ジャイベースの安定した alpha 値を利用しつつ、正しい方位を向くことができる。
-
-    // 補正値 (baseHeadingOffset + manualHeadingOffset) を適用
+    // alpha: ジャイロベースの方位（任意基準、立てた状態でも安定）
+    // baseHeadingOffset: キャリブレーション時に算出した alpha→真北の補正値
+    //   = (360 - compassHeading) - alpha （水平時に計測）
+    // manualHeadingOffset: ユーザー手動微調整
     const alphaRad = THREE.MathUtils.degToRad(alpha + baseHeadingOffset + manualHeadingOffset);
+
     const betaRad = THREE.MathUtils.degToRad(beta);
     const gammaRad = THREE.MathUtils.degToRad(gamma);
     const orientRad = screenOrientation.current;

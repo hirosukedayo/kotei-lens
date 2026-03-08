@@ -17,7 +17,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
+import { FaListUl, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -37,6 +37,7 @@ import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
 import CompassCalibration from '../ui/CompassCalibration';
 import { trackPinSelect } from '../../utils/analytics';
+import { useDevModeStore } from '../../stores/devMode';
 
 // 日本語対応フォント（Noto Sans JP Regular）
 const JAPANESE_FONT_URL =
@@ -104,11 +105,24 @@ export default function Scene3D({
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
+  const { isDevMode } = useDevModeStore();
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
+  // キャリブレーションで算出した alpha→真北の補正値
+  const [baseHeadingOffset, setBaseHeadingOffset] = useState(initialPosition?.headingOffset ?? 0);
   // 初期位置決定後かつ権限許可後にキャリブレーションを行う
   const [isCalibrated, setIsCalibrated] = useState(false);
   // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
   const [isRecalibrating, setIsRecalibrating] = useState(false);
+
+  const handleCalibrationComplete = useCallback((offset: number) => {
+    if (isRecalibrating) {
+      setManualHeadingOffset(offset);
+    } else {
+      setBaseHeadingOffset(offset);
+    }
+    setIsCalibrated(true);
+    setIsRecalibrating(false);
+  }, [isRecalibrating]);
 
   const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [showCameraControls] = useState(false);
@@ -203,7 +217,6 @@ export default function Scene3D({
   useEffect(() => {
     if (loadProgress === 100 && !isReady) {
       const timer = setTimeout(() => {
-        console.warn('Force setting isReady to true due to timeout');
         setIsReady(true);
       }, 5000); // 5秒後に強制解除
       return () => clearTimeout(timer);
@@ -221,8 +234,6 @@ export default function Scene3D({
       setWebglSupport(support);
       const recommended = getRecommendedRenderer(support);
       setRenderer(recommended);
-      console.log('WebGL Support:', support);
-      console.log('Recommended Renderer:', recommended);
     });
     // モバイル判定
     const checkMobile = () => {
@@ -376,17 +387,13 @@ export default function Scene3D({
       {/* 方位キャリブレーション画面 */}
       {isMobile && permissionGranted && !isCalibrated && isReady && (
         <CompassCalibration
-          onCalibrationComplete={(offset) => {
-            setManualHeadingOffset(offset);
-            setIsCalibrated(true);
-            setIsRecalibrating(false);
-          }}
+          onCalibrationComplete={handleCalibrationComplete}
           // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
           onClose={() => {
             setIsCalibrated(true);
             setIsRecalibrating(false);
           }}
-          initialOffset={manualHeadingOffset}
+          initialOffset={isRecalibrating ? manualHeadingOffset : 0}
           orientation={sensorData.orientation}
           compassHeading={sensorData.compassHeading}
           startInManualMode={isRecalibrating}
@@ -432,7 +439,7 @@ export default function Scene3D({
               deviceOrientation={sensorData.orientation}
               arMode={true}
               manualHeadingOffset={manualHeadingOffset}
-              baseHeadingOffset={initialPosition?.headingOffset ?? 0}
+              baseHeadingOffset={baseHeadingOffset}
             />
           )}
 
@@ -499,6 +506,9 @@ export default function Scene3D({
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
           <PinMarkers3D selectedPin={selectedPin} onSelectPin={handleSelectPinFrom3D} />
 
+          {/* デバッグ用: 東西南北の壁 */}
+          {isDevMode && <DirectionWalls />}
+
           {/* 画角(FOV)を動的に更新するコンポーネント */}
           <FovAdjuster fov={fov} />
 
@@ -508,35 +518,22 @@ export default function Scene3D({
         </Suspense>
       </Canvas>
 
-      {/* 左下：ピン一覧（アイコン） - コントロール表示時のみ表示 */}
-      {/* 左下：ピン一覧（アイコン） - 常に表示 */}
+      {/* 左下：ピン一覧（アイコン） */}
       <div
         style={{
           position: 'fixed',
           left: '16px',
-          bottom: '80px',
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           zIndex: 10000,
         }}
       >
         <button
           type="button"
+          className="map-btn map-btn--round"
           aria-label="ピン一覧"
           onClick={() => setSheetOpen(true)}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
         >
-          <FaMapSigns size={22} />
+          <FaListUl size={22} />
         </button>
       </div>
 
@@ -837,9 +834,9 @@ export default function Scene3D({
       <div
         style={{
           position: 'fixed',
-          bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           right: '16px',
-          zIndex: 1001,
+          zIndex: 10000,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',
@@ -1056,27 +1053,10 @@ export default function Scene3D({
               setIsRecalibrating(true);
               setIsCalibrated(false);
             }}
-            style={{
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              transition: 'all 0.3s ease',
-              minWidth: '60px',
-              gap: '4px',
-            }}
+            className="map-btn map-btn--round"
             title="方位を再調整"
           >
-            <FaCompass size={20} />
-            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
+            <FaCompass size={22} />
           </button>
         )}
       </div>
@@ -1183,7 +1163,6 @@ function CameraPositionSetter({
       baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
-      console.log('[Camera] 固定高さモード: カメラ高さ =', finalCameraY.toFixed(2), 'm');
       if (onReady) onReady();
       return;
     }
@@ -1215,7 +1194,6 @@ function CameraPositionSetter({
             meshNames.push(child.name || '(unnamed)');
           }
         });
-        console.log('[Camera] シーン内メッシュ一覧:', meshNames.join(', '));
       }
 
       scene.traverse((child) => {
@@ -1288,18 +1266,11 @@ function CameraPositionSetter({
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
 
-        console.log('=== カメラ高さを地形に合わせて調整（成功） ===');
-        console.log('地形の高さ:', terrainHeight.toFixed(2), 'm');
-        console.log('調整後のカメラ高さ:', finalCameraY.toFixed(2), 'm');
 
         if (onReady) onReady();
         return;
       }
     } else {
-      // 地形が見つからない場合のログ（頻度を下げる）
-      if (frameCount.current % 60 === 0) {
-        console.log('=== カメラ高さ調整（地形検索中） ===', frameCount.current);
-      }
 
       // タイムアウト前でも、一定時間経過したら強制的にセットしてReadyにする
       // そうしないとローディングが終わらない
@@ -1667,6 +1638,53 @@ function PinMarker({
           <PinLabel />
         </Billboard>
       )}
+    </group>
+  );
+}
+
+// デバッグ用: 東西南北の壁（北=赤, 南=黒, 東=青, 西=白）
+function DirectionWalls() {
+  const distance = 3000;
+  const wallWidth = 2000;
+  const wallHeight = 500;
+
+  return (
+    <group>
+      {/* 北 (赤) -Z方向 */}
+      <mesh position={[0, wallHeight / 2, -distance]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="red" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[0, wallHeight + 50, -distance]} fontSize={100} color="red" anchorX="center">
+        N
+      </Text>
+
+      {/* 南 (黒) +Z方向 */}
+      <mesh position={[0, wallHeight / 2, distance]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="black" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[0, wallHeight + 50, distance]} fontSize={100} color="black" anchorX="center">
+        S
+      </Text>
+
+      {/* 東 (青) +X方向 */}
+      <mesh position={[distance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="blue" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[distance, wallHeight + 50, 0]} fontSize={100} color="blue" anchorX="center">
+        E
+      </Text>
+
+      {/* 西 (白) -X方向 */}
+      <mesh position={[-distance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="white" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[-distance, wallHeight + 50, 0]} fontSize={100} color="white" anchorX="center">
+        W
+      </Text>
     </group>
   );
 }
