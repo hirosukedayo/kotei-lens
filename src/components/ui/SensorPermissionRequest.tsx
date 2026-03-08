@@ -30,9 +30,6 @@ export default function SensorPermissionRequest({
   const sensorManager = getSensorManager();
 
   const checkSensorAvailability = useCallback(async () => {
-    // OrientationServiceのキャッシュされた状態を確認
-    const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
-
     // カメラの権限チェック (Permissions API)
     let cameraPerm: 'granted' | 'denied' | 'prompt' | 'unknown' = 'unknown';
     try {
@@ -55,13 +52,13 @@ export default function SensorPermissionRequest({
       },
       orientation: {
         available: sensorManager.orientationService.isAvailable(),
-        permission: orientationPermission === 'granted' ? 'granted' : 'prompt',
+        permission: await sensorManager.orientationService.checkPermission(),
         lastUpdate: null,
         error: null,
       },
       motion: {
         available: sensorManager.motionService.isAvailable(),
-        permission: 'prompt',
+        permission: await sensorManager.motionService.checkPermission(),
         lastUpdate: null,
         error: null,
       },

@@ -17,7 +17,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaListUl, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
+import { FaListUl, FaSlidersH, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -128,6 +128,7 @@ export default function Scene3D({
   const [showCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+  const [heightAtFloor, setHeightAtFloor] = useState(false);
   const [actualCameraHeight, setActualCameraHeight] = useState<number | null>(null);
   // 地形モデル調整
   const [terrainOffsetX, setTerrainOffsetX] = useState(0);
@@ -398,14 +399,15 @@ export default function Scene3D({
           compassHeading={sensorData.compassHeading}
           startInManualMode={isRecalibrating}
           onOffsetChange={isRecalibrating ? (offset) => setManualHeadingOffset(offset) : undefined}
+          initialHeightOffset={cameraHeightOffset}
+          onHeightOffsetChange={(offset) => setCameraHeightOffset(offset)}
+          heightAtFloor={heightAtFloor}
         />
       )}
 
       <Canvas
         onPointerMissed={() => {
-          if (selectedPin) {
-            setSheetOpen(false);
-          }
+          setSheetOpen(false);
         }}
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
@@ -429,6 +431,7 @@ export default function Scene3D({
               // 少し遅延させてからReadyにする（描画安定待ち）
               setTimeout(() => setIsReady(true), 500);
             }}
+            onHeightAtFloor={setHeightAtFloor}
           />
           {/* PC用キーボード移動コントロール（OrbitControls使用時は無効） */}
           {/* {!isMobile && <PCKeyboardControls />} */}
@@ -1054,9 +1057,9 @@ export default function Scene3D({
               setIsCalibrated(false);
             }}
             className="map-btn map-btn--round"
-            title="方位を再調整"
+            title="位置を調整"
           >
-            <FaCompass size={22} />
+            <FaSlidersH size={20} />
           </button>
         )}
       </div>
@@ -1115,10 +1118,12 @@ function CameraPositionSetter({
   initialCameraConfig,
   heightOffset = 0,
   onReady,
+  onHeightAtFloor,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
   heightOffset?: number;
   onReady?: () => void;
+  onHeightAtFloor?: (atFloor: boolean) => void;
 }) {
   const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
@@ -1127,13 +1132,16 @@ function CameraPositionSetter({
   const baseTerrainHeightRef = React.useRef<number | null>(null);
 
   // 高さオフセットが変更されたときにカメラ位置を更新
+  // 地形を突き破らない範囲で自由に上下できる
   useEffect(() => {
     if (baseTerrainHeightRef.current !== null) {
-      const newY = Math.max(baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset, CAMERA_MIN_HEIGHT);
-      // X/Z は現在のカメラ位置を維持（初期位置に戻さない）
+      const terrainFloor = baseTerrainHeightRef.current + 5;
+      const desired = baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset;
+      const newY = Math.max(desired, terrainFloor);
       camera.position.setY(newY);
+      onHeightAtFloor?.(desired <= terrainFloor);
     }
-  }, [heightOffset, camera]);
+  }, [heightOffset, camera, onHeightAtFloor]);
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
   // useProgressフックを使用してロード状態を監視
