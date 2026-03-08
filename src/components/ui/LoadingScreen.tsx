@@ -1,20 +1,25 @@
 import React from 'react';
 import { useProgress } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaSlidersH } from 'react-icons/fa';
 
 interface LoadingScreenProps {
-    isReady?: boolean; // 描画準備完了フラグ
+    isReady?: boolean;
+    onStart?: () => void;
 }
 
-export default function LoadingScreen({ isReady = false }: LoadingScreenProps) {
+export default function LoadingScreen({ isReady = false, onStart }: LoadingScreenProps) {
     const { progress, active } = useProgress();
-    // プログレスが100%になり、かつ親から準備完了(isReady)が渡されたら表示終了
-    // activeはロード中かどうか。ロード完了しても描画待ちがあるため、
-    // activeがfalseになってもisReadyが来るまで待つ。
+    const [dismissed, setDismissed] = React.useState(false);
 
-    // 表示判定: activeがtrue または (progress >= 100 かつ !isReady)
-    // つまり、ロード中または「ロード完了したがまだ準備未完了」の間は表示
-    const shouldShow = active || (progress < 100) || !isReady;
+    const isLoading = active || progress < 100 || !isReady;
+    const shouldShow = !dismissed;
+
+    const handleStart = () => {
+        setDismissed(true);
+        // フェードアウト完了後にコールバック
+        setTimeout(() => onStart?.(), 800);
+    };
 
     return (
         <AnimatePresence>
@@ -22,50 +27,96 @@ export default function LoadingScreen({ isReady = false }: LoadingScreenProps) {
                 <motion.div
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 1.0, ease: "easeInOut" }} // フェードアウトをゆっくりに
+                    transition={{ duration: 0.8, ease: 'easeInOut' }}
                     style={{
                         position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
+                        inset: 0,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: 'rgba(0, 0, 0, 1.0)', // 完全不透明にして裏のフリーズを隠す
+                        background: 'rgba(0, 0, 0, 1.0)',
                         zIndex: 100000,
                         color: 'white',
+                        padding: '24px',
                     }}
                 >
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px' }}>
-                        {progress < 100 ? 'Loading 3D Model...' : 'Rendering Scene...'}
-                    </div>
+                    {/* 白カード */}
+                    <div style={{
+                        background: '#ffffff',
+                        borderRadius: 16,
+                        padding: '32px 28px 28px',
+                        maxWidth: 'min(340px, 85vw)',
+                        width: '100%',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                        textAlign: 'center',
+                    }}>
+                        <div style={{
+                            width: 48, height: 48, borderRadius: '50%',
+                            background: '#f3f4f6',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 16px',
+                        }}>
+                            <FaSlidersH size={20} color="#6b7280" />
+                        </div>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 10px', lineHeight: 1.5, color: '#111827' }}>
+                            カメラ画面と3Dモデルの
+                            <br />
+                            位置合わせが必要です
+                        </h2>
+                        <p style={{ fontSize: '0.82rem', color: '#9ca3af', lineHeight: 1.7, margin: '0 0 24px' }}>
+                            読み込み完了後、方位と高さを調整して
+                            <br />
+                            実際の風景と3Dモデルを重ねてください。
+                        </p>
 
-                    {/* プログレスバーのコンテナ */}
-                    <div
-                        style={{
-                            width: '200px',
-                            height: '10px',
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            borderRadius: '5px',
-                            overflow: 'hidden',
-                            marginBottom: '10px',
-                        }}
-                    >
-                        <motion.div
-                            style={{
-                                height: '100%',
-                                background: '#2B6CB0',
-                            }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}% ` }}
-                            transition={{ type: 'spring', stiffness: 50 }}
-                        />
-                    </div>
-
-                    <div style={{ fontSize: '1rem', fontFamily: 'monospace' }}>
-                        {Math.round(progress)}%
+                        {/* ローディング / ボタン */}
+                        <div style={{ minHeight: 52, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            {isLoading ? (
+                                <>
+                                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 10 }}>
+                                        {progress < 100 ? 'Loading 3D Model...' : 'Rendering Scene...'}
+                                    </div>
+                                    <div style={{
+                                        width: '100%', height: 4,
+                                        background: '#f3f4f6',
+                                        borderRadius: 2, overflow: 'hidden', marginBottom: 6,
+                                    }}>
+                                        <motion.div
+                                            style={{ height: '100%', background: '#111827', borderRadius: 2 }}
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progress}%` }}
+                                            transition={{ type: 'spring', stiffness: 50 }}
+                                        />
+                                    </div>
+                                    <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#d1d5db' }}>
+                                        {Math.round(progress)}%
+                                    </div>
+                                </>
+                            ) : (
+                                <motion.button
+                                    type="button"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                                    onClick={handleStart}
+                                    style={{
+                                        background: '#111827',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        padding: '12px 0',
+                                        borderRadius: 10,
+                                        fontSize: '0.95rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        minHeight: 0,
+                                        width: '100%',
+                                    }}
+                                >
+                                    調整する
+                                </motion.button>
+                            )}
+                        </div>
                     </div>
                 </motion.div>
             )}

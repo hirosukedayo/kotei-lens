@@ -382,23 +382,28 @@ export default function Scene3D({
       {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
       {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
 
-      {/* ローディング画面 */}
-      <LoadingScreen isReady={isReady} />
+      {/* ローディング画面 + 調整説明 */}
+      <LoadingScreen
+        isReady={isReady}
+        onStart={() => {
+          // フェードアウト後、手動調整ドロワーを開いた状態で3Dビューに入る
+          setIsCalibrated(true);
+          setIsRecalibrating(true);
+        }}
+      />
 
-      {/* 方位キャリブレーション画面 */}
-      {isMobile && permissionGranted && !isCalibrated && isReady && (
+      {/* 再調整用CompassCalibration（手動モードのみ） */}
+      {isMobile && permissionGranted && isCalibrated && isRecalibrating && (
         <CompassCalibration
           onCalibrationComplete={handleCalibrationComplete}
-          // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
           onClose={() => {
-            setIsCalibrated(true);
             setIsRecalibrating(false);
           }}
-          initialOffset={isRecalibrating ? manualHeadingOffset : 0}
+          initialOffset={manualHeadingOffset}
           orientation={sensorData.orientation}
           compassHeading={sensorData.compassHeading}
-          startInManualMode={isRecalibrating}
-          onOffsetChange={isRecalibrating ? (offset) => setManualHeadingOffset(offset) : undefined}
+          startInManualMode
+          onOffsetChange={(offset) => setManualHeadingOffset(offset)}
           initialHeightOffset={cameraHeightOffset}
           onHeightOffsetChange={(offset) => setCameraHeightOffset(offset)}
           heightAtFloor={heightAtFloor}
@@ -1054,7 +1059,6 @@ export default function Scene3D({
             type="button"
             onClick={() => {
               setIsRecalibrating(true);
-              setIsCalibrated(false);
             }}
             className="map-btn map-btn--round"
             title="位置を調整"
