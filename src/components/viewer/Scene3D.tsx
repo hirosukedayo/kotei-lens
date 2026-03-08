@@ -1314,6 +1314,8 @@ function PinMarkers3D({
 }) {
   const { scene, camera } = useThree();
   const [visibleLabelIds, setVisibleLabelIds] = React.useState<Set<string>>(new Set());
+  const visibleLabelIdsRef = useRef(visibleLabelIds);
+  visibleLabelIdsRef.current = visibleLabelIds;
   const pinHeightsRef = useRef<Map<string, number>>(new Map());
 
   const pinBasePositions = useMemo(() => {
@@ -1335,18 +1337,19 @@ function PinMarkers3D({
     pinHeightsRef.current.set(pinId, height);
   }, []);
 
-  // ラベル重なり判定による複数ラベル表示（8フレームに1回）
+  // ラベル重なり判定による複数ラベル表示（16フレームに1回）
   const frameCounter = React.useRef(0);
   const tmpVec3 = useMemo(() => new THREE.Vector3(), []);
+  const forwardVec = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
     frameCounter.current += 1;
-    if (frameCounter.current % 8 !== 0) return;
+    if (frameCounter.current % 16 !== 0) return;
 
     const camPos = camera.position;
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    forward.y = 0;
-    forward.normalize();
+    forwardVec.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    forwardVec.y = 0;
+    forwardVec.normalize();
 
     // 1. 候補ピンを収集しスコア計算
     const candidates: { id: string; score: number; screenX: number; screenY: number }[] = [];
@@ -1357,43 +1360,32 @@ function PinMarkers3D({
       const dx = pin.basePosition[0] - camPos.x;
       const dz = pin.basePosition[2] - camPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 100 || dist > 5000) continue;
+      if (dist > 5000) continue;
 
-      const toPin = new THREE.Vector3(dx, 0, dz).normalize();
-      const dot = forward.dot(toPin);
+      tmpVec3.set(dx, 0, dz).normalize();
+      const dot = forwardVec.dot(tmpVec3);
       if (dot <= 0) continue;
 
-      // ピンの実際の高さを取得（未解決ならbasePositionのYを使う）
       const pinY = pinHeightsRef.current.get(pin.id) ?? pin.basePosition[1];
       tmpVec3.set(pin.basePosition[0], pinY, pin.basePosition[2]);
       tmpVec3.project(camera);
 
-      // NDC範囲外ならスキップ
       if (tmpVec3.x < -1.2 || tmpVec3.x > 1.2 || tmpVec3.y < -1.2 || tmpVec3.y > 1.2 || tmpVec3.z > 1) continue;
 
       const centerScore = dot;
-      const distBonus = 0.2 * (1 - Math.min((dist - 100) / 4900, 1));
+      const distBonus = 0.2 * (1 - Math.min(dist / 5000, 1));
       const score = centerScore + distBonus;
 
-      candidates.push({
-        id: pin.id,
-        score,
-        screenX: tmpVec3.x,
-        screenY: tmpVec3.y,
-      });
+      candidates.push({ id: pin.id, score, screenX: tmpVec3.x, screenY: tmpVec3.y });
     }
 
-    // 2. スコア順にソート
     candidates.sort((a, b) => b.score - a.score);
 
-    // 3. 貪欲法でラベル配置（AABB重なり判定）
-    // ラベルのNDC空間でのおおよそサイズ
     const labelW = 0.15;
     const labelH = 0.06;
     const placed: { x: number; y: number; w: number; h: number }[] = [];
     const newVisibleIds = new Set<string>();
 
-    // 選択ピンは常に表示
     if (selectedPin) {
       const sel = candidates.find((c) => c.id === selectedPin.id);
       if (sel) {
@@ -1404,8 +1396,6 @@ function PinMarkers3D({
 
     for (const c of candidates) {
       if (newVisibleIds.has(c.id)) continue;
-
-      // AABB重なり判定
       let overlaps = false;
       for (const p of placed) {
         if (
@@ -1416,7 +1406,6 @@ function PinMarkers3D({
           break;
         }
       }
-
       if (!overlaps) {
         newVisibleIds.add(c.id);
         placed.push({ x: c.screenX, y: c.screenY, w: labelW, h: labelH });
@@ -1424,8 +1413,14 @@ function PinMarkers3D({
     }
 
     // Set内容が変わらない場合はsetStateをスキップ
-    const prev = visibleLabelIds;
-    if (newVisibleIds.size !== prev.size || [...newVisibleIds].some((id) => !prev.has(id))) {
+    const prev = visibleLabelIdsRef.current;
+    let changed = newVisibleIds.size !== prev.size;
+    if (!changed) {
+      for (const id of newVisibleIds) {
+        if (!prev.has(id)) { changed = true; break; }
+      }
+    }
+    if (changed) {
       setVisibleLabelIds(newVisibleIds);
     }
   });
@@ -1479,12 +1474,17 @@ function FixedSizeText({
       <Text
         font={JAPANESE_FONT_URL}
         fontSize={isSelected ? 14 : 10}
-        color="rgba(255,255,255,0.75)"
+        color="#ffffff"
         anchorX="center"
         anchorY="bottom"
+        fillOpacity={0.75}
         outlineWidth={isSelected ? 0.8 : 0.3}
-        outlineColor="rgba(0,0,0,0.5)"
+        outlineColor="#000000"
+        outlineOpacity={0.5}
         material-fog={false}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={10}
         onPointerDown={(e) => {
           e.stopPropagation();
         }}
@@ -1593,30 +1593,27 @@ function PinMarker({
     }
   });
 
-  // カメラとの距離を計算して表示・非表示を切り替え
+  const billboardRef = React.useRef<THREE.Group>(null);
+
+  // カメラとの距離を計算して表示・非表示＆ラベル高さを切り替え
   useFrame(({ camera }) => {
     if (groupRef.current && pinHeight !== null) {
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
       const distSq = camera.position.distanceToSquared(pinPosition);
-      groupRef.current.visible = distSq >= 10000 && distSq < 25000000;
+      groupRef.current.visible = distSq < 25000000;
+
+      // 近いラベルほど低く（距離500以内→30、距離2000以上→150）
+      if (billboardRef.current) {
+        const dist = Math.sqrt(distSq);
+        const t = Math.min(Math.max((dist - 500) / 1500, 0), 1);
+        billboardRef.current.position.y = 30 + t * 120;
+      }
     }
   });
 
   if (pinHeight === null) {
     return null;
   }
-
-  // ラベル高さ（ピン位置からのオフセット）
-  const labelY = 150;
-
-  const PinLabel = () => (
-    <FixedSizeText
-      text={title}
-      pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
-      isSelected={isSelected}
-      onClick={handleClick}
-    />
-  );
 
   return (
     <group ref={groupRef} key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
@@ -1634,8 +1631,13 @@ function PinMarker({
 
       {/* 通常ピン: ラベル */}
       {type !== 'debug' && showLabel && (
-        <Billboard follow={true} lockX={false} lockY={false} lockZ={false} position={[0, labelY, 0]}>
-          <PinLabel />
+        <Billboard ref={billboardRef} follow={true} lockX={false} lockY={false} lockZ={false} position={[0, 150, 0]}>
+          <FixedSizeText
+            text={title}
+            pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
+            isSelected={isSelected}
+            onClick={handleClick}
+          />
         </Billboard>
       )}
     </group>
@@ -1655,7 +1657,7 @@ function DirectionWalls() {
         <planeGeometry args={[wallWidth, wallHeight]} />
         <meshBasicMaterial color="red" side={THREE.DoubleSide} />
       </mesh>
-      <Text position={[0, wallHeight + 50, -distance]} fontSize={100} color="red" anchorX="center">
+      <Text position={[0, wallHeight + 50, -distance]} fontSize={100} color="red" anchorX="center" material-depthWrite={false} renderOrder={1}>
         N
       </Text>
 
@@ -1664,7 +1666,7 @@ function DirectionWalls() {
         <planeGeometry args={[wallWidth, wallHeight]} />
         <meshBasicMaterial color="black" side={THREE.DoubleSide} />
       </mesh>
-      <Text position={[0, wallHeight + 50, distance]} fontSize={100} color="black" anchorX="center">
+      <Text position={[0, wallHeight + 50, distance]} fontSize={100} color="black" anchorX="center" material-depthWrite={false} renderOrder={1}>
         S
       </Text>
 
@@ -1673,7 +1675,7 @@ function DirectionWalls() {
         <planeGeometry args={[wallWidth, wallHeight]} />
         <meshBasicMaterial color="blue" side={THREE.DoubleSide} />
       </mesh>
-      <Text position={[distance, wallHeight + 50, 0]} fontSize={100} color="blue" anchorX="center">
+      <Text position={[distance, wallHeight + 50, 0]} fontSize={100} color="blue" anchorX="center" material-depthWrite={false} renderOrder={1}>
         E
       </Text>
 
@@ -1682,7 +1684,7 @@ function DirectionWalls() {
         <planeGeometry args={[wallWidth, wallHeight]} />
         <meshBasicMaterial color="white" side={THREE.DoubleSide} />
       </mesh>
-      <Text position={[-distance, wallHeight + 50, 0]} fontSize={100} color="white" anchorX="center">
+      <Text position={[-distance, wallHeight + 50, 0]} fontSize={100} color="white" anchorX="center" material-depthWrite={false} renderOrder={1}>
         W
       </Text>
     </group>

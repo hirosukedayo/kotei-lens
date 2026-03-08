@@ -244,23 +244,23 @@ export function LakeModel({
 
   // モデルファイルの読み込み（キャッシュを使用）
   useEffect(() => {
+    let isMounted = true;
     const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
 
     const cached = modelCache.get(modelPath);
+    console.log('[LakeModel] mount, cached:', !!cached?.model, 'promise:', !!cached?.promise);
 
     if (cached?.model) {
       setModelScene(cached.model);
       setIsLoaded(true);
-      return;
+      return () => { isMounted = false; };
     }
 
-    let promise = cached?.promise;
-    if (!promise) {
-      promise = loadModel(modelPath);
-    }
+    const promise = cached?.promise ?? loadModel(modelPath);
 
     promise
       .then((loadedModel) => {
+        console.log('[LakeModel] promise resolved, isMounted:', isMounted);
         if (isMounted) {
           setModelScene(loadedModel);
           setIsLoaded(true);
@@ -270,13 +270,14 @@ export function LakeModel({
         if (isMounted) setError('モデルの読み込みに失敗しました');
       });
 
-    let isMounted = true;
     return () => { isMounted = false; };
   }, [basePath]);
 
-  // 全メッシュオブジェクトをクローン
+  // 全メッシュオブジェクトを深くクローン（ジオメトリ・マテリアルも複製）
+  // アンマウント時のdisposeで元データが壊れないようにする
   // biome-ignore lint/correctness/useExhaustiveDependencies: clonedMeshesは一度設定されたら変わらない
   useEffect(() => {
+    console.log('[LakeModel] clone effect, modelScene:', !!modelScene, 'clonedMeshes:', clonedMeshes.length);
     if (!modelScene || clonedMeshes.length > 0) return;
 
     const meshes: { name: string; object: THREE.Object3D }[] = [];
@@ -284,7 +285,15 @@ export function LakeModel({
 
     modelScene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh && child.name) {
-        const cloned = child.clone();
+        const srcMesh = child as THREE.Mesh;
+        const cloned = srcMesh.clone();
+        // ジオメトリとマテリアルも深くクローンしてdisposeの影響を遮断
+        cloned.geometry = srcMesh.geometry.clone();
+        if (Array.isArray(srcMesh.material)) {
+          cloned.material = srcMesh.material.map(m => m.clone());
+        } else {
+          cloned.material = srcMesh.material.clone();
+        }
         meshes.push({ name: child.name, object: cloned });
         names.push(child.name);
       }
