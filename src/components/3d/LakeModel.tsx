@@ -39,7 +39,6 @@ export const preloadLakeModel = () => {
     return;
   }
 
-  console.log('[LakeModel] Preload: Starting...');
   loadModel(modelPath);
 };
 
@@ -51,7 +50,6 @@ export const preloadLakeModel = () => {
  * - COLOR_1 をスプラットマップとして使用
  */
 const loadModel = (path: string): Promise<THREE.Group> => {
-  console.log('[LakeModel] Loading GLB:', path);
   const gltfLoader = new GLTFLoader();
 
   const loadPromise = new Promise<THREE.Group>((resolve, reject) => {
@@ -59,8 +57,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
       path,
       (gltf) => {
         const loadedScene = gltf.scene;
-        console.log('[LakeModel] GLB loaded, normalizing...');
-
         // 全ワールドマトリクスを計算
         loadedScene.updateMatrixWorld(true);
 
@@ -68,8 +64,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
         const box = new THREE.Box3().setFromObject(loadedScene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        console.log('[LakeModel] GLB raw bbox size:', size.x.toFixed(0), size.y.toFixed(0), size.z.toFixed(0));
-
         // GLB内の全オブジェクトをリストアップ
         const objectNames: string[] = [];
         loadedScene.traverse((child) => {
@@ -77,8 +71,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
             objectNames.push(child.name);
           }
         });
-        console.log('[LakeModel] GLB mesh objects:', objectNames.join(', '));
-
         // 正規化行列: まず中心を原点に移動、次にスケール
         const maxDim = Math.max(size.x, size.z);
         const normFactor = FBX_NORMALIZATION_TARGET / maxDim;
@@ -185,11 +177,6 @@ const loadModel = (path: string): Promise<THREE.Group> => {
         loadedScene.updateMatrix();
         loadedScene.updateMatrixWorld(true);
 
-        // 正規化後のbboxを確認
-        const normBox = new THREE.Box3().setFromObject(loadedScene);
-        const normSize = normBox.getSize(new THREE.Vector3());
-        console.log('[LakeModel] Normalized bbox size:', normSize.x.toFixed(2), normSize.y.toFixed(2), normSize.z.toFixed(2));
-
         resolve(loadedScene);
       },
       undefined,
@@ -257,23 +244,23 @@ export function LakeModel({
 
   // モデルファイルの読み込み（キャッシュを使用）
   useEffect(() => {
+    let isMounted = true;
     const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
 
     const cached = modelCache.get(modelPath);
+    console.log('[LakeModel] mount, cached:', !!cached?.model, 'promise:', !!cached?.promise);
 
     if (cached?.model) {
       setModelScene(cached.model);
       setIsLoaded(true);
-      return;
+      return () => { isMounted = false; };
     }
 
-    let promise = cached?.promise;
-    if (!promise) {
-      promise = loadModel(modelPath);
-    }
+    const promise = cached?.promise ?? loadModel(modelPath);
 
     promise
       .then((loadedModel) => {
+        console.log('[LakeModel] promise resolved, isMounted:', isMounted);
         if (isMounted) {
           setModelScene(loadedModel);
           setIsLoaded(true);
@@ -283,13 +270,14 @@ export function LakeModel({
         if (isMounted) setError('モデルの読み込みに失敗しました');
       });
 
-    let isMounted = true;
     return () => { isMounted = false; };
   }, [basePath]);
 
-  // 全メッシュオブジェクトをクローン
+  // 全メッシュオブジェクトを深くクローン（ジオメトリ・マテリアルも複製）
+  // アンマウント時のdisposeで元データが壊れないようにする
   // biome-ignore lint/correctness/useExhaustiveDependencies: clonedMeshesは一度設定されたら変わらない
   useEffect(() => {
+    console.log('[LakeModel] clone effect, modelScene:', !!modelScene, 'clonedMeshes:', clonedMeshes.length);
     if (!modelScene || clonedMeshes.length > 0) return;
 
     const meshes: { name: string; object: THREE.Object3D }[] = [];
@@ -297,15 +285,21 @@ export function LakeModel({
 
     modelScene.traverse((child) => {
       if ((child as THREE.Mesh).isMesh && child.name) {
-        const cloned = child.clone();
+        const srcMesh = child as THREE.Mesh;
+        const cloned = srcMesh.clone();
+        // ジオメトリとマテリアルも深くクローンしてdisposeの影響を遮断
+        cloned.geometry = srcMesh.geometry.clone();
+        if (Array.isArray(srcMesh.material)) {
+          cloned.material = srcMesh.material.map(m => m.clone());
+        } else {
+          cloned.material = srcMesh.material.clone();
+        }
         meshes.push({ name: child.name, object: cloned });
         names.push(child.name);
       }
     });
 
     setClonedMeshes(meshes);
-    console.log('[LakeModel] 全メッシュクローン完了:', names.join(', '));
-
     // 親コンポーネントにオブジェクト名リストを通知
     if (onObjectsLoadedRef.current) {
       onObjectsLoadedRef.current(names);

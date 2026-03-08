@@ -60,6 +60,44 @@ export class MotionService {
     return this.permissionState;
   }
 
+  // 権限状態チェック（非同期版、実際にイベント発火を確認）
+  public async checkPermission(): Promise<PermissionState> {
+    if (this.permissionState === 'granted' || this.permissionState === 'denied') {
+      return this.permissionState;
+    }
+
+    // iOS以外（requestPermissionが不要な環境）は自動許可
+    const isIOS =
+      typeof window.DeviceMotionEvent !== 'undefined' &&
+      typeof window.DeviceMotionEvent.requestPermission === 'function';
+    if (!isIOS) {
+      this.permissionState = 'granted';
+      return 'granted';
+    }
+
+    // iOS: 一時的にイベントリスナーを登録し、イベントが来るか確認
+    return new Promise<PermissionState>((resolve) => {
+      let resolved = false;
+
+      const handler = () => {
+        if (resolved) return;
+        resolved = true;
+        window.removeEventListener('devicemotion', handler);
+        this.permissionState = 'granted';
+        resolve('granted');
+      };
+
+      window.addEventListener('devicemotion', handler);
+
+      setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        window.removeEventListener('devicemotion', handler);
+        resolve('prompt');
+      }, 1000);
+    });
+  }
+
   // モーション追跡開始
   public async startTracking(callback: MotionCallback, autoRequestPermission = true): Promise<void> {
     if (!this.isAvailable()) {

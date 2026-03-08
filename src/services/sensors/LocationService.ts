@@ -14,10 +14,12 @@ export class LocationService {
   };
 
   private watchId: number | null = null;
+  private mockWatchIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusCheckTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private callbacks: GPSCallback[] = [];
   private errorCallbacks: GPSErrorCallback[] = [];
   private lastPosition: GPSPosition | null = null;
+  private mockPosition: GPSPosition | null = null;
 
   // 奥多摩湖周辺の座標範囲（湖全体＋周辺道路をカバー）
   private readonly OKUTAMA_BOUNDS = {
@@ -31,6 +33,31 @@ export class LocationService {
     if (customOptions) {
       this.options = { ...this.options, ...customOptions };
     }
+    this.initMockFromUrl();
+  }
+
+  // URLパラメータからモック位置を初期化
+  // ?mockGps=true で小河内ダム座標、?mockGps=true&lat=XX&lng=YY でカスタム座標
+  private initMockFromUrl(): void {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mockGps') !== 'true') return;
+
+    const lat = params.get('lat');
+    const lng = params.get('lng');
+    if (lat && lng) {
+      this.mockPosition = {
+        latitude: Number.parseFloat(lat),
+        longitude: Number.parseFloat(lng),
+        altitude: 530,
+        accuracy: 5,
+        heading: 0,
+        speed: 0,
+        timestamp: Date.now(),
+      };
+    } else {
+      this.mockPosition = this.getMockPosition();
+    }
+    console.log('[LocationService] Mock GPS enabled:', this.mockPosition);
   }
 
   // GPS対応チェック
@@ -40,6 +67,8 @@ export class LocationService {
 
   // 権限状態チェック
   public async checkPermission(): Promise<PermissionState> {
+    if (this.mockPosition) return 'granted';
+
     // Permissions API が使える場合（Chrome, Firefox等）
     if ('permissions' in navigator) {
       try {
@@ -86,6 +115,12 @@ export class LocationService {
 
   // 単発位置取得
   public async getCurrentPosition(): Promise<GPSPosition> {
+    if (this.mockPosition) {
+      this.mockPosition.timestamp = Date.now();
+      this.lastPosition = this.mockPosition;
+      return this.mockPosition;
+    }
+
     if (!this.isAvailable()) {
       throw new Error('Geolocation is not supported');
     }
@@ -108,11 +143,6 @@ export class LocationService {
 
   // 継続的位置監視開始
   public startWatching(callback: GPSCallback, errorCallback?: GPSErrorCallback): void {
-    console.log('LocationService.startWatching called, current state:', {
-      isAvailable: this.isAvailable(),
-      watchId: this.watchId,
-      callbackCount: this.callbacks.length,
-    });
 
     if (!this.isAvailable()) {
       throw new Error('Geolocation is not supported');
@@ -123,11 +153,35 @@ export class LocationService {
       this.errorCallbacks.push(errorCallback);
     }
 
-    console.log('GPS callbacks added, total:', this.callbacks.length);
+
+    // モック時はインターバルで定期的にコールバックを呼ぶ
+    if (this.mockPosition) {
+      // 初回: インターバル開始
+      if (this.mockWatchIntervalId === null) {
+        this.mockPosition.timestamp = Date.now();
+        this.lastPosition = this.mockPosition;
+        for (const cb of this.callbacks) {
+          cb(this.mockPosition);
+        }
+        this.mockWatchIntervalId = setInterval(() => {
+          if (this.mockPosition) {
+            this.mockPosition.timestamp = Date.now();
+            this.lastPosition = this.mockPosition;
+            for (const cb of this.callbacks) {
+              cb(this.mockPosition);
+            }
+          }
+        }, 3000);
+      } else {
+        // 2回目以降: 新しいコールバックに即座にmock位置を通知
+        this.mockPosition.timestamp = Date.now();
+        callback(this.mockPosition);
+      }
+      return;
+    }
 
     // 既に監視中でない場合のみ開始
     if (this.watchId === null) {
-      console.log('Starting GPS watchPosition with options:', this.options);
       this.watchId = navigator.geolocation.watchPosition(
         (position) => {
           const gpsPosition = this.convertPosition(position);
@@ -150,7 +204,6 @@ export class LocationService {
         },
         this.options
       );
-      console.log('GPS watchPosition started with ID:', this.watchId);
 
       // 既存のチェックタイマーをクリア
       if (this.statusCheckTimeoutId !== null) {
@@ -158,12 +211,6 @@ export class LocationService {
       }
       // 10秒後にGPS受信状況をチェック
       this.statusCheckTimeoutId = setTimeout(() => {
-        console.log('10秒後のGPS状況:', {
-          watchId: this.watchId,
-          callbackCount: this.callbacks.length,
-          lastPosition: this.lastPosition,
-          hasReceivedData: this.lastPosition !== null,
-        });
 
         if (this.lastPosition === null) {
           console.warn(
@@ -172,8 +219,6 @@ export class LocationService {
         }
         this.statusCheckTimeoutId = null;
       }, 10000);
-    } else {
-      console.log('GPS watching already active with ID:', this.watchId);
     }
   }
 
@@ -190,9 +235,15 @@ export class LocationService {
     }
 
     // コールバックがすべてなくなったら監視停止
-    if (this.callbacks.length === 0 && this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
+    if (this.callbacks.length === 0) {
+      if (this.mockWatchIntervalId !== null) {
+        clearInterval(this.mockWatchIntervalId);
+        this.mockWatchIntervalId = null;
+      }
+      if (this.watchId !== null) {
+        navigator.geolocation.clearWatch(this.watchId);
+        this.watchId = null;
+      }
       if (this.statusCheckTimeoutId !== null) {
         clearTimeout(this.statusCheckTimeoutId);
         this.statusCheckTimeoutId = null;

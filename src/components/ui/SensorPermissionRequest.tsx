@@ -30,9 +30,6 @@ export default function SensorPermissionRequest({
   const sensorManager = getSensorManager();
 
   const checkSensorAvailability = useCallback(async () => {
-    // OrientationServiceのキャッシュされた状態を確認
-    const orientationPermission = sensorManager.orientationService.getPermissionState?.() || 'unknown';
-
     // カメラの権限チェック (Permissions API)
     let cameraPerm: 'granted' | 'denied' | 'prompt' | 'unknown' = 'unknown';
     try {
@@ -55,13 +52,13 @@ export default function SensorPermissionRequest({
       },
       orientation: {
         available: sensorManager.orientationService.isAvailable(),
-        permission: orientationPermission === 'granted' ? 'granted' : 'prompt',
+        permission: await sensorManager.orientationService.checkPermission(),
         lastUpdate: null,
         error: null,
       },
       motion: {
         available: sensorManager.motionService.isAvailable(),
-        permission: 'prompt',
+        permission: await sensorManager.motionService.checkPermission(),
         lastUpdate: null,
         error: null,
       },
@@ -86,11 +83,8 @@ export default function SensorPermissionRequest({
     const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
     const isCameraOk = !sensorStatus.camera.available || sensorStatus.camera.permission === 'granted';
 
-    console.log('Permission check:', { isGpsOk, isOrientationOk, isMotionOk, isCameraOk });
-
     if (isGpsOk && isOrientationOk && isMotionOk && isCameraOk) {
       const timer = setTimeout(() => {
-        console.log('All permissions granted, auto-proceeding');
         onPermissionsGranted();
       }, 500);
       return () => clearTimeout(timer);
@@ -143,10 +137,7 @@ export default function SensorPermissionRequest({
           // ユーザーインタラクション内なので、ここでもリクエスト可能
           const motionPermission = await sensorManager.motionService.requestPermission();
           newStatus.motion = { ...newStatus.motion, permission: motionPermission };
-          console.log('Auto-requested motion permission result:', motionPermission);
-        } catch (e) {
-          console.warn('Auto-request motion permission failed:', e);
-        }
+        } catch { /* ignore */ }
       }
 
       setSensorStatus(newStatus);

@@ -17,7 +17,7 @@ import type { Initial3DPosition } from '../map/OkutamaMap2D';
 import { okutamaPins } from '../../data/okutama-pins';
 import { type PinData, type PinType, pinTypeStyles } from '../../types/pins';
 import PinListDrawer from '../ui/PinListDrawer';
-import { FaMapSigns, FaCompass, FaEye, FaMountain } from 'react-icons/fa';
+import { FaListUl, FaSlidersH, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
@@ -37,6 +37,7 @@ import { getSensorManager } from '../../services/sensors/SensorManager';
 import LoadingScreen from '../ui/LoadingScreen';
 import CompassCalibration from '../ui/CompassCalibration';
 import { trackPinSelect } from '../../utils/analytics';
+import { useDevModeStore } from '../../stores/devMode';
 
 // 日本語対応フォント（Noto Sans JP Regular）
 const JAPANESE_FONT_URL =
@@ -104,16 +105,30 @@ export default function Scene3D({
   const [manualHeadingOffset, setManualHeadingOffset] = useState(0);
   const [fov, setFov] = useState(DEFAULT_FOV);
   const [showDebug, setShowDebug] = useState(false);
+  const { isDevMode } = useDevModeStore();
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
+  // キャリブレーションで算出した alpha→真北の補正値
+  const [baseHeadingOffset, setBaseHeadingOffset] = useState(initialPosition?.headingOffset ?? 0);
   // 初期位置決定後かつ権限許可後にキャリブレーションを行う
   const [isCalibrated, setIsCalibrated] = useState(false);
   // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
   const [isRecalibrating, setIsRecalibrating] = useState(false);
 
+  const handleCalibrationComplete = useCallback((offset: number) => {
+    if (isRecalibrating) {
+      setManualHeadingOffset(offset);
+    } else {
+      setBaseHeadingOffset(offset);
+    }
+    setIsCalibrated(true);
+    setIsRecalibrating(false);
+  }, [isRecalibrating]);
+
   const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [showCameraControls] = useState(false);
   const [waterLevelOffset, setWaterLevelOffset] = useState(0);
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
+  const [heightAtFloor, setHeightAtFloor] = useState(false);
   const [actualCameraHeight, setActualCameraHeight] = useState<number | null>(null);
   // 地形モデル調整
   const [terrainOffsetX, setTerrainOffsetX] = useState(0);
@@ -203,7 +218,6 @@ export default function Scene3D({
   useEffect(() => {
     if (loadProgress === 100 && !isReady) {
       const timer = setTimeout(() => {
-        console.warn('Force setting isReady to true due to timeout');
         setIsReady(true);
       }, 5000); // 5秒後に強制解除
       return () => clearTimeout(timer);
@@ -221,8 +235,6 @@ export default function Scene3D({
       setWebglSupport(support);
       const recommended = getRecommendedRenderer(support);
       setRenderer(recommended);
-      console.log('WebGL Support:', support);
-      console.log('Recommended Renderer:', recommended);
     });
     // モバイル判定
     const checkMobile = () => {
@@ -370,35 +382,37 @@ export default function Scene3D({
       {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
       {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
 
-      {/* ローディング画面 */}
-      <LoadingScreen isReady={isReady} />
+      {/* ローディング画面 + 調整説明 */}
+      <LoadingScreen
+        isReady={isReady}
+        onStart={() => {
+          // フェードアウト後、手動調整ドロワーを開いた状態で3Dビューに入る
+          setIsCalibrated(true);
+          setIsRecalibrating(true);
+        }}
+      />
 
-      {/* 方位キャリブレーション画面 */}
-      {isMobile && permissionGranted && !isCalibrated && isReady && (
+      {/* 再調整用CompassCalibration（手動モードのみ） */}
+      {isMobile && permissionGranted && isCalibrated && isRecalibrating && (
         <CompassCalibration
-          onCalibrationComplete={(offset) => {
-            setManualHeadingOffset(offset);
-            setIsCalibrated(true);
-            setIsRecalibrating(false);
-          }}
-          // キャンセル時は一旦キャリブレーション済みとする（元の画面に戻るため）
+          onCalibrationComplete={handleCalibrationComplete}
           onClose={() => {
-            setIsCalibrated(true);
             setIsRecalibrating(false);
           }}
           initialOffset={manualHeadingOffset}
           orientation={sensorData.orientation}
           compassHeading={sensorData.compassHeading}
-          startInManualMode={isRecalibrating}
-          onOffsetChange={isRecalibrating ? (offset) => setManualHeadingOffset(offset) : undefined}
+          startInManualMode
+          onOffsetChange={(offset) => setManualHeadingOffset(offset)}
+          initialHeightOffset={cameraHeightOffset}
+          onHeightOffsetChange={(offset) => setCameraHeightOffset(offset)}
+          heightAtFloor={heightAtFloor}
         />
       )}
 
       <Canvas
         onPointerMissed={() => {
-          if (selectedPin) {
-            setSheetOpen(false);
-          }
+          setSheetOpen(false);
         }}
         style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative', zIndex: 1 }}
         camera={{
@@ -422,6 +436,7 @@ export default function Scene3D({
               // 少し遅延させてからReadyにする（描画安定待ち）
               setTimeout(() => setIsReady(true), 500);
             }}
+            onHeightAtFloor={setHeightAtFloor}
           />
           {/* PC用キーボード移動コントロール（OrbitControls使用時は無効） */}
           {/* {!isMobile && <PCKeyboardControls />} */}
@@ -432,7 +447,7 @@ export default function Scene3D({
               deviceOrientation={sensorData.orientation}
               arMode={true}
               manualHeadingOffset={manualHeadingOffset}
-              baseHeadingOffset={initialPosition?.headingOffset ?? 0}
+              baseHeadingOffset={baseHeadingOffset}
             />
           )}
 
@@ -499,6 +514,9 @@ export default function Scene3D({
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}
           <PinMarkers3D selectedPin={selectedPin} onSelectPin={handleSelectPinFrom3D} />
 
+          {/* デバッグ用: 東西南北の壁 */}
+          {isDevMode && <DirectionWalls />}
+
           {/* 画角(FOV)を動的に更新するコンポーネント */}
           <FovAdjuster fov={fov} />
 
@@ -508,35 +526,22 @@ export default function Scene3D({
         </Suspense>
       </Canvas>
 
-      {/* 左下：ピン一覧（アイコン） - コントロール表示時のみ表示 */}
-      {/* 左下：ピン一覧（アイコン） - 常に表示 */}
+      {/* 左下：ピン一覧（アイコン） */}
       <div
         style={{
           position: 'fixed',
           left: '16px',
-          bottom: '80px',
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           zIndex: 10000,
         }}
       >
         <button
           type="button"
+          className="map-btn map-btn--round"
           aria-label="ピン一覧"
           onClick={() => setSheetOpen(true)}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 9999,
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 2px 6px rgba(60,64,67,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
         >
-          <FaMapSigns size={22} />
+          <FaListUl size={22} />
         </button>
       </div>
 
@@ -837,9 +842,9 @@ export default function Scene3D({
       <div
         style={{
           position: 'fixed',
-          bottom: '80px', // 右下に配置（左下のピン一覧と高さを合わせる）
+          bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           right: '16px',
-          zIndex: 1001,
+          zIndex: 10000,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',
@@ -1054,29 +1059,11 @@ export default function Scene3D({
             type="button"
             onClick={() => {
               setIsRecalibrating(true);
-              setIsCalibrated(false);
             }}
-            style={{
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              transition: 'all 0.3s ease',
-              minWidth: '60px',
-              gap: '4px',
-            }}
-            title="方位を再調整"
+            className="map-btn map-btn--round"
+            title="位置を調整"
           >
-            <FaCompass size={20} />
-            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>調整</span>
+            <FaSlidersH size={20} />
           </button>
         )}
       </div>
@@ -1135,10 +1122,12 @@ function CameraPositionSetter({
   initialCameraConfig,
   heightOffset = 0,
   onReady,
+  onHeightAtFloor,
 }: {
   initialCameraConfig: { position: [number, number, number]; rotation: [number, number, number] };
   heightOffset?: number;
   onReady?: () => void;
+  onHeightAtFloor?: (atFloor: boolean) => void;
 }) {
   const { camera, scene } = useThree();
   const hasSetPosition = React.useRef(false);
@@ -1147,13 +1136,16 @@ function CameraPositionSetter({
   const baseTerrainHeightRef = React.useRef<number | null>(null);
 
   // 高さオフセットが変更されたときにカメラ位置を更新
+  // 地形を突き破らない範囲で自由に上下できる
   useEffect(() => {
     if (baseTerrainHeightRef.current !== null) {
-      const newY = Math.max(baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset, CAMERA_MIN_HEIGHT);
-      // X/Z は現在のカメラ位置を維持（初期位置に戻さない）
+      const terrainFloor = baseTerrainHeightRef.current + 5;
+      const desired = baseTerrainHeightRef.current + CAMERA_HEIGHT_OFFSET + heightOffset;
+      const newY = Math.max(desired, terrainFloor);
       camera.position.setY(newY);
+      onHeightAtFloor?.(desired <= terrainFloor);
     }
-  }, [heightOffset, camera]);
+  }, [heightOffset, camera, onHeightAtFloor]);
 
   // 地形が読み込まれるまで待機してからカメラ位置を設定
   // useProgressフックを使用してロード状態を監視
@@ -1183,7 +1175,6 @@ function CameraPositionSetter({
       baseTerrainHeightRef.current = finalCameraY - CAMERA_HEIGHT_OFFSET - heightOffset;
       camera.position.set(cameraX, finalCameraY, cameraZ);
       hasSetPosition.current = true;
-      console.log('[Camera] 固定高さモード: カメラ高さ =', finalCameraY.toFixed(2), 'm');
       if (onReady) onReady();
       return;
     }
@@ -1215,7 +1206,6 @@ function CameraPositionSetter({
             meshNames.push(child.name || '(unnamed)');
           }
         });
-        console.log('[Camera] シーン内メッシュ一覧:', meshNames.join(', '));
       }
 
       scene.traverse((child) => {
@@ -1288,18 +1278,11 @@ function CameraPositionSetter({
         camera.position.set(cameraX, finalCameraY, cameraZ);
         hasSetPosition.current = true;
 
-        console.log('=== カメラ高さを地形に合わせて調整（成功） ===');
-        console.log('地形の高さ:', terrainHeight.toFixed(2), 'm');
-        console.log('調整後のカメラ高さ:', finalCameraY.toFixed(2), 'm');
 
         if (onReady) onReady();
         return;
       }
     } else {
-      // 地形が見つからない場合のログ（頻度を下げる）
-      if (frameCount.current % 60 === 0) {
-        console.log('=== カメラ高さ調整（地形検索中） ===', frameCount.current);
-      }
 
       // タイムアウト前でも、一定時間経過したら強制的にセットしてReadyにする
       // そうしないとローディングが終わらない
@@ -1343,6 +1326,8 @@ function PinMarkers3D({
 }) {
   const { scene, camera } = useThree();
   const [visibleLabelIds, setVisibleLabelIds] = React.useState<Set<string>>(new Set());
+  const visibleLabelIdsRef = useRef(visibleLabelIds);
+  visibleLabelIdsRef.current = visibleLabelIds;
   const pinHeightsRef = useRef<Map<string, number>>(new Map());
 
   const pinBasePositions = useMemo(() => {
@@ -1364,18 +1349,19 @@ function PinMarkers3D({
     pinHeightsRef.current.set(pinId, height);
   }, []);
 
-  // ラベル重なり判定による複数ラベル表示（8フレームに1回）
+  // ラベル重なり判定による複数ラベル表示（16フレームに1回）
   const frameCounter = React.useRef(0);
   const tmpVec3 = useMemo(() => new THREE.Vector3(), []);
+  const forwardVec = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
     frameCounter.current += 1;
-    if (frameCounter.current % 8 !== 0) return;
+    if (frameCounter.current % 16 !== 0) return;
 
     const camPos = camera.position;
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    forward.y = 0;
-    forward.normalize();
+    forwardVec.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    forwardVec.y = 0;
+    forwardVec.normalize();
 
     // 1. 候補ピンを収集しスコア計算
     const candidates: { id: string; score: number; screenX: number; screenY: number }[] = [];
@@ -1386,43 +1372,32 @@ function PinMarkers3D({
       const dx = pin.basePosition[0] - camPos.x;
       const dz = pin.basePosition[2] - camPos.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < 100 || dist > 5000) continue;
+      if (dist > 5000) continue;
 
-      const toPin = new THREE.Vector3(dx, 0, dz).normalize();
-      const dot = forward.dot(toPin);
+      tmpVec3.set(dx, 0, dz).normalize();
+      const dot = forwardVec.dot(tmpVec3);
       if (dot <= 0) continue;
 
-      // ピンの実際の高さを取得（未解決ならbasePositionのYを使う）
       const pinY = pinHeightsRef.current.get(pin.id) ?? pin.basePosition[1];
       tmpVec3.set(pin.basePosition[0], pinY, pin.basePosition[2]);
       tmpVec3.project(camera);
 
-      // NDC範囲外ならスキップ
       if (tmpVec3.x < -1.2 || tmpVec3.x > 1.2 || tmpVec3.y < -1.2 || tmpVec3.y > 1.2 || tmpVec3.z > 1) continue;
 
       const centerScore = dot;
-      const distBonus = 0.2 * (1 - Math.min((dist - 100) / 4900, 1));
+      const distBonus = 0.2 * (1 - Math.min(dist / 5000, 1));
       const score = centerScore + distBonus;
 
-      candidates.push({
-        id: pin.id,
-        score,
-        screenX: tmpVec3.x,
-        screenY: tmpVec3.y,
-      });
+      candidates.push({ id: pin.id, score, screenX: tmpVec3.x, screenY: tmpVec3.y });
     }
 
-    // 2. スコア順にソート
     candidates.sort((a, b) => b.score - a.score);
 
-    // 3. 貪欲法でラベル配置（AABB重なり判定）
-    // ラベルのNDC空間でのおおよそサイズ
     const labelW = 0.15;
     const labelH = 0.06;
     const placed: { x: number; y: number; w: number; h: number }[] = [];
     const newVisibleIds = new Set<string>();
 
-    // 選択ピンは常に表示
     if (selectedPin) {
       const sel = candidates.find((c) => c.id === selectedPin.id);
       if (sel) {
@@ -1433,8 +1408,6 @@ function PinMarkers3D({
 
     for (const c of candidates) {
       if (newVisibleIds.has(c.id)) continue;
-
-      // AABB重なり判定
       let overlaps = false;
       for (const p of placed) {
         if (
@@ -1445,7 +1418,6 @@ function PinMarkers3D({
           break;
         }
       }
-
       if (!overlaps) {
         newVisibleIds.add(c.id);
         placed.push({ x: c.screenX, y: c.screenY, w: labelW, h: labelH });
@@ -1453,8 +1425,14 @@ function PinMarkers3D({
     }
 
     // Set内容が変わらない場合はsetStateをスキップ
-    const prev = visibleLabelIds;
-    if (newVisibleIds.size !== prev.size || [...newVisibleIds].some((id) => !prev.has(id))) {
+    const prev = visibleLabelIdsRef.current;
+    let changed = newVisibleIds.size !== prev.size;
+    if (!changed) {
+      for (const id of newVisibleIds) {
+        if (!prev.has(id)) { changed = true; break; }
+      }
+    }
+    if (changed) {
       setVisibleLabelIds(newVisibleIds);
     }
   });
@@ -1508,12 +1486,17 @@ function FixedSizeText({
       <Text
         font={JAPANESE_FONT_URL}
         fontSize={isSelected ? 14 : 10}
-        color="rgba(255,255,255,0.75)"
+        color="#ffffff"
         anchorX="center"
         anchorY="bottom"
+        fillOpacity={0.75}
         outlineWidth={isSelected ? 0.8 : 0.3}
-        outlineColor="rgba(0,0,0,0.5)"
+        outlineColor="#000000"
+        outlineOpacity={0.5}
         material-fog={false}
+        material-depthTest={false}
+        material-depthWrite={false}
+        renderOrder={10}
         onPointerDown={(e) => {
           e.stopPropagation();
         }}
@@ -1622,30 +1605,27 @@ function PinMarker({
     }
   });
 
-  // カメラとの距離を計算して表示・非表示を切り替え
+  const billboardRef = React.useRef<THREE.Group>(null);
+
+  // カメラとの距離を計算して表示・非表示＆ラベル高さを切り替え
   useFrame(({ camera }) => {
     if (groupRef.current && pinHeight !== null) {
       const pinPosition = new THREE.Vector3(basePosition[0], pinHeight, basePosition[2]);
       const distSq = camera.position.distanceToSquared(pinPosition);
-      groupRef.current.visible = distSq >= 10000 && distSq < 25000000;
+      groupRef.current.visible = distSq < 25000000;
+
+      // 近いラベルほど低く（距離500以内→30、距離2000以上→150）
+      if (billboardRef.current) {
+        const dist = Math.sqrt(distSq);
+        const t = Math.min(Math.max((dist - 500) / 1500, 0), 1);
+        billboardRef.current.position.y = 30 + t * 120;
+      }
     }
   });
 
   if (pinHeight === null) {
     return null;
   }
-
-  // ラベル高さ（ピン位置からのオフセット）
-  const labelY = 150;
-
-  const PinLabel = () => (
-    <FixedSizeText
-      text={title}
-      pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
-      isSelected={isSelected}
-      onClick={handleClick}
-    />
-  );
 
   return (
     <group ref={groupRef} key={id} position={[basePosition[0], pinHeight, basePosition[2]]}>
@@ -1663,10 +1643,62 @@ function PinMarker({
 
       {/* 通常ピン: ラベル */}
       {type !== 'debug' && showLabel && (
-        <Billboard follow={true} lockX={false} lockY={false} lockZ={false} position={[0, labelY, 0]}>
-          <PinLabel />
+        <Billboard ref={billboardRef} follow={true} lockX={false} lockY={false} lockZ={false} position={[0, 150, 0]}>
+          <FixedSizeText
+            text={title}
+            pinWorldPosition={[basePosition[0], pinHeight, basePosition[2]]}
+            isSelected={isSelected}
+            onClick={handleClick}
+          />
         </Billboard>
       )}
+    </group>
+  );
+}
+
+// デバッグ用: 東西南北の壁（北=赤, 南=黒, 東=青, 西=白）
+function DirectionWalls() {
+  const distance = 3000;
+  const wallWidth = 2000;
+  const wallHeight = 500;
+
+  return (
+    <group>
+      {/* 北 (赤) -Z方向 */}
+      <mesh position={[0, wallHeight / 2, -distance]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="red" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[0, wallHeight + 50, -distance]} fontSize={100} color="red" anchorX="center" material-depthWrite={false} renderOrder={1}>
+        N
+      </Text>
+
+      {/* 南 (黒) +Z方向 */}
+      <mesh position={[0, wallHeight / 2, distance]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="black" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[0, wallHeight + 50, distance]} fontSize={100} color="black" anchorX="center" material-depthWrite={false} renderOrder={1}>
+        S
+      </Text>
+
+      {/* 東 (青) +X方向 */}
+      <mesh position={[distance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="blue" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[distance, wallHeight + 50, 0]} fontSize={100} color="blue" anchorX="center" material-depthWrite={false} renderOrder={1}>
+        E
+      </Text>
+
+      {/* 西 (白) -X方向 */}
+      <mesh position={[-distance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[wallWidth, wallHeight]} />
+        <meshBasicMaterial color="white" side={THREE.DoubleSide} />
+      </mesh>
+      <Text position={[-distance, wallHeight + 50, 0]} fontSize={100} color="white" anchorX="center" material-depthWrite={false} renderOrder={1}>
+        W
+      </Text>
     </group>
   );
 }

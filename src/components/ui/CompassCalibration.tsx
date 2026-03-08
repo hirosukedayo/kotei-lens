@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCheck, FaHandPointer, FaUndo, FaArrowLeft } from 'react-icons/fa';
+import { Drawer } from 'vaul';
+const VDrawer = Drawer as unknown as any;
+import { FaCheck, FaHandPointer, FaChevronUp, FaChevronDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { IoCloseOutline } from 'react-icons/io5';
 import type { DeviceOrientation } from '../../types/sensors';
 
@@ -15,6 +17,12 @@ interface CompassCalibrationProps {
     startInManualMode?: boolean;
     /** スライダー操作時にリアルタイムでオフセットを通知するコールバック */
     onOffsetChange?: (offset: number) => void;
+    /** 高さオフセット初期値 */
+    initialHeightOffset?: number;
+    /** 高さスライダー操作時にリアルタイムで通知するコールバック */
+    onHeightOffsetChange?: (offset: number) => void;
+    /** 高さが下限に達しているか */
+    heightAtFloor?: boolean;
 }
 
 type CalibrationStep = 'intro' | 'horizontal' | 'manual' | 'complete';
@@ -28,18 +36,39 @@ export default function CompassCalibration({
     allowManualAdjustment = true,
     startInManualMode = false,
     onOffsetChange,
+    initialHeightOffset = 0,
+    onHeightOffsetChange,
+    heightAtFloor = false,
 }: CompassCalibrationProps) {
     // const { sensorData } = useSensors(); // 親からデータを受け取るため削除
     const [step, setStep] = useState<CalibrationStep>(startInManualMode ? 'manual' : 'horizontal');
+    const [manualDrawerOpen, setManualDrawerOpen] = useState(true);
     const [manualOffset, setManualOffset] = useState(initialOffset);
+    const [heightOffset, setHeightOffset] = useState(initialHeightOffset);
     const [isHorizontal, setIsHorizontal] = useState(false);
     const [stabilityProgress, setStabilityProgress] = useState(0);
+
+    // stepがmanualに変わったらDrawerを開く
+    useEffect(() => {
+        if (step === 'manual') setManualDrawerOpen(true);
+    }, [step]);
+
+    // Vaulがbodyにpointer-events: noneを付与するのを防ぐ
+    useEffect(() => {
+        if (step === 'manual') {
+            const timer = setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 50);
+            return () => clearTimeout(timer);
+        }
+        document.body.style.pointerEvents = '';
+    }, [step]);
 
     const HORIZONTAL_THRESHOLD = 5;
     const STABILITY_DURATION = 1500;
 
     const lastTimeRef = useRef<number>(Date.now());
     const stabilityTimerRef = useRef<number>(0);
+    const onCalibrationCompleteRef = useRef(onCalibrationComplete);
+    onCalibrationCompleteRef.current = onCalibrationComplete;
 
 
 
@@ -102,136 +131,225 @@ export default function CompassCalibration({
             setStabilityProgress(progress);
 
             if (stabilityTimerRef.current >= STABILITY_DURATION) {
-                if (manualOffset !== 0) {
-                    setManualOffset(0);
+                // 水平時にcompassHeadingとalphaの差分を計算
+                // compassHeading: 0=北, 時計回り → Three.js: 360-compassHeading で反時計回りに変換
+                // alpha: ジャイロベース（任意基準）
+                // offset = (360 - compassHeading) - alpha → alphaに足すと真北基準になる
+                if (compassHeading !== null && orientation?.alpha !== null && orientation?.alpha !== undefined) {
+                    let offset = (360 - compassHeading) - orientation.alpha;
+                    // -180〜180 に正規化
+                    while (offset > 180) offset -= 360;
+                    while (offset <= -180) offset += 360;
+                    // ref経由で最新のコールバックを確実に呼ぶ
+                    setTimeout(() => onCalibrationCompleteRef.current(offset), 0);
+                } else {
+                    setTimeout(() => onCalibrationCompleteRef.current(0), 0);
                 }
-                setStep('complete');
             }
         } else {
             stabilityTimerRef.current = Math.max(0, stabilityTimerRef.current - dt);
             setStabilityProgress((prev) => Math.max(0, prev - (dt / STABILITY_DURATION) * 100));
         }
-    }, [orientation, step, manualOffset]);
+    }, [orientation, step, compassHeading]);
 
-    const handleManualComplete = () => {
-        onCalibrationComplete(manualOffset);
-    };
+    // 長押し用タイマー
+    const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const stopHold = useCallback(() => {
+        if (holdIntervalRef.current !== null) {
+            clearInterval(holdIntervalRef.current);
+            holdIntervalRef.current = null;
+        }
+    }, []);
+
+    // クリーンアップ
+    useEffect(() => stopHold, [stopHold]);
+
+    const startHold = useCallback((action: () => void) => {
+        action(); // 即座に1回実行
+        holdIntervalRef.current = setInterval(action, 80);
+    }, []);
+
+    const adjustHeading = useCallback((delta: number) => {
+        setManualOffset(prev => {
+            let next = prev + delta;
+            if (next > 180) next -= 360;
+            if (next < -180) next += 360;
+            const rounded = Math.round(next);
+            onOffsetChange?.(rounded);
+            return rounded;
+        });
+    }, [onOffsetChange]);
+
+    const adjustHeight = useCallback((delta: number) => {
+        setHeightOffset(prev => {
+            const next = Math.max(-200, Math.min(200, prev + delta));
+            onHeightOffsetChange?.(next);
+            return next;
+        });
+    }, [onHeightOffsetChange]);
+
+    const dismissManual = useCallback(() => {
+        // まずDrawerを閉じ、アニメーション完了後にコールバック
+        setManualDrawerOpen(false);
+        setTimeout(() => {
+            onCalibrationComplete(manualOffset);
+        }, 350);
+    }, [manualOffset, onCalibrationComplete]);
 
     const handleAutoComplete = () => {
-        onCalibrationComplete(0);
+        onCalibrationComplete(manualOffset);
     };
 
     return (
         <>
-            {/* Manual Mode: Bottom Panel Only */}
-            {step === 'manual' && (
+            {/* Manual Mode: 3Dビュータップで閉じるオーバーレイ */}
+            {step === 'manual' && manualDrawerOpen && (
                 <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 29999 }}
+                    onClick={dismissManual}
+                    onKeyDown={() => {}}
+                    role="presentation"
+                />
+            )}
+
+            {/* Manual Mode: vaul Bottom Sheet */}
+            <VDrawer.Root
+                open={step === 'manual' && manualDrawerOpen}
+                onOpenChange={(open: boolean) => { if (!open) dismissManual(); }}
+                modal={false}
+                noBodyStyles
+            >
+                <VDrawer.Content
                     style={{
                         position: 'fixed',
-                        bottom: 0,
-                        left: 0,
-                        width: '100vw',
-                        // 上部は透明にして3Dを見せる
-                        height: 'auto',
-                        pointerEvents: 'none', // 背景へのクリックを阻害しない？いや、スライダー操作必要
+                        left: 0, right: 0, bottom: 0,
                         zIndex: 30000,
+                        background: 'transparent',
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'flex-end',
                     }}
+                    onOpenAutoFocus={(e: Event) => e.preventDefault()}
+                    onCloseAutoFocus={(e: Event) => e.preventDefault()}
                 >
-                    {/* Close / Return Button - Top Right of screen (but outside panel) */}
-                    <div style={{ position: 'fixed', top: '16px', right: '16px', pointerEvents: 'auto', zIndex: 30001 }}>
-                        <button
-                            type="button"
-                            onClick={() => startInManualMode ? onClose?.() : setStep('horizontal')}
-                            style={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: 9999,
-                                background: 'rgba(0,0,0,0.6)',
-                                color: 'white',
-                                border: 'none',
-                                backdropFilter: 'blur(4px)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {startInManualMode ? <IoCloseOutline size={28} /> : <FaArrowLeft size={22} />}
-                        </button>
-                    </div>
+                    <VDrawer.Title style={{ display: 'none' }}>手動調整</VDrawer.Title>
+                    <VDrawer.Description style={{ display: 'none' }}>方位と高さを手動で調整します。</VDrawer.Description>
 
-                    <motion.div
-                        initial={{ y: 200 }}
-                        animate={{ y: 0 }}
+                    <div
                         style={{
                             background: 'rgba(0, 0, 0, 0.8)',
                             backdropFilter: 'blur(10px)',
-                            borderTopLeftRadius: '20px',
-                            borderTopRightRadius: '20px',
-                            padding: '20px',
+                            borderTopLeftRadius: 16,
+                            borderTopRightRadius: 16,
+                            padding: '0 20px 40px',
                             color: 'white',
-                            pointerEvents: 'auto',
-                            paddingBottom: '40px', // iPhone Home bar area
                         }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '15px', gap: '8px' }}>
-                            <FaHandPointer size={18} />
-                            <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0 }}>手動方位調整</h2>
+                        {/* ドラッグハンドル */}
+                        <div style={{ padding: '12px 0 10px', display: 'flex', justifyContent: 'center' }}>
+                            <div data-vaul-handle style={{ background: 'rgba(255,255,255,0.3)' }} />
                         </div>
 
-                        <p style={{ fontSize: '0.9rem', textAlign: 'center', opacity: 0.8, marginBottom: '20px' }}>
-                            風景と地図が重なるようにスライダーを調整
+                        <p style={{ fontSize: '0.85rem', textAlign: 'center', color: 'rgba(255,255,255,0.6)', margin: '0 0 20px' }}>
+                            カメラ画面と山を重ねてみよう
                         </p>
 
-                        <div style={{ marginBottom: '25px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
-                                <span>補正値: {manualOffset}°</span>
-                                <button
-                                    type="button"
-                                    onClick={() => setManualOffset(0)}
-                                    style={{ background: 'none', border: 'none', color: '#48bb78', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                    <FaUndo size={12} /> リセット
-                                </button>
-                            </div>
-                            <input
-                                type="range"
-                                min="-180"
-                                max="180"
-                                value={manualOffset}
-                                onChange={(e) => {
-                                    const newOffset = Number(e.target.value);
-                                    setManualOffset(newOffset);
-                                    onOffsetChange?.(newOffset);
+                        {/* D-pad コントローラー */}
+                        <div data-vaul-no-drag style={{ position: 'relative', height: 56, marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            {/* 左ボタン（方位-） */}
+                            <button
+                                type="button"
+                                onPointerDown={() => startHold(() => adjustHeading(2))}
+                                onPointerUp={stopHold}
+                                onPointerLeave={stopHold}
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{
+                                    width: 56, height: 56, minHeight: 0, padding: 0, borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.25)',
+                                    color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', touchAction: 'none',
                                 }}
-                                style={{ width: '100%', height: '8px', accentColor: '#48bb78', cursor: 'pointer' }}
-                            />
+                            >
+                                <FaChevronLeft size={20} />
+                            </button>
+
+                            {/* 上ボタン（高さ+） */}
+                            <button
+                                type="button"
+                                onPointerDown={() => startHold(() => adjustHeight(2))}
+                                onPointerUp={stopHold}
+                                onPointerLeave={stopHold}
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{
+                                    position: 'absolute', left: '50%', top: -14, transform: 'translateX(-50%)',
+                                    width: 36, height: 36, minHeight: 0, padding: 0, borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.25)',
+                                    color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', touchAction: 'none', zIndex: 1,
+                                }}
+                            >
+                                <FaChevronUp size={12} />
+                            </button>
+
+                            {/* 下ボタン（高さ-） */}
+                            <button
+                                type="button"
+                                onPointerDown={() => { if (!heightAtFloor) startHold(() => adjustHeight(-2)); }}
+                                onPointerUp={stopHold}
+                                onPointerLeave={stopHold}
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{
+                                    position: 'absolute', left: '50%', bottom: -14, transform: 'translateX(-50%)',
+                                    width: 36, height: 36, minHeight: 0, padding: 0, borderRadius: '50%',
+                                    backgroundColor: heightAtFloor ? 'rgba(255,80,80,0.15)' : 'rgba(255,255,255,0.1)',
+                                    border: `2px solid ${heightAtFloor ? 'rgba(255,80,80,0.4)' : 'rgba(255,255,255,0.25)'}`,
+                                    color: heightAtFloor ? 'rgba(255,80,80,0.5)' : 'rgba(255,255,255,0.7)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: heightAtFloor ? 'not-allowed' : 'pointer', touchAction: 'none', zIndex: 1,
+                                }}
+                            >
+                                <FaChevronDown size={12} />
+                            </button>
+
+                            {/* 右ボタン（方位-） */}
+                            <button
+                                type="button"
+                                onPointerDown={() => startHold(() => adjustHeading(-2))}
+                                onPointerUp={stopHold}
+                                onPointerLeave={stopHold}
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{
+                                    width: 56, height: 56, minHeight: 0, padding: 0, borderRadius: '50%',
+                                    backgroundColor: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.25)',
+                                    color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', touchAction: 'none',
+                                }}
+                            >
+                                <FaChevronRight size={20} />
+                            </button>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleManualComplete}
-                            style={{
-                                width: '100%',
-                                background: '#48bb78',
-                                border: 'none',
-                                color: 'white',
-                                padding: '14px',
-                                borderRadius: '30px',
-                                fontSize: '1rem',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                boxShadow: '0 4px 10px rgba(72, 187, 120, 0.4)',
-                            }}
-                        >
-                            決定
-                        </button>
-                    </motion.div>
-                </div>
-            )}
+                        {/* 補正値 + リセット */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
+                            <span>方位 {manualOffset}°</span>
+                            <span>高さ {heightOffset > 0 ? `+${heightOffset}` : heightOffset}m</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setManualOffset(0); onOffsetChange?.(0);
+                                    setHeightOffset(0); onHeightOffsetChange?.(0);
+                                }}
+                                style={{
+                                    background: 'none', backgroundColor: 'transparent', border: 'none', minHeight: 0, padding: '2px 6px',
+                                    color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '0.7rem', textDecoration: 'underline',
+                                }}
+                            >
+                                リセット
+                            </button>
+                        </div>
+                    </div>
+                </VDrawer.Content>
+            </VDrawer.Root>
 
             {/* Full Overlay for Horizontal/Complete steps */}
             {step !== 'manual' && (
