@@ -21,11 +21,11 @@ const imageFiles = new Set(
 );
 
 // スキップするtype
-const SKIP_TYPES = new Set(['photo']);
+const SKIP_TYPES = new Set([]);
 
 // 有効なtype一覧
 const VALID_TYPES = new Set([
-  'interview', 'historical', 'folktale', 'heritage', 'current', 'parking',
+  'interview', 'historical', 'folktale', 'heritage', 'current', 'parking', 'photo',
 ]);
 
 /**
@@ -206,8 +206,8 @@ try {
       continue;
     }
 
-    // 原稿未定スキップ（parkingはdescription空でもOK）
-    if (type !== 'parking' && (description.startsWith('※原稿が必要') || description === '')) {
+    // 原稿未定スキップ（parking, photoはdescription空でもOK）
+    if (type !== 'parking' && type !== 'photo' && (description.startsWith('※原稿が必要') || description === '')) {
       skippedDraft++;
       console.warn(`[SKIP] id=${id} "${title}": 原稿未定またはdescription空`);
       continue;
