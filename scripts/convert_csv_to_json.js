@@ -5,7 +5,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const csvPath = path.resolve(__dirname, '../resources/spot_20260219.csv');
+const csvArg = process.argv[2];
+if (!csvArg) {
+  console.error('Usage: node scripts/convert_csv_to_json.js <csv-file>');
+  console.error('例: node scripts/convert_csv_to_json.js resources/spot_20260309.csv');
+  process.exit(1);
+}
+const csvPath = path.resolve(csvArg);
 const outputPath = path.resolve(__dirname, '../src/data/okutama-pins.ts');
 const imagesDir = path.resolve(__dirname, '../public/images');
 
@@ -19,7 +25,7 @@ const SKIP_TYPES = new Set(['photo']);
 
 // 有効なtype一覧
 const VALID_TYPES = new Set([
-  'interview', 'historical', 'folktale', 'heritage', 'current',
+  'interview', 'historical', 'folktale', 'heritage', 'current', 'parking',
 ]);
 
 /**
@@ -182,6 +188,7 @@ try {
     const folktaleTitle = colIndex.folktale !== undefined ? (cols[colIndex.folktale] || '').trim() : '';
     const folktaleId = colIndex.folktale_id !== undefined ? (cols[colIndex.folktale_id] || '').trim() : '';
     const performingArtTitle = colIndex.heritage !== undefined ? (cols[colIndex.heritage] || '').trim() : '';
+    const bearingStr = colIndex.bearing !== undefined ? (cols[colIndex.bearing] || '').trim() : '';
 
     // 空行スキップ
     if (!id && !title) continue;
@@ -199,8 +206,8 @@ try {
       continue;
     }
 
-    // 原稿未定スキップ
-    if (description.startsWith('※原稿が必要') || description === '') {
+    // 原稿未定スキップ（parkingはdescription空でもOK）
+    if (type !== 'parking' && (description.startsWith('※原稿が必要') || description === '')) {
       skippedDraft++;
       console.warn(`[SKIP] id=${id} "${title}": 原稿未定またはdescription空`);
       continue;
@@ -235,6 +242,8 @@ try {
     if (folktaleTitle) basePinData.folktaleTitle = folktaleTitle;
     if (folktaleId) basePinData.folktaleId = folktaleId;
     if (performingArtTitle) basePinData.performingArtTitle = performingArtTitle;
+    const bearingNum = parseFloat(bearingStr);
+    if (!isNaN(bearingNum) && bearingNum >= 0 && bearingNum <= 360) basePinData.bearing = bearingNum;
 
     if (coordinatesList.length === 1) {
       pins.push({
@@ -260,7 +269,7 @@ try {
   // TypeScriptファイルの生成
   const tsContent = `import type { PinData } from '../types/pins';
 
-// CSV由来のピンデータ (Generated from spot_20260219.csv)
+// CSV由来のピンデータ (Generated from ${path.basename(csvPath)})
 export const okutamaPins: PinData[] = ${JSON.stringify(pins, null, 2)};
 `;
 
