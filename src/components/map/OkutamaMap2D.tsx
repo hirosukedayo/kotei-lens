@@ -71,11 +71,10 @@ const PinRippleEffect = ({ position }: { position: [number, number] }) => {
       canvas.height = canvasSize;
 
       // マップ上の座標をピクセル位置に変換してキャンバスを配置
-      // iconAnchorが下端中央 [28, 56] なので、ピンの円の中心は point.y - 28 の位置
+      // iconAnchorが中央 [28, 28] なので、ピンの円の中心 = point そのもの
       const point = map.latLngToContainerPoint(position);
-      const pinCenterY = point.y - 28; // ringSize(56) / 2
       canvas.style.left = `${point.x - canvasSize / 2}px`;
-      canvas.style.top = `${pinCenterY - canvasSize / 2}px`;
+      canvas.style.top = `${point.y - canvasSize / 2}px`;
 
       ctx.clearRect(0, 0, canvasSize, canvasSize);
       const cx = canvasSize / 2;
@@ -259,9 +258,9 @@ const MapClickHandler = ({
 
       for (const pin of pinsRef.current) {
         const pinPoint = map.latLngToContainerPoint(pin.coordinates as L.LatLngExpression);
-        // iconAnchorが下端中央なので、ピンの円の中心はpinPoint.y - 28の位置
+        // iconAnchorが中央なので、ピンの円の中心 = pinPoint そのもの
         const dx = clickPoint.x - pinPoint.x;
-        const dy = clickPoint.y - (pinPoint.y - HIT_RADIUS_PX);
+        const dy = clickPoint.y - pinPoint.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= HIT_RADIUS_PX && (!closest || dist < closest.dist)) {
           closest = { pin, dist };
@@ -391,7 +390,7 @@ export default function OkutamaMap2D({
       `,
       className: 'custom-pin',
       iconSize: [ringSize, ringSize],
-      iconAnchor: [ringSize / 2, ringSize],
+      iconAnchor: [ringSize / 2, ringSize / 2],
     });
   }, []);
 
