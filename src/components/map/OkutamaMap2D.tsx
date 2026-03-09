@@ -5,7 +5,7 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import type { LatLngExpression, LatLngBoundsExpression, Map as LeafletMap } from 'leaflet';
 import L from 'leaflet';
 import { FaListUl, FaLocationArrow, FaMapMarkerAlt, FaCompass, FaPlus, FaMinus } from 'react-icons/fa';
-import { PiCubeFocusFill, PiWrenchFill } from 'react-icons/pi';
+import { PiCubeFocusFill } from 'react-icons/pi';
 import SensorPermissionRequest from '../ui/SensorPermissionRequest';
 import { useSensors } from '../../hooks/useSensors';
 import CompassCalibration from '../ui/CompassCalibration';
@@ -485,15 +485,8 @@ export default function OkutamaMap2D({
     }
   }, [sensorManager.orientationService]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
-
   // 3D切替: クリック時にまず2Dマップを初期位置に移動し、その後権限確認へ
   const handleRequest3DWithPermission = async () => {
-    if (import.meta.env.VITE_ALLOW_INDEXING === 'true') {
-      setShowComingSoonModal(true);
-      return;
-    }
-
     preloadLakeModel();
 
     const [targetLat, targetLng] = get3DTargetPosition();
@@ -1194,53 +1187,6 @@ export default function OkutamaMap2D({
         />
       )}
       {/* 本番環境 3Dモード準備中モーダル */}
-      {showComingSoonModal && (
-        <div
-          aria-labelledby="coming-soon-modal-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 30000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(4px)',
-          }}
-          onClick={() => setShowComingSoonModal(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setShowComingSoonModal(false);
-          }}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 16,
-              padding: '32px 28px 24px',
-              maxWidth: 'min(380px, 88vw)',
-              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.2)',
-              textAlign: 'center',
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={() => {}}
-          >
-            <div style={{ marginBottom: 12 }}><PiWrenchFill size={32} color="#3b82f6" /></div>
-            <h3 id="coming-soon-modal-title" style={{ margin: '0 0 12px', fontSize: '17px', fontWeight: 700, color: '#111827', lineHeight: 1.4 }}>
-              3Dビューは準備中です
-            </h3>
-            <p style={{ margin: '0 0 24px', fontSize: '14px', color: '#6b7280', lineHeight: 1.7 }}>
-              現在調整中です。<br />リリースまでもう少しお待ちください！
-            </p>
-            <button
-              type="button"
-              className="modal-btn-primary"
-              onClick={() => setShowComingSoonModal(false)}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
     </div >
   );
 }
