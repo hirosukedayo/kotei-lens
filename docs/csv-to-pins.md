@@ -26,7 +26,7 @@ node scripts/convert_csv_to_json.js resources/spot_20260309.csv
 | `id` | Yes | ピンID |
 | `title` | Yes | タイトル |
 | `coordinates` | Yes | 座標 (`[lat, lng]` 形式、複数座標にも対応) |
-| `type` | Yes | ピン種別 (`interview`, `historical`, `folktale`, `heritage`, `current`, `parking`) |
+| `type` | Yes | ピン種別 (`interview`, `historical`, `folktale`, `heritage`, `current`, `parking`, `photo`) |
 | `description` | Yes | 説明文 |
 | `google_map_url` | No | Google Map リンク |
 | `general_url` | No | 外部リンクURL |
@@ -40,9 +40,8 @@ node scripts/convert_csv_to_json.js resources/spot_20260309.csv
 
 ## スキップされる行
 
-- `type` が `photo` の行
 - `type` が空または上記以外の行
-- `description` が空、または `※原稿が必要` で始まる行（`parking` は除く）
+- `description` が空、または `※原稿が必要` で始まる行（`parking`, `photo` は除く）
 - 座標が空またはパース不可の行
 
 ## 複数座標の展開
