@@ -5,6 +5,7 @@
 ## 前提条件
 
 - `GEMINI_API_KEY` 環境変数が必要（Google AI Studio で取得）
+- `GEMINI_MODEL` 環境変数でモデルを変更可能（省略時は `gemini-3-flash-preview`）
 
 ## 手順
 
@@ -12,6 +13,12 @@
 
 ```bash
 GEMINI_API_KEY=xxx node scripts/generate-readings.mjs
+```
+
+503 エラーが頻発する場合は `GEMINI_MODEL` で別のモデルを指定してください:
+
+```bash
+GEMINI_API_KEY=xxx GEMINI_MODEL=gemini-2.0-flash node scripts/generate-readings.mjs
 ```
 
 - `src/data/okutama-pins.ts` から `description` が空でないピンを抽出
