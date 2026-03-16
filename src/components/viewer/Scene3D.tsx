@@ -21,7 +21,7 @@ import { FaListUl, FaSlidersH, FaEye, FaMountain } from 'react-icons/fa';
 import {
   TERRAIN_SCALE_FACTOR,
   TERRAIN_CENTER_OFFSET,
-  WATER_CENTER_OFFSET,
+
   TERRAIN_BASE_SCALE,
   TERRAIN_ORIGINAL_CENTER,
   CAMERA_HEIGHT_OFFSET,
@@ -126,7 +126,7 @@ export default function Scene3D({
 
   const [isControlsVisible] = useState(false); // デフォルトで非表示
   const [showCameraControls] = useState(false);
-  const [waterLevelOffset, setWaterLevelOffset] = useState(0);
+
   const [cameraHeightOffset, setCameraHeightOffset] = useState(0);
   const [heightAtFloor, setHeightAtFloor] = useState(false);
   const [actualCameraHeight, setActualCameraHeight] = useState<number | null>(null);
@@ -501,12 +501,10 @@ export default function Scene3D({
             scale={[1, 1, 1]}
             rotation={[0, 0, 0]}
             visible={true}
-            waterLevelOffset={waterLevelOffset}
             terrainScale={(() => {
               const s = TERRAIN_BASE_SCALE * TERRAIN_SCALE_FACTOR * (1 + terrainScaleOffset / 100);
               return [s, s, s] as [number, number, number];
             })()}
-            waterPosition={WATER_CENTER_OFFSET}
             hiddenObjects={stableFbxHiddenObjects}
             onObjectsLoaded={handleFbxObjectsLoaded}
           />
@@ -696,48 +694,6 @@ export default function Scene3D({
               value={fov}
               onChange={(e) => setFov(Number(e.target.value))}
               style={{ width: '100%', height: '4px' }}
-            />
-          </div>
-
-          {/* 水面高度調整スライダー */}
-          <div style={{ width: '100%' }}>
-            <div
-              style={{
-                color: 'white',
-                fontSize: '12px',
-                marginBottom: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <FaEye style={{ transform: 'rotate(180deg)', color: '#3182ce' }} /> 水面高度: {waterLevelOffset > 0 ? `+${waterLevelOffset}` : waterLevelOffset}m
-              </div>
-              <button
-                type="button"
-                onClick={() => setWaterLevelOffset(0)}
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: '10px',
-                  padding: '2px 8px',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                }}
-              >
-                Reset
-              </button>
-            </div>
-            <input
-              type="range"
-              min="-10"
-              max="20"
-              step="0.5"
-              value={waterLevelOffset}
-              onChange={(e) => setWaterLevelOffset(Number(e.target.value))}
-              style={{ width: '100%', height: '4px', accentColor: '#3182ce' }}
             />
           </div>
 

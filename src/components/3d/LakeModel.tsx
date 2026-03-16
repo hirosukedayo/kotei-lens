@@ -1,10 +1,9 @@
 
 import type React from 'react';
 import { useEffect, useState, useRef, memo, useMemo, useCallback } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
-import { TERRAIN_SCALE_FACTOR, WATER_INITIAL_OFFSET, FBX_NORMALIZATION_TARGET } from '../../config/terrain-config';
+import { FBX_NORMALIZATION_TARGET } from '../../config/terrain-config';
 import { createTerrainSplatMaterial } from './TerrainSplatMaterial';
 
 interface LakeModelProps {
@@ -13,8 +12,6 @@ interface LakeModelProps {
   rotation?: [number, number, number];
   visible?: boolean;
   terrainScale?: [number, number, number];
-  waterPosition?: [number, number, number];
-  waterLevelOffset?: number;
   /** 非表示にするオブジェクト名のSet */
   hiddenObjects?: Set<string>;
   /** FBX内のオブジェクト名リストが判明した時のコールバック */
@@ -33,7 +30,7 @@ const modelCache = new Map<string, { model: THREE.Group | null; promise: Promise
 // eslint-disable-next-line react-refresh/only-export-components
 export const preloadLakeModel = () => {
   const basePath = getBasePath();
-  const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
+  const modelPath = `${basePath}models/OkutamaLake_Finished_0315.glb`;
 
   if (modelCache.has(modelPath)) {
     return;
@@ -198,20 +195,12 @@ const loadModel = (path: string): Promise<THREE.Group> => {
   return loadPromise;
 };
 
-// 水面アニメーション開始時間をグローバルに保持
-const globalWaterDrainStartTime = { value: null as number | null };
-
-// 水面の現在位置をグローバルに保持
-const globalWaterPosition = { value: null as { x: number; y: number; z: number } | null };
-
 export function LakeModel({
   position = [0, 0, 0],
   scale = [1, 1, 1],
   rotation = [0, 0, 0],
   visible = true,
   terrainScale = [1, 1, 1],
-  waterPosition = [0, 0, 0],
-  waterLevelOffset = 0,
   hiddenObjects,
   onObjectsLoaded,
 }: LakeModelProps) {
@@ -221,9 +210,6 @@ export function LakeModel({
   const [modelScene, setModelScene] = useState<THREE.Group | null>(null);
   /** 全メッシュのクローン: { name, object }[] */
   const [clonedMeshes, setClonedMeshes] = useState<{ name: string; object: THREE.Object3D }[]>([]);
-  const terrainBottomYRef = useRef<number | null>(null);
-  const { scene } = useThree();
-  const waterGroupRef = useRef<THREE.Group | null>(null);
   const onObjectsLoadedRef = useRef(onObjectsLoaded);
   onObjectsLoadedRef.current = onObjectsLoaded;
 
@@ -245,7 +231,7 @@ export function LakeModel({
   // モデルファイルの読み込み（キャッシュを使用）
   useEffect(() => {
     let isMounted = true;
-    const modelPath = `${basePath}models/OkutamaLake_allmodel_test0301.glb`;
+    const modelPath = `${basePath}models/OkutamaLake_Finished_0315.glb`;
 
     const cached = modelCache.get(modelPath);
     console.log('[LakeModel] mount, cached:', !!cached?.model, 'promise:', !!cached?.promise);
@@ -307,130 +293,9 @@ export function LakeModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelScene]);
 
-  // 水面(RiverWater)オブジェクトをシーンに直接追加（水面アニメーション用）
-  const waterMesh = useMemo(
-    () => clonedMeshes.find(m => m.name === 'RiverWater'),
-    [clonedMeshes]
-  );
-  const isWaterHidden = hiddenObjects?.has('RiverWater') ?? false;
-
-  useEffect(() => {
-    if (!waterMesh || isWaterHidden || !isLoaded) {
-      if (waterGroupRef.current?.parent) {
-        waterGroupRef.current.parent.remove(waterGroupRef.current);
-        waterGroupRef.current = null;
-      }
-      return;
-    }
-
-    if (!waterGroupRef.current) {
-      const waterGroup = new THREE.Group();
-      waterGroup.name = 'WaterGroup';
-      waterGroupRef.current = waterGroup;
-
-      waterMesh.object.scale.set(stableTerrainScale[0], stableTerrainScale[1], stableTerrainScale[2]);
-      waterGroup.add(waterMesh.object);
-
-      scene.add(waterGroup);
-    } else {
-      waterGroupRef.current.scale.set(stableTerrainScale[0], stableTerrainScale[1], stableTerrainScale[2]);
-    }
-
-    return () => {
-      if (waterGroupRef.current?.parent) {
-        waterGroupRef.current.parent.remove(waterGroupRef.current);
-        waterGroupRef.current = null;
-      }
-    };
-  }, [waterMesh, isWaterHidden, isLoaded, stableTerrainScale, scene]);
-
-  // アニメーション（水面の干上がり）
-  useFrame(() => {
-    if (!isLoaded || !waterMesh || isWaterHidden) return;
-
-    const clonedWater = waterMesh.object;
-    const initialWaterOffset = (WATER_INITIAL_OFFSET + waterLevelOffset) * TERRAIN_SCALE_FACTOR;
-    let waterY = initialWaterOffset;
-
-    if (globalWaterDrainStartTime.value) {
-      const elapsed = (Date.now() - globalWaterDrainStartTime.value) / 1000;
-      const delay = 1.0;
-      const animationDuration = 120.0;
-
-      if (elapsed >= delay) {
-        const animationElapsed = elapsed - delay;
-        const drainProgress = Math.min(animationElapsed / animationDuration, 1.0);
-        const easedProgress = 1 - (1 - drainProgress) ** 3;
-
-        if (terrainBottomYRef.current !== null) {
-          const targetWaterY = terrainBottomYRef.current - 5;
-          const initialWaterY = waterPosition[1] + initialWaterOffset;
-          waterY =
-            initialWaterY + (targetWaterY - initialWaterY) * easedProgress - waterPosition[1];
-        } else {
-          const baseDrainHeight = -25;
-          const scaledDrainHeight = baseDrainHeight * TERRAIN_SCALE_FACTOR;
-          waterY = initialWaterOffset + scaledDrainHeight * easedProgress;
-        }
-      }
-    }
-
-    const targetX = waterPosition[0];
-    const targetY = waterPosition[1] + waterY;
-    const targetZ = waterPosition[2];
-
-    globalWaterPosition.value = { x: targetX, y: targetY, z: targetZ };
-
-    clonedWater.position.set(targetX, targetY, targetZ);
-    if (waterGroupRef.current) {
-      waterGroupRef.current.position.set(
-        position[0] + targetX,
-        position[1] + targetY,
-        position[2] + targetZ
-      );
-      waterGroupRef.current.updateMatrixWorld(true);
-    }
-    clonedWater.updateMatrixWorld(true);
-
-    // 水面のマテリアル効果（ドレインアニメーション時の透明度変化のみ）
-    if (globalWaterDrainStartTime.value) {
-      clonedWater.traverse((child: THREE.Object3D) => {
-        if (child instanceof THREE.Mesh && child.material) {
-          const material = child.material as THREE.MeshPhysicalMaterial;
-          const elapsed = (Date.now() - (globalWaterDrainStartTime.value ?? 0)) / 1000;
-          const delay = 1.0;
-          const animationDuration = 120.0;
-
-          if (elapsed >= delay) {
-            const animationElapsed = elapsed - delay;
-            const drainProgress = Math.min(animationElapsed / animationDuration, 1.0);
-            material.opacity = Math.max(0.3, 0.85 * (1 - drainProgress));
-          }
-        }
-      });
-    }
-  });
-
-  // 地形bboxの計算
-  // biome-ignore lint/correctness/useExhaustiveDependencies: positionはデフォルト引数で変化しないがbbox再計算のトリガーとして必要
-  useEffect(() => {
-    if (terrainRef.current && isLoaded) {
-      const timer = setTimeout(() => {
-        if (terrainRef.current) {
-          const terrainBox = new THREE.Box3().setFromObject(terrainRef.current);
-          terrainBottomYRef.current = terrainBox.min.y;
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isLoaded, position]);
-
   // hiddenObjectsの変更を各メッシュのvisibleに反映
   const updateVisibility = useCallback(() => {
     for (const { name, object } of clonedMeshes) {
-      // RiverWaterはシーンに直接追加されるためここではスキップ
-      if (name === 'RiverWater') continue;
       object.visible = !(hiddenObjectsRef.current?.has(name) ?? false);
     }
   }, [clonedMeshes]);
@@ -451,12 +316,9 @@ export function LakeModel({
     );
   }
 
-  // RiverWater以外のメッシュをレンダリング（RiverWaterはuseEffectでシーンに直接追加）
-  const renderableMeshes = clonedMeshes.filter(m => m.name !== 'RiverWater');
-
   return (
     <group position={position} scale={scale} rotation={rotation} visible={visible}>
-      {isLoaded && renderableMeshes.map(({ name, object }) => (
+      {isLoaded && clonedMeshes.map(({ name, object }) => (
         <primitive
           key={name}
           ref={name === 'GroundModeling03_Scaling001' ? ((ref: THREE.Group | null) => {
