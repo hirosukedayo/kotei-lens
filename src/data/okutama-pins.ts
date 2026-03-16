@@ -873,7 +873,9 @@ export const okutamaPins: PinData[] = [
     "id": "117",
     "title": "馬渡戸橋",
     "type": "bridge",
-    "description": "河内から対岸の川崎・河内向さらに岫沢・日指への往来のために架けられた橋です。水没前に近代的な橋に架け代わりました。写真は古い木製の橋です。",
+    "description": "「またど」橋と読みます。河内から対岸の川崎・河内向さらに岫沢・日指への往来のために架けられた橋です。水没前に近代的な橋に架け代わりました。写真は古い木製の橋です。",
+    "externalUrl": "https://youtu.be/WqjpF6hbolM?si=hy28f7SwdILJrkA6&t=338",
+    "externalUrlTitle": "橋の爆破(youtube)",
     "image": "/images/117.jpg",
     "coordinates": [
       35.776324850203544,
