@@ -25,7 +25,7 @@ const SKIP_TYPES = new Set([]);
 
 // 有効なtype一覧
 const VALID_TYPES = new Set([
-  'interview', 'historical', 'folktale', 'heritage', 'current', 'parking', 'photo',
+  'interview', 'historical', 'folktale', 'heritage', 'current', 'parking', 'photo', 'bridge',
 ]);
 
 /**
