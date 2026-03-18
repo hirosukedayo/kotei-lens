@@ -76,14 +76,13 @@ export default function SensorPermissionRequest({
     checkSensorAvailability();
   }, [checkSensorAvailability]);
 
-  // 全許可チェック
+  // 全許可チェック（カメラは任意なので必須チェックから除外）
   useEffect(() => {
     const isGpsOk = !sensorStatus.gps.available || sensorStatus.gps.permission === 'granted';
     const isOrientationOk = !sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted';
     const isMotionOk = !sensorStatus.motion.available || sensorStatus.motion.permission === 'granted';
-    const isCameraOk = !sensorStatus.camera.available || sensorStatus.camera.permission === 'granted';
 
-    if (isGpsOk && isOrientationOk && isMotionOk && isCameraOk) {
+    if (isGpsOk && isOrientationOk && isMotionOk) {
       const timer = setTimeout(() => {
         onPermissionsGranted();
       }, 500);
@@ -196,7 +195,7 @@ export default function SensorPermissionRequest({
         ...prev,
         camera: { ...prev.camera, permission: 'denied', error: errMsg },
       }));
-      onPermissionsDenied?.([errMsg]);
+      // カメラは必須ではないため、拒否されてもonPermissionsDeniedを呼ばない
     } finally {
       setIsRequesting(false);
     }
@@ -206,10 +205,9 @@ export default function SensorPermissionRequest({
     onPermissionsGranted();
   };
 
-  // 全て許可されているかチェック（利用可能なものに限る）
+  // 必須センサーが全て許可されているかチェック（カメラは任意）
   const isAllGranted =
     (!sensorStatus.orientation.available || sensorStatus.orientation.permission === 'granted') &&
-    (!sensorStatus.camera.available || sensorStatus.camera.permission === 'granted') &&
     (!sensorStatus.motion.available || sensorStatus.motion.permission === 'granted') &&
     (!sensorStatus.gps.available || sensorStatus.gps.permission === 'granted');
 
@@ -267,7 +265,7 @@ export default function SensorPermissionRequest({
               isRequesting={isRequesting}
             />
 
-            {/* Camera */}
+            {/* Camera（任意） */}
             <PermissionItem
               icon={<FaCamera size={18} />}
               title="カメラ"
@@ -275,6 +273,7 @@ export default function SensorPermissionRequest({
               status={sensorStatus.camera}
               onClick={requestCameraPermission}
               isRequesting={isRequesting}
+              optional
             />
 
             {/* Orientation */}
@@ -384,6 +383,7 @@ function PermissionItem({
   status,
   onClick,
   isRequesting,
+  optional,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -391,87 +391,139 @@ function PermissionItem({
   status: { available: boolean; permission: string | PermissionState };
   onClick: () => void;
   isRequesting: boolean;
+  optional?: boolean;
 }) {
   const isGranted = status.permission === 'granted';
   const isDenied = status.permission === 'denied';
+  const [showSettingsHint, setShowSettingsHint] = useState(false);
 
   if (!status.available) return null;
 
-  const isClickable = !isGranted && !isDenied && !isRequesting;
+  // 任意のセンサーは拒否後も再クリック可能
+  const isClickable = !isGranted && !isRequesting && (!isDenied || !!optional);
+
+  const handleClick = () => {
+    if (!isClickable) return;
+    if (isDenied && optional) {
+      // ブラウザに拒否をキャッシュされている場合、再試行しても即失敗する
+      // → 設定案内を表示
+      setShowSettingsHint(true);
+    }
+    onClick();
+  };
 
   return (
-    <button
-      type="button"
-      onClick={isClickable ? onClick : undefined}
-      disabled={!isClickable}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '12px 14px',
-        minHeight: 0,
-        background: isGranted ? '#f0fdf4' : '#f9fafb',
-        borderRadius: 10,
-        border: isGranted ? '1px solid #bbf7d0' : '1px solid #e5e7eb',
-        cursor: isClickable ? 'pointer' : 'default',
-        transition: 'all 0.15s ease',
-        width: '100%',
-        textAlign: 'left',
-      }}
-    >
-      <div
+    <div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={!isClickable}
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: isGranted ? '#dcfce7' : '#f3f4f6',
-          color: isGranted ? '#16a34a' : '#6b7280',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 12,
-          flexShrink: 0,
+          padding: '12px 14px',
+          minHeight: 0,
+          background: isGranted ? '#f0fdf4' : '#f9fafb',
+          borderRadius: 10,
+          border: isGranted ? '1px solid #bbf7d0' : isDenied ? '1px solid #fecaca' : '1px solid #e5e7eb',
+          cursor: isClickable ? 'pointer' : 'default',
           transition: 'all 0.15s ease',
+          width: '100%',
+          textAlign: 'left',
         }}
       >
-        {isGranted ? <FaCheck size={14} /> : icon}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: isGranted ? '#166534' : '#111827', lineHeight: 1.4 }}>
-          {title}
-        </div>
         <div
           style={{
-            fontSize: 11,
-            color: isGranted ? '#16a34a' : '#9ca3af',
-            fontWeight: 500,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: isGranted ? '#dcfce7' : '#f3f4f6',
+            color: isGranted ? '#16a34a' : '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 12,
+            flexShrink: 0,
+            transition: 'all 0.15s ease',
           }}
         >
-          {isGranted ? '許可済み' : description}
+          {isGranted ? <FaCheck size={14} /> : icon}
         </div>
-      </div>
 
-      <div style={{ marginLeft: 10, flexShrink: 0 }}>
-        {isGranted ? null : isDenied ? (
-          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>拒否</span>
-        ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: isGranted ? '#166534' : '#111827', lineHeight: 1.4 }}>
+            {title}
+            {optional && !isGranted && (
+              <span style={{ fontSize: 11, fontWeight: 400, color: '#9ca3af', marginLeft: 6 }}>任意</span>
+            )}
+          </div>
           <div
             style={{
-              padding: '5px 14px',
-              background: '#111827',
-              color: '#ffffff',
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 600,
+              fontSize: 11,
+              color: isGranted ? '#16a34a' : '#9ca3af',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
-            許可
+            {isGranted ? '許可済み' : description}
           </div>
-        )}
-      </div>
-    </button>
+        </div>
+
+        <div style={{ marginLeft: 10, flexShrink: 0 }}>
+          {isGranted ? null : isDenied ? (
+            optional ? (
+              <div
+                style={{
+                  padding: '5px 14px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                再試行
+              </div>
+            ) : (
+              <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>拒否</span>
+            )
+          ) : (
+            <div
+              style={{
+                padding: '5px 14px',
+                background: '#111827',
+                color: '#ffffff',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              許可
+            </div>
+          )}
+        </div>
+      </button>
+      {showSettingsHint && isDenied && (
+        <div
+          style={{
+            marginTop: 6,
+            padding: '8px 12px',
+            background: '#fef3c7',
+            borderRadius: 8,
+            fontSize: 11,
+            color: '#92400e',
+            lineHeight: 1.6,
+          }}
+        >
+          {/iPhone|iPad|iPod/i.test(navigator.userAgent)
+            ? '「設定」→「Safari」→「カメラ」→「許可」に変更するか、「設定」→「Safari」→「Webサイトデータを消去」でリセットしてください。'
+            : /Android/i.test(navigator.userAgent)
+              ? 'Chromeの場合：アドレスバー左の🔒アイコン →「権限」→「カメラ」を許可に変更してください。'
+              : 'アドレスバー横の🔒アイコンからカメラを「許可」に変更してください。'}
+        </div>
+      )}
+    </div>
   );
 }
