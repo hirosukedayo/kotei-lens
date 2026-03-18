@@ -16,6 +16,8 @@ interface LakeModelProps {
   hiddenObjects?: Set<string>;
   /** FBX内のオブジェクト名リストが判明した時のコールバック */
   onObjectsLoaded?: (names: string[]) => void;
+  /** 地形全体の不透明度（0〜1、デフォルト1） */
+  opacity?: number;
 }
 
 // ベースパスを動的に取得
@@ -203,6 +205,7 @@ export function LakeModel({
   terrainScale = [1, 1, 1],
   hiddenObjects,
   onObjectsLoaded,
+  opacity = 1,
 }: LakeModelProps) {
   const terrainRef = useRef<THREE.Group>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -304,6 +307,26 @@ export function LakeModel({
   useEffect(() => {
     updateVisibility();
   }, [hiddenObjects, updateVisibility]);
+
+  // opacity変更時に全メッシュのマテリアルに反映
+  useEffect(() => {
+    for (const { object } of clonedMeshes) {
+      object.traverse((child: THREE.Object3D) => {
+        if (!(child instanceof THREE.Mesh) || !child.material) return;
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        for (const mat of materials) {
+          if (mat instanceof THREE.ShaderMaterial && mat.uniforms.uOpacity) {
+            // カスタムシェーダー（地形スプラットマテリアル）
+            mat.uniforms.uOpacity.value = opacity;
+          } else {
+            mat.transparent = true;
+            mat.opacity = opacity;
+          }
+          mat.needsUpdate = true;
+        }
+      });
+    }
+  }, [opacity, clonedMeshes]);
 
   if (error) {
     return (

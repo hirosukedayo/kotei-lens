@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 
 interface ARBackgroundProps {
     active?: boolean;
+    onCameraError?: () => void;
 }
 
-export default function ARBackground({ active = true }: ARBackgroundProps) {
+export default function ARBackground({ active = true, onCameraError }: ARBackgroundProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export default function ARBackground({ active = true }: ARBackgroundProps) {
             } catch (err) {
                 console.error('Error accessing camera:', err);
                 setError('カメラへのアクセスに失敗しました');
+                onCameraError?.();
             }
         };
 
@@ -43,9 +45,9 @@ export default function ARBackground({ active = true }: ARBackgroundProps) {
                 }
             }
         };
-    }, [active]);
+    }, [active, onCameraError]);
 
-    if (!active) return null;
+    if (!active || error) return null;
 
     return (
         <div
@@ -57,32 +59,17 @@ export default function ARBackground({ active = true }: ARBackgroundProps) {
                 backgroundColor: '#000',
             }}
         >
-            {error ? (
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: 'white',
-                        textAlign: 'center',
-                    }}
-                >
-                    {error}
-                </div>
-            ) : (
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                    }}
-                />
-            )}
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                }}
+            />
         </div>
     );
 }

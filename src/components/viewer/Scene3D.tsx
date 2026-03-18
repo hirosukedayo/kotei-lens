@@ -28,6 +28,7 @@ import {
   CAMERA_MIN_HEIGHT,
   PIN_HEIGHT_OFFSET,
   DEFAULT_FOV,
+  CALIBRATION_MODEL_OPACITY,
 } from '../../config/terrain-config';
 import OrientationCamera from '../ar/OrientationCamera';
 import ARBackground from '../ar/ARBackground';
@@ -107,12 +108,15 @@ export default function Scene3D({
   const [showDebug, setShowDebug] = useState(false);
   const { isDevMode } = useDevModeStore();
   const [isArBackgroundActive, setIsArBackgroundActive] = useState(true);
+  const [isCameraAvailable, setIsCameraAvailable] = useState(true);
   // キャリブレーションで算出した alpha→真北の補正値
   const [baseHeadingOffset, setBaseHeadingOffset] = useState(initialPosition?.headingOffset ?? 0);
   // 初期位置決定後かつ権限許可後にキャリブレーションを行う
   const [isCalibrated, setIsCalibrated] = useState(false);
   // 3Dビュー内から再調整する場合のフラグ（手動モードで直接開始）
   const [isRecalibrating, setIsRecalibrating] = useState(false);
+
+  const handleCameraError = useCallback(() => setIsCameraAvailable(false), []);
 
   const handleCalibrationComplete = useCallback((offset: number) => {
     if (isRecalibrating) {
@@ -380,7 +384,7 @@ export default function Scene3D({
   return (
     <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: 'transparent' }}>
       {/* AR背景: 権限許可後のみ表示して、重複許可要求（ブラウザダイアログ）を防ぐ */}
-      {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} />}
+      {isArBackgroundActive && isMobile && permissionGranted && <ARBackground active={true} onCameraError={handleCameraError} />}
 
       {/* ローディング画面 + 調整説明 */}
       <LoadingScreen
@@ -462,7 +466,8 @@ export default function Scene3D({
           )}
 
           {/* React Three Fiber標準のSkyコンポーネント - 広範囲のスカイボックス */}
-          {(!isArBackgroundActive || !isMobile) && (
+          {/* AR背景が非アクティブ、PC、またはカメラアクセス失敗時に表示 */}
+          {(!isArBackgroundActive || !isMobile || !isCameraAvailable) && (
             <Sky
               distance={50000} // 広範囲のスカイボックス（50km）
               sunPosition={[100, 50, 100]} // 太陽位置を調整
@@ -471,8 +476,8 @@ export default function Scene3D({
             />
           )}
 
-          {/* ARモード時は背景を確実に透明にする */}
-          {isArBackgroundActive && isMobile && <SceneBackgroundCleaner />}
+          {/* ARモード時かつカメラ利用可能時のみ背景を透明にする */}
+          {isArBackgroundActive && isMobile && isCameraAvailable && <SceneBackgroundCleaner />}
 
           {/* 環境マップ（反射などに使用）- 背景には表示しない */}
           <Environment preset="city" background={false} />
@@ -507,6 +512,7 @@ export default function Scene3D({
             })()}
             hiddenObjects={stableFbxHiddenObjects}
             onObjectsLoaded={handleFbxObjectsLoaded}
+            opacity={isRecalibrating && isArBackgroundActive && isCameraAvailable && isMobile ? CALIBRATION_MODEL_OPACITY : 1}
           />
 
           {/* 2Dマップ上のピン位置を3Dビューに表示 */}

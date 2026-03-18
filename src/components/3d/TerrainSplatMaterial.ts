@@ -56,6 +56,9 @@ const fragmentShader = /* glsl */ `
   uniform float uFogNear;
   uniform float uFogFar;
 
+  // 不透明度
+  uniform float uOpacity;
+
   varying vec2 vUvTiling;
   varying vec2 vUvProjection;
   varying vec4 vSplatColor;
@@ -113,7 +116,7 @@ const fragmentShader = /* glsl */ `
     float fogFactor = smoothstep(uFogNear, uFogFar, fogDepth);
     vec3 finalColor = mix(lit, uFogColor, fogFactor);
 
-    gl_FragColor = vec4(finalColor, 1.0);
+    gl_FragColor = vec4(finalColor, uOpacity);
   }
 `;
 
@@ -142,6 +145,7 @@ export function createTerrainSplatMaterial(basePath: string): THREE.ShaderMateri
   return new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
+    transparent: true,
     uniforms: {
       tGrass: { value: tGrass },
       tRiverRocks: { value: tRiverRocks },
@@ -163,6 +167,7 @@ export function createTerrainSplatMaterial(basePath: string): THREE.ShaderMateri
       uFogColor: { value: new THREE.Color('#c8ddf0') },
       uFogNear: { value: 0 },
       uFogFar: { value: 8000 },
+      uOpacity: { value: 1.0 },
     },
   });
 }
