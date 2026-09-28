@@ -112,4 +112,4 @@ pnpm dev
 | 範囲（経度） | 138.967 〜 139.097 |
 | 範囲（緯度） | 35.751 〜 35.822 |
 | ズームレベル | 12〜17 |
-| ベースマップ | CARTO light_nolabels |
+| ベースマップ | CARTO light_nolabels（API キー必須。`.env` の `VITE_CARTO_API_KEY` に設定、発行は https://carto.com/basemaps/apikey ） |

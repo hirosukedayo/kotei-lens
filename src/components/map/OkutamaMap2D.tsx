@@ -689,6 +689,13 @@ export default function OkutamaMap2D({
   const tilesBase = import.meta.env.BASE_URL || '/';
   const localTilesUrl = `${tilesBase}tiles/{z}/{x}/{y}.png`;
 
+  // ベースマップ: CARTO は 2026 年から API キー必須（https://carto.com/basemaps/apikey で無料発行）
+  // .env / GitHub Secrets の VITE_CARTO_API_KEY に設定する。未設定だと「API KEY REQUIRED」タイルが返る
+  const cartoApiKey: string | undefined = import.meta.env.VITE_CARTO_API_KEY;
+  const cartoTilesUrl =
+    'https://basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}{r}.png';
+  const baseTilesUrl = cartoApiKey ? `${cartoTilesUrl}?key=${cartoApiKey}` : cartoTilesUrl;
+
   // 固定の表示範囲（緯度経度）。
   // 体験エリア + 小河内神社 + その周辺を十分に含むよう、以前よりかなり広めに設定
   // south, west / north, east の順
@@ -774,14 +781,14 @@ export default function OkutamaMap2D({
         <MapRefBinder />
         <MapTouchGuard disabled={imageOverlayOpen} />
 
-        {/* ベース: CARTO ダークスタイル（dark_nolabels, OSMベース） */}
+        {/* ベース: CARTO light_nolabels（OSMベース、API キー必須） */}
         <MapClickHandler
           onMapClick={handleMapClick}
           pins={isDevMode ? [...okutamaPins, ...debugPins] : okutamaPins}
           onPinClick={handlePinClick}
         />
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+          url={baseTilesUrl}
           className="base-tiles"
           maxNativeZoom={18}
           maxZoom={20}
